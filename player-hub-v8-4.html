@@ -2325,6 +2325,86 @@ function renderAllenamentoDetails(event){
   });
 }
 
+function showWorkoutDetailsModal(workout){
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10001;padding:20px;box-sizing:border-box;overflow-y:auto;';
+  
+  let detailsHTML = '';
+  
+  if(workout.category === 'Tecnico-tattico'){
+    detailsHTML = `
+      <div style="margin-bottom:12px;"><strong>Squadre:</strong> ${workout.teamsPlayers?.map(tp=>`Sq${tp.teamNumber}: ${tp.players}`).join(' | ')}</div>
+      <div style="margin-bottom:12px;"><strong>Con portieri:</strong> ${workout.withGoalkeepers ? 'Sì' : 'No'}</div>
+      <div style="margin-bottom:12px;"><strong>Totale giocatori:</strong> ${workout.totalPlayers}</div>
+      <div style="margin-bottom:12px;"><strong>Campo:</strong> ${workout.fieldLength}×${workout.fieldWidth}m</div>
+      <div style="margin-bottom:12px;"><strong>m²/giocatore:</strong> ${workout.squareMetersPerPlayer}</div>
+      <div style="margin-bottom:12px;"><strong>Durata:</strong> ${workout.series}×${workout.minutesPerSeries}min + ${workout.recovery}min recupero</div>
+    `;
+  } else if(workout.type === 'Forza massima'){
+    detailsHTML = `
+      <div style="margin-bottom:12px;"><strong>Esercizio:</strong> ${esc(workout.exercise)}</div>
+      <div style="margin-bottom:12px;"><strong>Serie:</strong> ${workout.series}×${workout.reps} ripetizioni</div>
+      <div style="margin-bottom:12px;"><strong>Recupero:</strong> ${workout.recovery}min</div>
+    `;
+  } else if(workout.type.includes('Intermittente') || workout.type.includes('Lavoro intermittente') || workout.type === 'Differenziato' || workout.type.includes('HIIT')){
+    detailsHTML = `
+      <div style="margin-bottom:12px;"><strong>Serie:</strong> ${workout.series} × ${workout.minutesPerSeries}min</div>
+      <div style="margin-bottom:12px;"><strong>Recupero:</strong> ${workout.recovery}min</div>
+    `;
+  } else if(workout.type === 'Resistenza aerobica a secco'){
+    detailsHTML = `
+      <div style="margin-bottom:12px;"><strong>Durata:</strong> ${workout.minutes}min</div>
+    `;
+  } else if(workout.type.includes('Speed') || workout.type.includes('Cambi')){
+    detailsHTML = `
+      <div style="margin-bottom:12px;"><strong>Serie:</strong> ${workout.series} × ${workout.distance}m</div>
+      <div style="margin-bottom:12px;"><strong>Recupero:</strong> ${workout.recovery}min</div>
+    `;
+  } else if(workout.minutes){
+    detailsHTML = `
+      <div style="margin-bottom:12px;"><strong>Durata:</strong> ${workout.minutes}min</div>
+    `;
+  }
+  
+  modal.innerHTML = `
+    <div style="background:white;border-radius:12px;max-width:500px;width:100%;padding:24px;margin:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
+        <div>
+          <h2 style="margin:0 0 4px 0;color:var(--pitch);">🏋️ ${esc(workout.name)}</h2>
+          <div style="font-size:12px;color:var(--ink-soft);">${esc(workout.category)} · ${esc(workout.type)}</div>
+        </div>
+        <button id="closeDetailsModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">✕</button>
+      </div>
+      
+      <div style="background:var(--chalk);padding:16px;border-radius:8px;margin-bottom:16px;border-left:4px solid var(--amber);">
+        <div style="font-size:14px;margin-bottom:8px;font-weight:600;color:var(--pitch);">Dettagli</div>
+        ${detailsHTML || '<div style="font-size:12px;color:#999;">Nessun dettaglio disponibile</div>'}
+      </div>
+      
+      ${workout.groups && workout.groups.length > 0 ? `
+        <div style="background:var(--chalk);padding:16px;border-radius:8px;margin-bottom:16px;">
+          <div style="font-size:14px;margin-bottom:8px;font-weight:600;color:var(--pitch);">Gruppi</div>
+          ${workout.groups.map(g=>`
+            <div style="padding:8px;background:white;border-radius:4px;margin-bottom:6px;font-size:12px;">
+              <strong>${esc(g.name)}</strong> (${g.players.length} giocatori)
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+      
+      <div style="text-align:right;">
+        <button id="closeDetailsBtnOk" class="btn" style="padding:8px 20px;">Chiudi</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  document.getElementById('closeDetailsModal').addEventListener('click', () => modal.remove());
+  document.getElementById('closeDetailsBtnOk').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => { if(e.target === modal) modal.remove(); });
+}
+
 function renderEditAllenamentoModal(event){
   const modal = document.createElement('div');
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;box-sizing:border-box;overflow-y:auto;';
@@ -2347,11 +2427,11 @@ function renderEditAllenamentoModal(event){
             ${event.workoutIds.map(wid => {
               const workout = STATE.workouts.find(w => w.id === wid);
               return workout ? `
-                <div style="padding:8px;background:var(--chalk);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
-                  <div style="font-size:12px;">
+                <div style="padding:8px;background:var(--chalk);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:all 0.2s;" class="workout-preview" data-workout-id="${wid}">
+                  <div style="font-size:12px;flex:1;">
                     <strong>${esc(workout.name)}</strong> (${calcWorkoutDuration(workout)}min)
                   </div>
-                  <button class="del-workout-from-event" data-workout-id="${wid}" style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;">✕</button>
+                  <button class="del-workout-from-event" data-workout-id="${wid}" style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;" onclick="event.stopPropagation();">✕</button>
                 </div>
               ` : '';
             }).join('')}
@@ -2389,6 +2469,15 @@ function renderEditAllenamentoModal(event){
       const wid = btn.dataset.workoutId;
       event.workoutIds = event.workoutIds.filter(id => id !== wid);
       renderEditAllenamentoModal(event);
+    });
+  });
+  
+  // Click on workout to see details
+  modal.querySelectorAll('.workout-preview').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const wid = el.dataset.workoutId;
+      const workout = STATE.workouts.find(w => w.id === wid);
+      if(workout) showWorkoutDetailsModal(workout);
     });
   });
   
