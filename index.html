@@ -1,0 +1,2937 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TEAM HUB PRO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pitch: #1A1A1A;
+    --pitch-dark: #0D0D0D;
+    --chalk: #F4F1E8;
+    --paper: #FFFFFF;
+    --amber: #C9922B;
+    --amber-dark: #9C6E1C;
+    --clay: #B5473A;
+    --clay-soft: #F0DAD6;
+    --ok: #404040;
+    --line: #DCD6C4;
+    --ink: #000000;
+    --ink-soft: #333333;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--chalk);color:var(--ink);font-family:'Inter',sans-serif;}
+  h1,h2,h3{font-family:'Oswald',sans-serif;letter-spacing:0.01em;}
+  button{font-family:'Inter',sans-serif;cursor:pointer;}
+  input,select,textarea{font-family:'Inter',sans-serif;}
+
+  .app{display:flex;min-height:100vh;}
+  .login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:var(--pitch);color:var(--chalk);padding:20px;}
+  .login-card{background:var(--paper);color:var(--ink);border-radius:var(--radius);padding:40px;max-width:380px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.2);}
+  .login-card h1{margin-top:0;font-size:24px;text-align:center;color:var(--pitch);}
+  .login-logo{width:72px;height:72px;border-radius:50%;background:var(--amber);margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--pitch-dark);}
+  .login-form label{display:block;font-size:13px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;margin-top:12px;}
+  .login-form input,.login-form select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);font-size:14px;}
+  .login-form input:focus,.login-form select:focus{outline:2px solid var(--amber);outline-offset:0;border-color:var(--amber);}
+  .login-btn{width:100%;padding:12px;background:var(--pitch);color:var(--chalk);border:none;border-radius:var(--radius-sm);font-weight:600;margin-top:18px;cursor:pointer;}
+  .login-btn:hover{background:var(--pitch-dark);}
+
+  .sidebar{width:220px;flex-shrink:0;background:var(--pitch);color:var(--chalk);display:flex;flex-direction:column;padding:20px 0;}
+  .brand{display:flex;align-items:center;gap:10px;padding:0 18px 20px 18px;border-bottom:1px solid rgba(244,241,232,0.14);margin-bottom:14px;}
+  .brand-logo{width:38px;height:38px;border-radius:50%;background:var(--amber);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Oswald';font-weight:700;color:var(--pitch-dark);font-size:15px;}
+  .brand-name{font-family:'Oswald';font-size:17px;font-weight:600;}
+  .brand-sub{font-size:10.5px;color:#B9C6BC;text-transform:uppercase;letter-spacing:0.08em;}
+
+  .nav{display:flex;flex-direction:column;gap:2px;padding:0 10px;flex:1;}
+  .nav-btn{display:flex;align-items:center;gap:10px;padding:10px 12px;border:none;background:transparent;color:#CFD8CC;border-radius:var(--radius-sm);text-align:left;font-size:14px;font-weight:500;}
+  .nav-btn:hover{background:rgba(244,241,232,0.08);}
+  .nav-btn.active{background:var(--amber);color:var(--pitch-dark);font-weight:600;}
+
+  .sidebar-foot{padding:12px 18px 0 18px;font-size:11px;color:#8DA095;border-top:1px solid rgba(244,241,232,0.1);margin-top:10px;padding-top:12px;}
+  .logout-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(244,241,232,0.2);color:var(--chalk);padding:8px 12px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;margin-top:8px;width:100%;}
+  .logout-btn:hover{background:rgba(255,255,255,0.15);}
+
+  .main{flex:1;padding:32px 40px;max-width:1200px;overflow-y:auto;}
+  .page-head{margin-bottom:24px;}
+  .page-head h1{font-size:26px;margin:0 0 4px 0;color:var(--pitch);}
+  .page-head p{margin:0;color:var(--ink-soft);font-size:14px;}
+
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:18px;}
+  .card h3{margin:0 0 14px 0;font-size:15px;color:var(--pitch);}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+  @media (max-width:900px){.grid2,.grid3{grid-template-columns:1fr;}}
+
+  label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;margin-top:12px;}
+  label:first-child{margin-top:0;}
+  input[type=text],input[type=number],input[type=date],select,textarea{
+    width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:var(--radius-sm);font-size:14px;color:var(--ink);
+  }
+  input[type=range]{
+    width:100%;height:6px;border-radius:3px;background:var(--line);outline:none;-webkit-appearance:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:var(--amber);cursor:pointer;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:18px;height:18px;border-radius:50%;background:var(--amber);cursor:pointer;border:none;
+  }
+  textarea{resize:vertical;min-height:60px;}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--amber);outline-offset:0;border-color:var(--amber);}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:var(--radius-sm);border:1px solid var(--pitch);background:var(--pitch);color:var(--chalk);font-size:13.5px;font-weight:600;}
+  .btn:hover{background:var(--pitch-dark);}
+  .btn.secondary{background:var(--paper);color:var(--pitch);border-color:var(--line);}
+  .btn.secondary:hover{background:#F2EFE4;}
+  .btn-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th{text-align:left;padding:8px 10px;color:var(--ink-soft);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--line);}
+  td{padding:9px 10px;border-bottom:1px solid #EEEAD9;}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:#FAF8F0;}
+
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:600;}
+  .badge.ok{background:#E3EFE7;color:var(--ok);}
+  .badge.warn{background:#F7EAD3;color:var(--amber-dark);}
+  .badge.bad{background:var(--clay-soft);color:var(--clay);}
+
+  .stat-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;}
+  .stat{flex:1;min-width:140px;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;cursor:pointer;transition:all 0.2s;}
+  .stat:hover{border-color:var(--amber);box-shadow:0 2px 8px rgba(0,0,0,0.08);}
+  .stat .num{font-family:'Oswald';font-size:28px;color:var(--pitch);}
+  .stat .lbl{font-size:12px;color:var(--ink-soft);margin-top:4px;}
+
+  .empty{text-align:center;padding:40px 20px;color:var(--ink-soft);}
+
+  .workout-item{border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px;background:var(--chalk);}
+  .workout-item h4{margin:0 0 6px 0;font-size:13px;color:var(--pitch);font-weight:600;}
+  .workout-item-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;font-size:12px;margin-bottom:4px;}
+  .workout-item-val{color:var(--amber);font-weight:600;}
+
+  .session-exercise{border:1px solid var(--amber);border-left:4px solid var(--amber);padding:8px;margin-bottom:6px;background:#FFF9F0;font-size:12px;}
+  .session-exercise-name{font-weight:600;color:var(--pitch);margin-bottom:2px;}
+  .session-exercise-detail{color:var(--ink-soft);font-size:11px;}
+
+  .checkbox-group{border:1px solid var(--line);border-radius:var(--radius);padding:12px;background:var(--chalk);max-height:300px;overflow-y:auto;}
+  .checkbox-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #EEEAD9;}
+  .checkbox-item:last-child{border-bottom:none;}
+  .checkbox-item input{width:auto;margin:0;}
+  .checkbox-item label{margin:0;font-weight:400;}
+</style>
+
+<!-- Firebase SDK (Compat version) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-compat.js"></script>
+
+</head>
+<body>
+
+<div id="root"></div>
+
+<script>
+// ========== FIREBASE CONFIG (inizializzazione differita) ==========
+const firebaseConfig = {
+  apiKey: "AIzaSyDHYQPHYF2xbarVpmU_HQuLy3nHzY_mw6o",
+  authDomain: "team-hub-pro-f72ab.firebaseapp.com",
+  projectId: "team-hub-pro-f72ab",
+  storageBucket: "team-hub-pro-f72ab.firebasestorage.app",
+  messagingSenderId: "684984511052",
+  appId: "1:684984511052:web:3ebce8fc0d7e790c8562e9"
+};
+
+let app = null;
+let db = null;
+const TEAM_ID = 'alense';
+
+// Inizializza Firebase quando gli SDK sono pronti
+function initFirebase(){
+  try{
+    if(window.firebase){
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      console.log('✅ Firebase inizializzato (compat)');
+    }else{
+      console.warn('⚠️ Firebase SDK non disponibile');
+    }
+  }catch(err){
+    console.error('❌ Errore inizializzazione Firebase:', err.message);
+  }
+}
+
+// ========== END FIREBASE CONFIG ==========
+
+const NAV_STAFF = [
+  {id:'dashboard', label:'Dashboard', icon:'📊'},
+  {id:'giocatori', label:'Giocatori', icon:'👥'},
+  {id:'test', label:'Test', icon:'📈'},
+  {id:'allenamenti', label:'Allenamenti', icon:'🎯'},
+  {id:'calendario', label:'Calendario', icon:'📅'},
+  {id:'impostazioni', label:'Impostazioni', icon:'⚙️'},
+];
+
+const NAV_PLAYER = [
+  {id:'wellness', label:'Wellness', icon:'📊'},
+  {id:'calendario', label:'Calendario', icon:'📅'},
+];
+
+const NAV_ADMIN = [
+  {id:'dashboard', label:'Dashboard', icon:'📊'},
+  {id:'giocatori', label:'Giocatori', icon:'👥'},
+  {id:'test', label:'Test', icon:'📈'},
+  {id:'allenamenti', label:'Allenamenti', icon:'🎯'},
+  {id:'calendario', label:'Calendario', icon:'📅'},
+  {id:'impostazioni', label:'Impostazioni Staff', icon:'⚙️'},
+  {id:'impostazioniAdmin', label:'Impostazioni Admin', icon:'🔐'},
+];
+
+const ALENSE_PLAYERS = [
+  {name:'Addio Gianluca', birthDate:'2001-05-30', role:'Difensore'},
+  {name:'Bandera Patrick', birthDate:'1996-05-03', role:'Centrocampista'},
+  {name:'Benedetti Leonardo', birthDate:'2003-12-08', role:'Difensore'},
+  {name:'Bendignon Enrico', birthDate:'1994-07-22', role:'Portiere'},
+  {name:'Braghin Davide', birthDate:'2010-06-04', role:'Portiere'},
+  {name:'Carminelli Luca', birthDate:'2003-02-27', role:'Centrocampista'},
+  {name:'Dishlischel Tommaso', birthDate:'2001-05-18', role:'Difensore'},
+  {name:'Devigli Elia', birthDate:'2000-09-17', role:'Difensore'},
+  {name:'Emanuelli Manuel', birthDate:'2003-11-07', role:'Difensore'},
+  {name:'Fiorini Davide', birthDate:'2002-05-16', role:'Attaccante'},
+  {name:'Guzzo Simone', birthDate:'1999-08-05', role:'Attaccante'},
+  {name:'Manfredi Andrea', birthDate:'2004-04-10', role:'Difensore'},
+  {name:'Menegot Luca', birthDate:'1998-01-26', role:'Centrocampista'},
+  {name:'Morandini Andrea', birthDate:'1999-08-20', role:'Difensore'},
+  {name:'Passaletti Lorenzo', birthDate:'1995-05-02', role:'Attaccante'},
+  {name:'Pereira Mariano Gabriel', birthDate:'2003-05-02', role:'Attaccante'},
+  {name:'Rizzi Davide', birthDate:'1996-01-30', role:'Difensore'},
+  {name:'Simonini Matteo', birthDate:'1997-08-01', role:'Centrocampista'},
+  {name:'Stada Leonardo', birthDate:'2002-07-10', role:'Difensore'},
+  {name:'Trainotti Christian', birthDate:'2002-09-10', role:'Attaccante'},
+  {name:'Trainotti Filippo', birthDate:'1997-10-10', role:'Attaccante'},
+  {name:'Valentini Roberto', birthDate:'2000-06-27', role:'Centrocampista'},
+  {name:'Vigorito Giacomo', birthDate:'1997-05-30', role:'Difensore'},
+];
+
+const TEST_SPECS = {
+  '30-15 Intermittent': {unit: 'km/h', description: 'Boucheit – Velocità massima raggiunta'},
+  'Yo-Yo IR1': {unit: 'm', description: 'Distanza totale percorsa'},
+  'Yo-Yo IR2': {unit: 'm', description: 'Distanza totale percorsa'},
+  'Sprint 20m': {unit: 's', description: 'Tempo al decimo'},
+  'Sprint 30m': {unit: 's', description: 'Tempo al decimo'},
+  'CMJ': {unit: 'cm', description: 'Countermovement Jump – Altezza salto'},
+  'SJ': {unit: 'cm', description: 'Squat Jump – Altezza salto'},
+  '1RM Squat': {unit: 'kg', description: 'Massimale raggiunto'},
+  'T-Test COD': {unit: 's', description: 'Change of direction – Tempo al decimo'},
+  'Navetta 5-10-15m': {unit: 's', description: 'Tempo al decimo'},
+  'Tecnico': {unit: 'punteggio (0-10)', description: 'Valutazione tecnico/tattica'},
+};
+
+const BODY_ZONES = [
+  'Testa',
+  'Collo',
+  'Spalla Destra',
+  'Spalla Sinistra',
+  'Gomito Destro',
+  'Gomito Sinistro',
+  'Polso Destro',
+  'Polso Sinistro',
+  'Mano/Dita Destra',
+  'Mano/Dita Sinistra',
+  'Petto',
+  'Schiena Alta Destra',
+  'Schiena Alta Centrale',
+  'Schiena Alta Sinistra',
+  'Schiena Bassa Destra',
+  'Schiena Bassa Centrale',
+  'Schiena Bassa Sinistra',
+  'Fianco Destro',
+  'Fianco Sinistro',
+  'Addominali',
+  'Anca Destra',
+  'Anca Sinistra',
+  'Coscia Destra',
+  'Coscia Sinistra',
+  'Bicipite Femorale Destro',
+  'Bicipite Femorale Sinistro',
+  'Ginocchio Destro',
+  'Ginocchio Sinistro',
+  'Polpaccio Destro',
+  'Polpaccio Sinistro',
+  'Caviglia Destra',
+  'Caviglia Sinistra',
+  'Piede Destro',
+  'Piede Sinistro',
+];
+
+const PAIN_TYPES = [
+  'Acuto',
+  'Sordo',
+  'Lancinante',
+  'Bruciore',
+  'Rigidità',
+  'Gonfiore',
+  'Instabilità',
+  'Affaticamento',
+];
+
+const WORKOUT_CATEGORIES = {
+  'Tecnico-tattico': [
+    'Tecnica analitica',
+    'Tecnica applicata',
+    'Rondo (Torelli)',
+    'Giochi di posizione (Position Games)',
+    'Small Sided Games (SSG)',
+    'Medium Sided Games (MSG)',
+    'Large Sided Games (LSG)',
+    'Tattica in fase di possesso',
+    'Tattica in fase di non possesso',
+    'Transizioni positive',
+    'Transizioni negative',
+    'Esercitazioni a specchio / Ombra',
+    'Fase di finalizzazione',
+    'Calci piazzati a favore',
+    'Calci piazzati a sfavore',
+    'Allenamento specifico per ruolo',
+    'Partita a tema',
+    'Match analysis sul campo',
+    'Partita in famiglia',
+    'Test tecnico-coordinativi',
+  ],
+  'Atletico': [
+    'Riscaldamento generale (Warm-up)',
+    'Riscaldamento coordinativo',
+    'Core stability e propriocezione',
+    'Prevenzione infortuni (Screening e protocolli)',
+    'Forza massima',
+    'Forza esplosiva e pliometria',
+    'Forza resistente',
+    'Speed & Agility (Velocità pura)',
+    'Cambi di direzione (COD)',
+    'Resistenza aerobica a secco',
+    'Potenza metabolica ed High-Intensity Interval Training (HIIT)',
+    'Lavoro intermittente',
+    'Differenziato',
+    'Rigenerazione e scarico (Recovery)',
+    'Test del Lattato (Test di Mader)',
+    'Yo-Yo Intermittent Recovery Test',
+    'Test di Cooper o Test dei 3000 metri',
+    'Gacon Test (Test dei 45 metri)',
+    'Test di scatto sui 10 e 30 metri (Fotocellule)',
+    'Test di agilità (Illinois Test / 505 Test)',
+    'Countermovement Jump (CMJ) / Test di Bosco',
+  ]
+};
+
+const ATHLETIC_PARAMS = {
+  'Riscaldamento generale (Warm-up)': {fields: ['minutes']},
+  'Riscaldamento coordinativo': {fields: ['series', 'minutes', 'recovery']},
+  'Core stability e propriocezione': {fields: ['series', 'minutes', 'recovery']},
+  'Prevenzione infortuni (Screening e protocolli)': {fields: ['minutes']},
+  'Forza massima': {fields: ['exercise', 'series', 'reps', 'recovery']},
+  'Forza esplosiva e pliometria': {fields: ['series', 'reps', 'recovery']},
+  'Forza resistente': {fields: ['series', 'minutes', 'recovery']},
+  'Speed & Agility (Velocità pura)': {fields: ['series', 'distance', 'recovery']},
+  'Cambi di direzione (COD)': {fields: ['series', 'distance', 'recovery']},
+  'Resistenza aerobica a secco': {fields: ['minutes'], groups: true},
+  'Potenza metabolica ed High-Intensity Interval Training (HIIT)': {fields: ['series', 'minutesPerSeries', 'recovery'], groups: true},
+  'Lavoro intermittente': {fields: ['series', 'minutesPerSeries', 'recovery'], groups: true},
+  'Differenziato': {fields: ['series', 'minutesPerSeries', 'recovery'], groups: true},
+  'Rigenerazione e scarico (Recovery)': {fields: ['minutes']},
+  'Test del Lattato (Test di Mader)': {fields: ['description']},
+  'Yo-Yo Intermittent Recovery Test': {fields: ['description']},
+  'Test di Cooper o Test dei 3000 metri': {fields: ['description']},
+  'Gacon Test (Test dei 45 metri)': {fields: ['description']},
+  'Test di scatto sui 10 e 30 metri (Fotocellule)': {fields: ['description']},
+  'Test di agilità (Illinois Test / 505 Test)': {fields: ['description']},
+  'Countermovement Jump (CMJ) / Test di Bosco': {fields: ['description']},
+};
+
+const FORCE_EXERCISES = ['Squat', 'Stacchi', 'Panca', 'Trazioni', 'Leg Press', 'Chest Press', 'Lat Machine', 'Leg Curl', 'Adduttori'];
+
+let STATE = {
+  loggedIn: false,
+  role: null,
+  currentPlayerId: null,
+  currentPlayerName: null,
+  page: 'dashboard',
+  teamConfig: {name:'Alense'},
+  players: [],
+  workouts: [],
+  events: [],
+  tests: [],
+  rpeLog: [],
+  hooperLog: [],
+  painLog: [],
+  loading: true,
+  staffPassword: 'staff',
+  adminPassword: 'admin2024',
+};
+
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function fmtDate(d){
+  const dt = new Date(d+'T00:00:00');
+  return dt.toLocaleDateString('it-IT', {day:'2-digit', month:'short', year:'numeric'});
+}
+function calcAge(birthDateStr){
+  const today = new Date();
+  const birth = new Date(birthDateStr);
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if(m<0 || (m===0 && today.getDate()<birth.getDate())) age--;
+  return age;
+}
+function daysAgo(n){
+  const d = new Date();
+  d.setDate(d.getDate()-n);
+  return d.toISOString().slice(0,10);
+}
+
+// ========== STORAGE FUNCTIONS (localStorage + Firestore) ==========
+async function saveKey(key, value){
+  // Salva SEMPRE su localStorage (locale)
+  try{
+    localStorage.setItem(key, JSON.stringify(value));
+    console.log('✅ Salvato localStorage:', key);
+  }catch(e){
+    console.error('❌ Errore localStorage:', e.message);
+  }
+  
+  // Prova a sincronizzare su Firestore (opzionale)
+  if(db && TEAM_ID){
+    try{
+      await db.collection('teams').doc(TEAM_ID).collection('data').doc(key).set({
+        value: value,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        playerId: STATE.currentPlayerId || 'admin'
+      });
+      console.log('📡 Sincronizzato Firestore:', key);
+    }catch(e){
+      console.warn('⚠️ Sync Firestore fallito:', e.message);
+    }
+  }
+}
+
+async function loadKey(key, fallback){
+  let result = fallback;
+  
+  // Prova a caricare da localStorage PRIMA (è il source of truth)
+  try{
+    const stored = localStorage.getItem(key);
+    if(stored){
+      result = JSON.parse(stored);
+      console.log('✅ Caricato localStorage:', key);
+      return result;
+    }
+  }catch(e){
+    console.warn('⚠️ Errore lettura localStorage:', e.message);
+  }
+  
+  // Se non c'è su localStorage, prova Firestore
+  if(db && TEAM_ID){
+    try{
+      const doc = await db.collection('teams').doc(TEAM_ID).collection('data').doc(key).get();
+      if(doc.exists){
+        result = doc.data().value;
+        // Salva su localStorage per la prossima volta
+        localStorage.setItem(key, JSON.stringify(result));
+        console.log('📡 Caricato da Firestore, salvato in cache:', key);
+        return result;
+      }
+    }catch(e){
+      console.warn('⚠️ Errore Firestore:', e.message);
+    }
+  }
+  
+  return result;
+}
+// ========== END STORAGE ==========
+
+let toastTimeout=null;
+function showToast(msg){
+  let el = document.getElementById('toast');
+  if(!el){
+    el = document.createElement('div');
+    el.id='toast';
+    el.className='toast';
+    el.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--pitch);color:var(--chalk);padding:12px 18px;border-radius:var(--radius-sm);font-size:13.5px;z-index:60;box-shadow:0 4px 16px rgba(0,0,0,0.2);font-family:Inter;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.display='block';
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(()=>{ el.style.display='none'; }, 2600);
+}
+
+async function loadAll(){
+  STATE.teamConfig = await loadKey('team-config', {name:'Alense'});
+  STATE.players = await loadKey('players', []);
+  
+  if(STATE.players.length===0){
+    STATE.players = ALENSE_PLAYERS.map(p=>({
+      id:uid(), 
+      name:p.name, 
+      birthDate:p.birthDate, 
+      role:p.role, 
+      password: p.name.split(' ')[0].toLowerCase() + '2024',
+      status: 'Disponibile'
+    }));
+    await saveKey('players', STATE.players);
+  }else{
+    STATE.players.forEach(p=>{ if(!p.status) p.status = 'Disponibile'; });
+  }
+
+  STATE.workouts = await loadKey('workouts', []);
+  STATE.events = await loadKey('events', []);
+  STATE.tests = await loadKey('tests', []);
+  STATE.rpeLog = await loadKey('rpe-log', []);
+  STATE.hooperLog = await loadKey('hooper-log', []);
+  STATE.painLog = await loadKey('pain-log', []);
+  STATE.staffPassword = await loadKey('staff-password', 'staff');
+  STATE.adminPassword = await loadKey('admin-password', 'admin2024');
+  STATE.loading = false;
+  console.log('📦 Tutti i dati caricati');
+  return true;
+}
+
+function login(role, identifier){
+  if(role==='admin'){
+    if(identifier === STATE.adminPassword){
+      STATE.loggedIn = true;
+      STATE.role = 'admin';
+      STATE.page = 'impostazioni';
+    }else{
+      showToast('Password amministratore non corretta');
+      return;
+    }
+  }else if(role==='staff'){
+    if(identifier === STATE.staffPassword){
+      STATE.loggedIn = true;
+      STATE.role = 'staff';
+      STATE.page = 'dashboard';
+    }else{
+      showToast('Codice staff non corretto');
+      return;
+    }
+  }else if(role==='player'){
+    const player = STATE.players.find(p=>String(p.id)===String(identifier));
+    console.log('Player login attempt - identifier:', identifier, 'found player:', player);
+    if(player){
+      STATE.loggedIn = true;
+      STATE.role = 'player';
+      STATE.currentPlayerId = player.id;
+      STATE.currentPlayerName = player.name;
+      STATE.page = 'wellness';
+      console.log('Player logged in:', STATE.currentPlayerId, STATE.currentPlayerName);
+    }else{
+      showToast('Giocatore non trovato');
+      return;
+    }
+  }
+  render();
+}
+
+function logout(){
+  STATE.loggedIn = false;
+  STATE.role = null;
+  STATE.currentPlayerId = null;
+  STATE.currentPlayerName = null;
+  STATE.page = 'dashboard';
+  render();
+}
+
+function setPage(p){ STATE.page = p; render(); }
+function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function calcWorkoutDuration(workout){
+  if(workout.category==='Tecnico-tattico'){
+    const series = workout.series || 1;
+    const minutesPerSeries = workout.minutesPerSeries || 1;
+    const recovery = workout.recovery || 0;
+    return (series * minutesPerSeries) + ((series-1) * recovery);
+  }
+  if(workout.category==='Atletico'){
+    const type = workout.type;
+    if(type==='Riscaldamento coordinativo' || type==='Core stability e propriocezione' || type==='Forza resistente' || type==='Potenza metabolica ed High-Intensity Interval Training (HIIT)' || type==='Lavoro intermittente'){
+      return (workout.series * workout.minutesPerSeries) + ((workout.series-1) * workout.recovery);
+    }else if(type==='Speed & Agility (Velocità pura)' || type==='Cambi di direzione (COD)' || type==='Forza massima'){
+      return (workout.series * 1) + ((workout.series-1) * workout.recovery);
+    }else if(type==='Riscaldamento generale (Warm-up)' || type==='Prevenzione infortuni (Screening e protocolli)' || type==='Resistenza aerobica a secco' || type==='Rigenerazione e scarico (Recovery)'){
+      return workout.minutes || 0;
+    }else if(type.startsWith('Test')){
+      return 0; // Test non hanno durata calcolata
+    }
+  }
+  return 0;
+}
+
+function getSessionDuration(session){
+  if(!session.workoutIds) return 0;
+  return session.workoutIds.reduce((sum, wid)=>{
+    const w = STATE.workouts.find(wo=>wo.id===wid);
+    return sum + (w ? calcWorkoutDuration(w) : 0);
+  }, 0);
+}
+
+function playerLoadStats(playerId){
+  const entries = STATE.rpeLog.filter(r=>r.playerId===playerId);
+  const acuteFrom = daysAgo(7), chronicFrom = daysAgo(28);
+  
+  let acute = entries.filter(e=>e.date>=acuteFrom).reduce((s,e)=>{
+    const evt = STATE.events.find(ev=>ev.id===e.sessionId);
+    const duration = evt ? getSessionDuration(evt) : 0;
+    return s+(e.rpe*duration);
+  },0);
+  
+  const chronicSum = entries.filter(e=>e.date>=chronicFrom).reduce((s,e)=>{
+    const evt = STATE.events.find(ev=>ev.id===e.sessionId);
+    const duration = evt ? getSessionDuration(evt) : 0;
+    return s+(e.rpe*duration);
+  },0);
+  
+  const chronicWeekly = chronicSum/4;
+  const acwr = chronicWeekly>0 ? (acute/chronicWeekly) : (acute>0?2:0);
+  return {acute, chronicWeekly, acwr};
+}
+
+function getLatestHooperIndex(playerId){
+  const entries = STATE.hooperLog.filter(h=>h.playerId===playerId).sort((a,b)=>b.date.localeCompare(a.date));
+  if(entries.length===0) return null;
+  const latest = entries[0];
+  const total = (latest.stress || 0) + (latest.sleep || 0) + (latest.muscles || 0) + (latest.mood || 0);
+  const percentage = Math.round(total / 20 * 100);
+  return {date: latest.date, percentage, data: latest};
+}
+
+function render(){
+  const root = document.getElementById('root');
+  if(STATE.loading){
+    root.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Inter;color:#5C6459;">Caricamento...</div>';
+    return;
+  }
+  if(!STATE.loggedIn){
+    renderLogin(root);
+    return;
+  }
+  const navItems = STATE.role==='staff' ? NAV_STAFF : STATE.role==='admin' ? NAV_ADMIN : NAV_PLAYER;
+  root.innerHTML = `
+    <div class="app">
+      <div class="sidebar">
+        <div class="brand">
+          <div>
+            <div class="brand-name" style="font-size:20px;letter-spacing:0.05em;">TEAM HUB PRO</div>
+            <div class="brand-sub">${STATE.role==='staff'?'Staff':STATE.role==='admin'?'Amministratore':'Atleta'}</div>
+          </div>
+        </div>
+        <div class="nav">
+          ${navItems.map(n=>`<button class="nav-btn ${STATE.page===n.id?'active':''}" data-nav="${n.id}"><span>${n.icon}</span>${n.label}</button>`).join('')}
+        </div>
+        <div class="sidebar-foot">
+          ${STATE.role==='staff'?'Staff':STATE.role==='admin'?'Admin':'Atleta'}
+          <button class="logout-btn" id="logoutBtn">Esci</button>
+        </div>
+      </div>
+      <div class="main">
+        <div id="pageContent"></div>
+        <div style="text-align:center;padding:20px;color:var(--ink-soft);font-size:11px;border-top:1px solid var(--line);margin-top:40px;">
+          © GIMTONIC - Team Hub Pro
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click', ()=>setPage(b.dataset.nav)));
+  document.getElementById('logoutBtn').addEventListener('click', logout);
+
+  const content = document.getElementById('pageContent');
+  const staffRenderers = {
+    dashboard: renderDashboard,
+    giocatori: renderGiocatori,
+    test: renderTest,
+    allenamenti: renderAllenamenti,
+    calendario: renderCalendario,
+    impostazioni: renderImpostazioni,
+  };
+  const playerRenderers = {
+    wellness: renderWellness,
+    calendario: renderPlayerCalendario,
+  };
+  const adminRenderers = {
+    dashboard: renderDashboard,
+    giocatori: renderGiocatori,
+    test: renderTest,
+    allenamenti: renderAllenamenti,
+    calendario: renderCalendario,
+    impostazioni: renderImpostazioni,
+    impostazioniAdmin: renderImpostazioniAdmin,
+  };
+  const renderers = STATE.role==='staff' ? staffRenderers : STATE.role==='admin' ? adminRenderers : playerRenderers;
+  console.log('Rendering page:', STATE.page, 'role:', STATE.role, 'renderer exists:', !!renderers[STATE.page], 'currentPlayerId:', STATE.currentPlayerId);
+  (renderers[STATE.page]||renderDashboard)(content);
+}
+
+function renderLogin(el){
+  el.innerHTML = `
+    <div class="login-screen">
+      <div class="login-card">
+        <h1>TEAM HUB PRO</h1>
+        <div id="playerForm" style="display:block;">
+          <label>Il tuo nome</label>
+          <select id="playerNameInput">
+            <option value="">Seleziona il tuo nome...</option>
+            ${STATE.players.map(p=>`<option value="${p.id}|${esc(p.name)}|${esc(p.password)}">${esc(p.name)}</option>`).join('')}
+          </select>
+          <label>La tua password</label>
+          <input id="playerPasswordInput" type="password" placeholder="Inserisci la tua password">
+          <button class="login-btn" id="playerLoginBtn">Accedi</button>
+          <div style="text-align:center;margin-top:20px;font-size:11px;display:flex;gap:12px;justify-content:center;">
+            <button id="staffToggleBtn" style="background:none;border:none;color:var(--ink-soft);cursor:pointer;text-transform:uppercase;">Login staff</button>
+            <span style="color:#555;">|</span>
+            <button id="adminToggleBtn" style="background:none;border:none;color:var(--ink-soft);cursor:pointer;text-transform:uppercase;">Admin</button>
+          </div>
+        </div>
+        <div id="staffForm" style="display:none;">
+          <label>Codice di accesso staff</label>
+          <input id="staffCode" type="password" placeholder="Inserisci codice">
+          <button class="login-btn" id="staffLoginBtn">Accedi come staff</button>
+          <div style="text-align:center;margin-top:20px;font-size:11px;display:flex;gap:12px;justify-content:center;">
+            <button id="playerToggleBtn" style="background:none;border:none;color:var(--ink-soft);cursor:pointer;text-transform:uppercase;">← Giocatore</button>
+            <span style="color:#555;">|</span>
+            <button id="adminToggleBtn2" style="background:none;border:none;color:var(--ink-soft);cursor:pointer;text-transform:uppercase;">Admin</button>
+          </div>
+        </div>
+        <div id="adminForm" style="display:none;">
+          <label>Password amministratore</label>
+          <input id="adminPassword" type="password" placeholder="Inserisci password">
+          <button class="login-btn" id="adminLoginBtn">Accedi come admin</button>
+          <div style="text-align:center;margin-top:20px;font-size:11px;">
+            <button id="playerToggleBtn2" style="background:none;border:none;color:var(--ink-soft);cursor:pointer;text-transform:uppercase;">← Giocatore</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('staffToggleBtn').addEventListener('click', (e)=>{
+    e.preventDefault();
+    document.getElementById('playerForm').style.display = 'none';
+    document.getElementById('staffForm').style.display = 'block';
+    document.getElementById('adminForm').style.display = 'none';
+  });
+  
+  document.getElementById('playerToggleBtn').addEventListener('click', (e)=>{
+    e.preventDefault();
+    document.getElementById('playerForm').style.display = 'block';
+    document.getElementById('staffForm').style.display = 'none';
+    document.getElementById('adminForm').style.display = 'none';
+  });
+  
+  document.getElementById('adminToggleBtn').addEventListener('click', (e)=>{
+    e.preventDefault();
+    document.getElementById('playerForm').style.display = 'none';
+    document.getElementById('staffForm').style.display = 'none';
+    document.getElementById('adminForm').style.display = 'block';
+  });
+  
+  document.getElementById('adminToggleBtn2').addEventListener('click', (e)=>{
+    e.preventDefault();
+    document.getElementById('playerForm').style.display = 'none';
+    document.getElementById('staffForm').style.display = 'none';
+    document.getElementById('adminForm').style.display = 'block';
+  });
+  
+  document.getElementById('playerToggleBtn2').addEventListener('click', (e)=>{
+    e.preventDefault();
+    document.getElementById('playerForm').style.display = 'block';
+    document.getElementById('staffForm').style.display = 'none';
+    document.getElementById('adminForm').style.display = 'none';
+  });
+  
+  document.getElementById('playerLoginBtn').addEventListener('click', ()=>{
+    const selected = document.getElementById('playerNameInput').value.trim();
+    const password = document.getElementById('playerPasswordInput').value.trim();
+    if(!selected){ showToast('Seleziona il tuo nome'); return; }
+    if(!password){ showToast('Inserisci la tua password'); return; }
+    const [playerId, playerName, correctPassword] = selected.split('|');
+    if(password !== correctPassword){ showToast('Password non corretta'); return; }
+    login('player', playerId);
+  });
+  
+  document.getElementById('staffLoginBtn').addEventListener('click', ()=>{
+    login('staff', document.getElementById('staffCode').value);
+  });
+  
+  document.getElementById('adminLoginBtn').addEventListener('click', ()=>{
+    login('admin', document.getElementById('adminPassword').value);
+  });
+  
+  document.getElementById('playerNameInput').addEventListener('keydown', (e)=>{
+    if(e.key==='Enter') document.getElementById('playerLoginBtn').click();
+  });
+  
+  document.getElementById('staffCode').addEventListener('keydown', (e)=>{
+    if(e.key==='Enter') document.getElementById('staffLoginBtn').click();
+  });
+  
+  document.getElementById('adminPassword').addEventListener('keydown', (e)=>{
+    if(e.key==='Enter') document.getElementById('adminLoginBtn').click();
+  });
+}
+
+/* ---------- DASHBOARD ---------- */
+function renderDashboard(el){
+  const today = new Date(todayStr()+'T00:00:00');
+  const dayNames = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+  const dayName = dayNames[today.getDay()];
+  const dateFormatted = fmtDate(todayStr());
+  
+  const todayWorkout = getTodayWorkout();
+  const playersOfMovement = getPlayersOfMovement();
+  const presenceData = todayWorkout ? getTodayPresenceCount(todayWorkout.id) : {present: 0, total: playersOfMovement.length};
+  
+  el.innerHTML = `
+    <div class="page-head"><h1>Dashboard</h1><p>Panoramica Alense</p></div>
+    
+    <div class="card" style="background:linear-gradient(135deg, var(--pitch) 0%, var(--pitch-dark) 100%);color:white;border:none;margin-bottom:24px;">
+      <div style="text-align:center;padding:20px;">
+        <div style="font-size:13px;opacity:0.9;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Oggi</div>
+        <div style="font-size:32px;font-weight:700;margin-bottom:4px;">${dayName}</div>
+        <div style="font-size:16px;opacity:0.9;">${dateFormatted}</div>
+      </div>
+    </div>
+    
+    ${todayWorkout ? `
+      <div class="card">
+        <h3>🏋️ Sessione Odierna</h3>
+        <div style="margin-bottom:16px;">
+          <div style="font-size:13px;font-weight:600;color:var(--pitch);margin-bottom:8px;">${esc(todayWorkout.title)}</div>
+          <div style="font-size:12px;color:var(--ink-soft);">
+            ${todayWorkout.time || 'Orario TBD'} · MD: ${esc(todayWorkout.md || '-')} · Durata: ${getSessionDuration(todayWorkout)}min
+          </div>
+        </div>
+        
+        <div style="background:var(--chalk);padding:12px;border-radius:8px;margin-bottom:12px;">
+          <div style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;font-weight:600;margin-bottom:6px;">Presenza</div>
+          <div style="font-size:24px;font-weight:700;color:var(--pitch);">${presenceData.present} <span style="font-size:16px;color:var(--ink-soft);">/ ${presenceData.total}</span></div>
+          <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">Giocatori di movimento</div>
+        </div>
+        
+        <label style="margin-top:0;">Numero di presenti</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input id="presenceInput" type="number" min="0" max="${playersOfMovement.length}" value="${presenceData.present}" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:4px;">
+          <button class="btn" id="savePresenceBtn">Salva</button>
+        </div>
+      </div>
+    ` : `
+      <div class="card" style="background:#F0DAD6;border:1px solid #B5473A;color:#8B3429;">
+        <h3 style="margin-top:0;color:#8B3429;">🏋️ Nessun allenamento oggi</h3>
+        <p style="margin:0;font-size:12px;">Aggiungi una sessione dal Calendario per registrare i presenti</p>
+      </div>
+    `}
+    
+    <div class="stat-row">
+      <div class="stat"><div class="num">${STATE.players.length}</div><div class="lbl">Giocatori</div></div>
+      <div class="stat"><div class="num">${STATE.workouts.length}</div><div class="lbl">Esercitazioni</div></div>
+      <div class="stat"><div class="num">${STATE.events.filter(e=>e.type==='Allenamento').length}</div><div class="lbl">Sessioni</div></div>
+      <div class="stat"><div class="num">${STATE.rpeLog.length}</div><div class="lbl">RPE registrati</div></div>
+    </div>
+  `;
+  
+  // Event listener per salvare i presenti
+  if(todayWorkout && document.getElementById('savePresenceBtn')){
+    document.getElementById('savePresenceBtn').addEventListener('click', async ()=>{
+      const count = parseInt(document.getElementById('presenceInput').value || '0');
+      if(count < 0 || count > playersOfMovement.length){
+        showToast('Numero non valido');
+        return;
+      }
+      todayWorkout.presentCount = count;
+      await saveKey('events', STATE.events);
+      showToast(`✅ ${count} presenti registrati`);
+      render();
+    });
+  }
+}
+
+/* ---------- GIOCATORI ---------- */
+function renderGiocatori(el){
+  const selectedId = el.dataset.selectedPlayerId || null;
+  const selectedPlayer = selectedId ? STATE.players.find(p=>p.id===selectedId) : null;
+  const isAddingNew = el.dataset.addingNew === 'true';
+  
+  el.innerHTML = `
+    <div class="page-head"><h1>Giocatori</h1><p>Rosa Alense (${STATE.players.length})</p></div>
+    <div class="grid2">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <h3 style="margin:0;">Rosa</h3>
+          <button class="btn" id="addPlayerBtn" style="padding:6px 12px;font-size:12px;">+ Aggiungi</button>
+        </div>
+        <table>
+          <thead><tr><th>Nome</th><th>Età</th><th>Ruolo</th><th>HI</th><th>Stato</th><th style="width:40px;"></th></tr></thead>
+          <tbody id="playersTableBody"></tbody>
+        </table>
+      </div>
+      <div id="detailsPanel">
+        ${isAddingNew ? `
+          <div class="card">
+            <h3>Nuovo Giocatore</h3>
+            <div style="font-size:13px;line-height:1.8;">
+              <strong>Nome:</strong> <input id="newName" type="text" placeholder="Es. Rossi Marco" style="margin-top:2px;"><br>
+              <strong>Data di nascita:</strong> <input id="newBirthDate" type="date" style="margin-top:2px;"><br>
+              <strong>Ruolo:</strong> <input id="newRole" type="text" placeholder="Es. Portiere" style="margin-top:2px;"><br>
+              <strong>Password:</strong> <input id="newPassword" type="text" placeholder="Password accesso" style="margin-top:2px;">
+            </div>
+            <div class="btn-row"><button class="btn" id="confirmAddPlayerBtn">Aggiungi</button><button class="btn secondary" id="cancelAddPlayerBtn">Annulla</button></div>
+          </div>
+        ` : selectedPlayer ? `
+          <div class="card">
+            <h3>${esc(selectedPlayer.name)}</h3>
+            <div style="font-size:13px;line-height:1.8;">
+              <strong>Nome:</strong> <input id="editName" type="text" value="${esc(selectedPlayer.name)}" style="margin-top:2px;"><br>
+              <strong>Data di nascita:</strong> <input id="editBirthDate" type="date" value="${selectedPlayer.birthDate}" style="margin-top:2px;"><br>
+              <strong>Ruolo:</strong> <input id="editRole" type="text" value="${esc(selectedPlayer.role)}" style="margin-top:2px;"><br>
+              <strong>Stato:</strong> <select id="editStatus" style="margin-top:2px;"><option value="Disponibile" ${selectedPlayer.status==='Disponibile'?'selected':''}>Disponibile</option><option value="In rientro" ${selectedPlayer.status==='In rientro'?'selected':''}>In rientro</option><option value="Infortunato" ${selectedPlayer.status==='Infortunato'?'selected':''}>Infortunato</option></select><br>
+              <strong>Password accesso:</strong> <input id="editPassword" type="text" value="${esc(selectedPlayer.password)}" style="margin-top:2px;" placeholder="Imposta password">
+            </div>
+            <div class="btn-row"><button class="btn" id="savePlayerBtn">Salva</button><button class="btn secondary" id="deletePlayerBtn" style="background:var(--clay);color:white;">Elimina</button><button class="btn secondary" id="closePlayerBtn">Chiudi</button></div>
+          </div>
+        ` : `<div class="card"><div class="empty">Clicca su un giocatore o aggiungi uno nuovo</div></div>`}
+      </div>
+    </div>
+  `;
+  
+  const tbody = document.getElementById('playersTableBody');
+  STATE.players.slice().sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{
+    const tr = document.createElement('tr');
+    tr.className = 'player-row';
+    if(selectedId===p.id) tr.style.cssText = 'background:var(--chalk);border-left:4px solid var(--amber);';
+    const hooper = getLatestHooperIndex(p.id);
+    const hiDisplay = hooper ? `<span style="font-weight:600;color:${hooper.percentage>=75?'var(--ok)':hooper.percentage>=50?'var(--amber-dark)':'var(--clay)'};">${hooper.percentage}%</span>` : '-';
+    tr.innerHTML = `<td><strong>${esc(p.name)}</strong></td><td>${calcAge(p.birthDate)}</td><td>${esc(p.role)}</td><td>${hiDisplay}</td><td><span style="font-size:11px;${p.status==='Infortunato'?'color:var(--clay);font-weight:600;':p.status==='In rientro'?'color:var(--amber-dark);font-weight:600;':'color:var(--ok);font-weight:600;'}">${p.status}</span></td><td><button class="del-player-btn" data-player-id="${p.id}" style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;">✕</button></td>`;
+    tr.addEventListener('click', (e)=>{
+      if(e.target.closest('button')) return;
+      el.dataset.selectedPlayerId = p.id;
+      delete el.dataset.addingNew;
+      renderGiocatori(el);
+    });
+    tbody.appendChild(tr);
+  });
+  
+  // Add player button
+  const addBtn = document.getElementById('addPlayerBtn');
+  if(addBtn){
+    addBtn.addEventListener('click', ()=>{
+      el.dataset.addingNew = 'true';
+      delete el.dataset.selectedPlayerId;
+      renderGiocatori(el);
+    });
+  }
+  
+  // Confirm add player
+  const confirmAddBtn = document.getElementById('confirmAddPlayerBtn');
+  if(confirmAddBtn){
+    confirmAddBtn.addEventListener('click', async ()=>{
+      const name = document.getElementById('newName').value.trim();
+      const birthDate = document.getElementById('newBirthDate').value;
+      const role = document.getElementById('newRole').value.trim();
+      const password = document.getElementById('newPassword').value.trim();
+      
+      if(!name || !birthDate || !role || !password){
+        showToast('Completa tutti i campi');
+        return;
+      }
+      
+      const newPlayer = {
+        id: Math.max(0, ...STATE.players.map(p=>p.id)) + 1,
+        name,
+        birthDate,
+        role,
+        password,
+        status: 'Disponibile'
+      };
+      
+      STATE.players.push(newPlayer);
+      await saveKey('players', STATE.players);
+      showToast('✅ Giocatore aggiunto');
+      delete el.dataset.addingNew;
+      render();
+    });
+  }
+  
+  // Cancel add player
+  const cancelAddBtn = document.getElementById('cancelAddPlayerBtn');
+  if(cancelAddBtn){
+    cancelAddBtn.addEventListener('click', ()=>{
+      delete el.dataset.addingNew;
+      renderGiocatori(el);
+    });
+  }
+  
+  // Delete player (via event delegation on table)
+  el.addEventListener('click', async (e)=>{
+    const btn = e.target.closest('.del-player-btn');
+    if(!btn) return;
+    const playerId = parseInt(btn.dataset.playerId);
+    const playerToDelete = STATE.players.find(p=>p.id===playerId);
+    if(!playerToDelete) return;
+    
+    if(!confirm(`Eliminare ${esc(playerToDelete.name)}? L\'azione non può essere annullata.`)) return;
+    
+    STATE.players = STATE.players.filter(p=>p.id!==playerId);
+    await saveKey('players', STATE.players);
+    showToast('✅ Giocatore eliminato');
+    delete el.dataset.selectedPlayerId;
+    render();
+  });
+  
+  if(selectedPlayer){
+    document.getElementById('savePlayerBtn').addEventListener('click', async ()=>{
+      selectedPlayer.name = document.getElementById('editName').value.trim();
+      selectedPlayer.birthDate = document.getElementById('editBirthDate').value;
+      selectedPlayer.role = document.getElementById('editRole').value.trim();
+      selectedPlayer.status = document.getElementById('editStatus').value;
+      const newPassword = document.getElementById('editPassword').value.trim();
+      if(!newPassword){ showToast('Inserisci una password'); return; }
+      selectedPlayer.password = newPassword;
+      await saveKey('players', STATE.players);
+      showToast('✅ Salvato');
+      render();
+    });
+    
+    const deleteBtn = document.getElementById('deletePlayerBtn');
+    if(deleteBtn){
+      deleteBtn.addEventListener('click', async ()=>{
+        if(!confirm(`Eliminare ${esc(selectedPlayer.name)}? L\'azione non può essere annullata.`)) return;
+        STATE.players = STATE.players.filter(p=>p.id!==selectedPlayer.id);
+        await saveKey('players', STATE.players);
+        showToast('✅ Giocatore eliminato');
+        delete el.dataset.selectedPlayerId;
+        render();
+      });
+    }
+    
+    document.getElementById('closePlayerBtn').addEventListener('click', ()=>{
+      delete el.dataset.selectedPlayerId;
+      renderGiocatori(el);
+    });
+  }
+}
+
+/* ---------- TEST ---------- */
+function renderTest(el){
+  const selectedTestId = el.dataset.selectedTestId || null;
+  const selectedTest = selectedTestId ? STATE.tests.find(t=>t.id===selectedTestId) : null;
+  
+  el.innerHTML = `
+    <div class="page-head"><h1>Test</h1><p>Crea test e registra i risultati</p></div>
+    
+    ${!selectedTestId ? `
+    <div class="card">
+      <h3>Nuovo test</h3>
+      <div class="grid2">
+        <div><label>Nome del test</label><input id="testName" type="text" placeholder="Es. Test 30-15 - Settimana 1"></div>
+        <div><label>Tipo di test</label><select id="testType">${Object.keys(TEST_SPECS).map(t=>`<option>${t}</option>`).join('')}</select></div>
+      </div>
+      <div class="grid2">
+        <div><label>Data</label><input id="testDate" type="date" value="${todayStr()}"></div>
+        <div><label>Unità di misura</label><input id="testUnit" type="text" readonly></div>
+      </div>
+      <div id="descDisplay" style="font-size:12px;color:var(--ink-soft);margin-top:8px;padding:8px;background:var(--chalk);border-radius:6px;"></div>
+      <div class="btn-row"><button class="btn" id="createTestBtn">Crea test</button></div>
+    </div>
+    ` : ''}
+    
+    <div class="card">
+      <h3>Test disponibili (${STATE.tests.length})</h3>
+      ${STATE.tests.length===0 ? '<div class="empty">Nessun test creato</div>' :
+        STATE.tests.slice().reverse().map(t=>`
+          <div style="border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px;background:var(--chalk);">
+            <div style="display:flex;justify-content:space-between;align-items:start;">
+              <div>
+                <h4 style="margin:0 0 6px 0;color:var(--pitch);font-size:13px;">${esc(t.name)}</h4>
+                <span style="font-size:11px;color:var(--ink-soft);">${fmtDate(t.date)} | ${t.type} (${t.unit}) | ${t.results?.length||0} giocatori</span>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <button style="background:none;border:none;color:${selectedTestId===t.id?'var(--amber)':'var(--ink-soft)'};cursor:pointer;font-size:14px;" data-select-test="${t.id}">→</button>
+                <button style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;" data-del-test="${t.id}">✕</button>
+              </div>
+            </div>
+            ${selectedTestId===t.id ? `
+              <div style="border-top:1px solid var(--line);padding-top:12px;">
+                <h4 style="margin:0 0 12px 0;font-size:13px;color:var(--pitch);">Inserisci valori test (${t.unit})</h4>
+                <table style="width:100%;border-collapse:collapse;">
+                  <thead>
+                    <tr style="background:var(--chalk);border-bottom:1px solid var(--line);">
+                      <th style="text-align:left;padding:8px;font-size:12px;font-weight:600;color:var(--ink-soft);">Giocatore</th>
+                      <th style="text-align:center;padding:8px;font-size:12px;font-weight:600;color:var(--ink-soft);">Valore</th>
+                      <th style="text-align:center;padding:8px;font-size:12px;font-weight:600;color:var(--ink-soft);">Azioni</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${STATE.players.map(p=>{
+                      const result = t.results?.find(r=>r.playerId===p.id);
+                      return `
+                        <tr data-player-row="${p.id}" style="border-bottom:1px solid #EEEAD9;">
+                          <td style="padding:10px;font-size:13px;">${esc(p.name)}</td>
+                          <td style="padding:10px;text-align:center;">
+                            <input type="number" step="0.01" class="test-value-input" data-player-id="${p.id}" value="${result?.value||''}" placeholder="-" style="width:80px;padding:6px;border:1px solid var(--line);border-radius:4px;text-align:center;">
+                          </td>
+                          <td style="padding:10px;text-align:center;">
+                            ${result ? 
+                              `<button class="test-remove-btn" data-player-id="${p.id}" style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:13px;font-weight:600;">✕</button>` 
+                              : `<button class="test-add-btn" data-player-id="${p.id}" style="background:none;border:none;color:var(--ok);cursor:pointer;font-size:13px;font-weight:600;">+</button>`
+                            }
+                          </td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+                <button class="btn" id="saveTestResultsBtn" style="margin-top:12px;">💾 Salva Risultati</button>
+              </div>
+            ` : ''}
+          </div>
+        `).join('')}
+    </div>
+  `;
+  
+  const typeSelect = document.getElementById('testType');
+  if(typeSelect){
+    const updateUnit = ()=>{
+      const type = typeSelect.value;
+      const spec = TEST_SPECS[type];
+      document.getElementById('testUnit').value = spec.unit;
+      document.getElementById('descDisplay').textContent = spec.description;
+    };
+    updateUnit();
+    typeSelect.addEventListener('change', updateUnit);
+  }
+  
+  if(document.getElementById('createTestBtn')){
+    document.getElementById('createTestBtn').addEventListener('click', async ()=>{
+      const name = document.getElementById('testName').value.trim();
+      const type = document.getElementById('testType').value;
+      const date = document.getElementById('testDate').value;
+      if(!name){ showToast('Inserisci il nome del test'); return; }
+      const spec = TEST_SPECS[type];
+      STATE.tests.push({id:uid(), name, type, unit:spec.unit, date, results:[]});
+      await saveKey('tests', STATE.tests);
+      showToast('Test creato');
+      render();
+    });
+  }
+  
+  el.querySelectorAll('[data-select-test]').forEach(b=>{
+    b.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      el.dataset.selectedTestId = el.dataset.selectedTestId===b.dataset.selectTest ? null : b.dataset.selectTest;
+      renderTest(el);
+    });
+  });
+  
+  el.querySelectorAll('[data-del-test]').forEach(b=>{
+    b.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      if(!confirm('Sei sicuro di voler eliminare questo test? L\'azione non può essere annullata.')) return;
+      STATE.tests = STATE.tests.filter(t=>t.id!==b.dataset.delTest);
+      await saveKey('tests', STATE.tests);
+      renderTest(el);
+    });
+  });
+  
+  // New: handle test results with input fields
+  if(selectedTest && document.getElementById('saveTestResultsBtn')){
+    document.getElementById('saveTestResultsBtn').addEventListener('click', async ()=>{
+      const inputs = el.querySelectorAll('.test-value-input');
+      let count = 0;
+      selectedTest.results = [];
+      
+      inputs.forEach(inp=>{
+        const playerId = parseInt(inp.dataset.playerId);
+        const value = inp.value.trim();
+        if(value){
+          selectedTest.results.push({playerId, value: parseFloat(value)});
+          count++;
+        }
+      });
+      
+      if(count === 0){
+        showToast('Inserisci almeno un valore');
+        return;
+      }
+      
+      await saveKey('tests', STATE.tests);
+      showToast(`✅ ${count} risultati salvati`);
+      renderTest(el);
+    });
+
+    // Add giocatore button - focus input
+    el.querySelectorAll('.test-add-btn').forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const playerId = parseInt(btn.dataset.playerId);
+        const input = el.querySelector(`.test-value-input[data-player-id="${playerId}"]`);
+        if(input) {
+          input.focus();
+          input.select();
+        }
+      });
+    });
+
+    // Remove giocatore button
+    el.querySelectorAll('.test-remove-btn').forEach(btn=>{
+      btn.addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        if(!confirm('Sei sicuro di voler rimuovere questo giocatore dal test?')) return;
+        const playerId = parseInt(btn.dataset.playerId);
+        const input = el.querySelector(`.test-value-input[data-player-id="${playerId}"]`);
+        if(input) input.value = '';
+        if(selectedTest.results){
+          selectedTest.results = selectedTest.results.filter(r=>r.playerId!==playerId);
+          await saveKey('tests', STATE.tests);
+          showToast('Giocatore rimosso');
+          renderTest(el);
+        }
+      });
+    });
+  }
+}
+
+/* ---------- ALLENAMENTI (Database Esercitazioni) ---------- */
+function renderAllenamenti(el){
+  el.innerHTML = `
+    <div class="page-head"><h1>Allenamenti</h1><p>Catalogo esercitazioni di allenamento</p></div>
+    
+    <div class="card">
+      <h3>Nuova esercitazione</h3>
+      <div class="grid2">
+        <div><label>Categoria di lavoro</label><select id="workoutCategory"><option>Tecnico-tattico</option><option>Atletico</option></select></div>
+        <div><label>Tipo specifico</label><select id="workoutType"></select></div>
+      </div>
+      <label>Nome esercitazione</label><input id="workoutName" type="text" placeholder="Es. Rondo 4v2">
+      <div id="workoutParamsDiv"></div>
+      <div class="btn-row"><button class="btn" id="createWorkoutBtn">Crea esercitazione</button></div>
+    </div>
+    
+    <div class="card">
+      <h3>Esercitazioni disponibili (${STATE.workouts.length})</h3>
+      ${STATE.workouts.length===0 ? '<div class="empty">Nessuna esercitazione catalogata</div>' :
+        STATE.workouts.map(w=>`
+          <div class="workout-item">
+            <h4>${esc(w.name)}</h4>
+            <div class="workout-item-row">
+              <div><span style="font-size:10px;color:var(--ink-soft);">${w.category}</span> - ${esc(w.type)}</div>
+              <div>Durata: <span class="workout-item-val">${calcWorkoutDuration(w)}min</span></div>
+              <button style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;" data-del-workout="${w.id}">Elimina</button>
+            </div>
+            <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;line-height:1.6;">
+              ${w.category==='Tecnico-tattico' ? 
+                `${w.teamsPlayers?.map(tp=>`Sq${tp.teamNumber}: ${tp.players}`).join(' | ')}${w.withGoalkeepers?' + portieri':''} (Tot: ${w.totalPlayers}) | Campo: ${w.fieldLength}×${w.fieldWidth}m | ${w.squareMetersPerPlayer}m²/giocatore | ${w.series}×${w.minutesPerSeries}min + ${w.recovery}min recupero` :
+                w.type==='Forza massima' ? `${w.exercise}, ${w.series}×${w.reps}, Recupero: ${w.recovery}min` :
+                w.type.includes('Intermittente') || w.type.includes('Lavoro intermittente') || w.type==='Differenziato' || w.type.includes('HIIT') ? `Serie: ${w.series} × ${w.minutesPerSeries}min, Recupero: ${w.recovery}min` :
+                w.type==='Resistenza aerobica a secco' ? `Durata: ${w.minutes}min` :
+                w.type.includes('Speed') || w.type.includes('Cambi') ? `Serie: ${w.series} × ${w.distance}m, Recupero: ${w.recovery}min` :
+                w.minutes ? `Durata: ${w.minutes}min` : '-'
+              }
+            </div>
+            ${w.groups && w.groups.length>0 ? `
+              <div style="margin-top:8px;padding:8px;background:#F9F5ED;border-radius:4px;border-left:3px solid var(--amber);">
+                ${w.groups.map(g=>`
+                  <div style="font-size:10px;margin-bottom:4px;color:var(--pitch);">
+                    <strong>${esc(g.name)}</strong>: ${g.players.length} giocatori
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+        `).join('')}
+    </div>
+  `;
+  
+  const categorySelect = document.getElementById('workoutCategory');
+  const typeSelect = document.getElementById('workoutType');
+  const paramsDiv = document.getElementById('workoutParamsDiv');
+  
+  const updateTypeOptions = ()=>{
+    const category = categorySelect.value;
+    const types = WORKOUT_CATEGORIES[category] || [];
+    typeSelect.innerHTML = types.map(t=>`<option>${t}</option>`).join('');
+    updateParams();
+  };
+  
+  const updateParams = ()=>{
+    const category = categorySelect.value;
+    const type = typeSelect.value;
+    
+    if(category==='Tecnico-tattico'){
+      paramsDiv.innerHTML = `
+        <div class="grid2" style="margin-top:12px;">
+          <div><label>Numero di squadre</label><input id="wNumTeams" type="number" min="1" max="10" value="2"></div>
+          <div><label>Con portieri</label><input id="wWithGoalkeepers" type="checkbox"></div>
+        </div>
+        <div id="wTeamsPlayersDiv"></div>
+        <div class="grid2" style="margin-top:12px;">
+          <div><label>Totale giocatori (auto)</label><input id="wTotalPlayers" type="number" readonly></div>
+          <div></div>
+        </div>
+        <div class="grid2" style="margin-top:12px;">
+          <div><label>Lunghezza campo (m)</label><input id="wFieldLength" type="number" min="5" value="30"></div>
+          <div><label>Larghezza campo (m)</label><input id="wFieldWidth" type="number" min="5" value="20"></div>
+        </div>
+        <div class="grid2" style="margin-top:12px;">
+          <div><label>Metri quadri/giocatore (auto)</label><input id="wSquareMetersPerPlayer" type="number" readonly></div>
+          <div></div>
+        </div>
+        <div class="grid2" style="margin-top:12px;">
+          <div><label>Serie</label><input id="wSeries" type="number" min="1" value="1"></div>
+          <div><label>Minuti per serie</label><input id="wMinutesPerSeries" type="number" min="1" value="10"></div>
+        </div>
+        <div class="grid2" style="margin-top:12px;">
+          <div><label>Recupero (min)</label><input id="wRecovery" type="number" min="0" value="1"></div>
+          <div><label>Durata totale (auto)</label><input id="wTotalDuration" type="number" readonly></div>
+        </div>
+      `;
+      
+      const numTeamsInput = document.getElementById('wNumTeams');
+      const teamsPlayersDiv = document.getElementById('wTeamsPlayersDiv');
+      
+      const updateTeamsInputs = ()=>{
+        const numTeams = parseInt(numTeamsInput.value)||1;
+        let html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:10px;">';
+        for(let i=0; i<numTeams; i++){
+          html += `<div><label>Squadra ${i+1} giocatori</label><input class="wTeamPlayers" type="number" min="1" value="${i===0?3:2}" data-team="${i}"></div>`;
+        }
+        html += '</div>';
+        teamsPlayersDiv.innerHTML = html;
+        
+        const teamInputs = teamsPlayersDiv.querySelectorAll('.wTeamPlayers');
+        teamInputs.forEach(inp=>inp.addEventListener('input', updateCalculations));
+        updateCalculations();
+      };
+      
+      const updateCalculations = ()=>{
+        const teamInputs = document.querySelectorAll('.wTeamPlayers');
+        let totalPlayers = 0;
+        teamInputs.forEach(inp=>totalPlayers += parseInt(inp.value)||1);
+        
+        document.getElementById('wTotalPlayers').value = totalPlayers;
+        
+        const length = parseInt(document.getElementById('wFieldLength').value)||1;
+        const width = parseInt(document.getElementById('wFieldWidth').value)||1;
+        const totalArea = length * width;
+        const mpp = totalPlayers>0 ? Math.round(totalArea / totalPlayers * 10) / 10 : 0;
+        document.getElementById('wSquareMetersPerPlayer').value = mpp;
+        
+        const series = parseInt(document.getElementById('wSeries').value)||1;
+        const minutesPerSeries = parseInt(document.getElementById('wMinutesPerSeries').value)||1;
+        const recovery = parseInt(document.getElementById('wRecovery').value)||0;
+        const totalDuration = (series * minutesPerSeries) + ((series-1) * recovery);
+        document.getElementById('wTotalDuration').value = totalDuration;
+      };
+      
+      numTeamsInput.addEventListener('change', updateTeamsInputs);
+      document.getElementById('wFieldLength').addEventListener('input', updateCalculations);
+      document.getElementById('wFieldWidth').addEventListener('input', updateCalculations);
+      document.getElementById('wSeries').addEventListener('input', updateCalculations);
+      document.getElementById('wMinutesPerSeries').addEventListener('input', updateCalculations);
+      document.getElementById('wRecovery').addEventListener('input', updateCalculations);
+      
+      updateTeamsInputs();
+      
+    }else if(category==='Atletico'){
+      const params = ATHLETIC_PARAMS[type] || {fields: []};
+      let html = '';
+      
+      if(params.fields.includes('exercise')){
+        html += `<div><label>Esercizio</label><select id="wExercise">${FORCE_EXERCISES.map(e=>`<option>${e}</option>`).join('')}</select></div>`;
+      }
+      if(params.fields.includes('series')){
+        html += `<div><label>Serie</label><input id="wSeries" type="number" min="1" value="4"></div>`;
+      }
+      if(params.fields.includes('reps')){
+        html += `<div><label>Ripetizioni</label><input id="wReps" type="number" min="1" value="8"></div>`;
+      }
+      if(params.fields.includes('minutes')){
+        html += `<div><label>Minuti</label><input id="wMinutes" type="number" min="1" value="10"></div>`;
+      }
+      if(params.fields.includes('minutesPerSeries')){
+        html += `<div><label>Minuti per serie</label><input id="wMinutesPerSeries" type="number" min="1" value="2"></div>`;
+      }
+      if(params.fields.includes('distance')){
+        html += `<div><label>Distanza (m)</label><select id="wDistance"><option value="10">10m</option><option value="20">20m</option><option value="30">30m</option><option value="40">40m</option></select></div>`;
+      }
+      if(params.fields.includes('recovery')){
+        html += `<div><label>Recupero (min)</label><input id="wRecovery" type="number" min="0" value="1"></div>`;
+      }
+      if(params.fields.includes('description')){
+        html += `<div><label>Note</label><textarea id="wDescription" placeholder="Descrizione del test/esercizio"></textarea></div>`;
+      }
+      
+      if(html){
+        paramsDiv.innerHTML = `<div class="grid2" style="margin-top:12px;">${html}</div>`;
+      }else{
+        paramsDiv.innerHTML = '';
+      }
+      
+      // Add groups section for aerobic workouts
+      if(params.groups){
+        paramsDiv.innerHTML += `
+          <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--line);">
+            <h4 style="margin:0 0 12px 0;font-size:13px;color:var(--pitch);">Crea gruppi di lavoro</h4>
+            
+            <div style="margin-bottom:16px;padding:12px;background:#F0F9FF;border-left:4px solid #3B82F6;border-radius:6px;">
+              <label>Auto-grouping da Test (Bucheit)</label>
+              <select id="wTestSelect" style="margin-bottom:8px;">
+                <option value="">-- Oppure: scegli test per auto-grouping --</option>
+              </select>
+              <button id="wAutoGroupBtn" type="button" style="padding:8px 12px;background:#3B82F6;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;">
+                🔄 Auto-group (Rosso/Giallo/Blu)
+              </button>
+              <div id="wAutoGroupsDisplay" style="margin-top:12px;"></div>
+            </div>
+
+            <div style="margin-bottom:12px;padding-top:12px;border-top:1px solid var(--line);">
+              <h5 style="margin:0 0 12px 0;font-size:12px;color:var(--ink-soft);">Oppure: configura manualmente</h5>
+              <div class="grid2">
+                <div><label>Numero di gruppi</label><input id="wNumGroups" type="number" min="1" max="5" value="2"></div>
+                <div></div>
+              </div>
+            </div>
+            <div id="wGroupsConfigDiv"></div>
+          </div>
+        `;
+        
+        setTimeout(()=>{
+          // Load tests for auto-grouping
+          (async ()=>{
+            const tests = await window.storage.get('tests').catch(()=>null);
+            let testOptions = '<option value="">-- Oppure: scegli test per auto-grouping --</option>';
+            if(tests && tests.value){
+              try{
+                const testsData = JSON.parse(tests.value);
+                testsData.forEach(t=>{
+                  testOptions += `<option value='${JSON.stringify(t)}'>${t.name} (${t.date})</option>`;
+                });
+              }catch(e){}
+            }
+            document.getElementById('wTestSelect').innerHTML = testOptions;
+          })();
+
+          const testSelect = document.getElementById('wTestSelect');
+          const autoGroupBtn = document.getElementById('wAutoGroupBtn');
+          const autoGroupDisplay = document.getElementById('wAutoGroupsDisplay');
+          const numGroupsInput = document.getElementById('wNumGroups');
+          const groupsDiv = document.getElementById('wGroupsConfigDiv');
+          
+          const updateGroupsConfig = ()=>{
+            const numGroups = parseInt(numGroupsInput.value)||2;
+            let html = '';
+            for(let i=0; i<numGroups; i++){
+              html += `
+                <div style="margin-bottom:16px;padding:12px;border:1px solid var(--line);border-radius:6px;background:var(--chalk);">
+                  <label>Nome gruppo ${i+1}</label>
+                  <input class="wGroupName" type="text" value="${['Elite','A','B','Recupero'][i]||'Gruppo '+(i+1)}" data-group="${i}">
+                  <label style="margin-top:10px;">Seleziona giocatori</label>
+                  <div class="checkbox-group" style="max-height:150px;">
+                    ${STATE.players.map(p=>`
+                      <div class="checkbox-item">
+                        <input type="checkbox" class="wGroupPlayer" data-group="${i}" value="${p.id}">
+                        <label>${esc(p.name)}</label>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              `;
+            }
+            groupsDiv.innerHTML = html;
+          };
+
+          autoGroupBtn.addEventListener('click', ()=>{
+            const testData = testSelect.value;
+            if(!testData){
+              showToast('Seleziona un test');
+              return;
+            }
+            try{
+              const test = JSON.parse(testData);
+              const results = test.results || [];
+              
+              // Sort by vift descending
+              results.sort((a, b) => (b.vift || 0) - (a.vift || 0));
+              
+              // Divide in 3 groups
+              const groupSize = Math.ceil(results.length / 3);
+              const groups = {
+                red: results.slice(0, groupSize),
+                yellow: results.slice(groupSize, groupSize*2),
+                blue: results.slice(groupSize*2)
+              };
+
+              // Calculate Bucheit ranges (simplified)
+              const bucketSize = 5; // meters
+              const colors = {red: '🔴 ROSSO (Veloce)', yellow: '🟡 GIALLO (Medio)', blue: '🔵 BLU (Lento)'};
+              const colorBg = {red: '#FEE2E2', yellow: '#FEF3C7', blue: '#DBEAFE'};
+              
+              let html = '';
+              Object.entries(groups).forEach(([color, players])=>{
+                const avgVift = players.reduce((s, p) => s + (p.vift || 0), 0) / players.length;
+                const coneRange = `${Math.max(0, Math.round(avgVift*10-bucketSize))}-${Math.round(avgVift*10+bucketSize)}m`;
+                
+                html += `
+                  <div style="margin-bottom:12px;padding:12px;background:${colorBg[color]};border-left:4px solid;border-left-color:${color==='red'?'#EF4444':color==='yellow'?'#FBBF24':'#3B82F6'};border-radius:4px;">
+                    <h5 style="margin:0 0 8px 0;font-size:12px;font-weight:600;">${colors[color]}</h5>
+                    <div style="font-size:11px;margin-bottom:8px;color:var(--ink-soft);">
+                      <strong>Coni:</strong> ${coneRange} | <strong>Giocatori:</strong> ${players.length}
+                    </div>
+                    <div style="font-size:11px;display:flex;flex-wrap:wrap;gap:6px;">
+                      ${players.map(p=>{
+                        const playerName = STATE.players.find(pl=>pl.id==p.playerId)?.name||'Unknown';
+                        return `<span style="background:white;padding:4px 8px;border-radius:3px;">${playerName}</span>`;
+                      }).join('')}
+                    </div>
+                  </div>
+                `;
+                
+                // Check these in wGroupPlayer
+                setTimeout(()=>{
+                  players.forEach(p=>{
+                    const chk = document.querySelector(`.wGroupPlayer[data-group="0"][value="${p.playerId}"]`);
+                    if(chk && color==='red') chk.checked = true;
+                    else if(chk && color==='yellow'){
+                      const chk2 = document.querySelector(`.wGroupPlayer[data-group="1"][value="${p.playerId}"]`);
+                      if(chk2) chk2.checked = true;
+                    }else if(chk && color==='blue'){
+                      const chk3 = document.querySelector(`.wGroupPlayer[data-group="2"][value="${p.playerId}"]`);
+                      if(chk3) chk3.checked = true;
+                    }
+                  });
+                }, 100);
+              });
+              
+              autoGroupDisplay.innerHTML = html;
+              numGroupsInput.value = 3;
+              updateGroupsConfig();
+            }catch(e){
+              showToast('Errore parsing test');
+            }
+          });
+          
+          numGroupsInput.addEventListener('change', updateGroupsConfig);
+          updateGroupsConfig();
+        }, 0);
+      }
+    }
+  };
+  
+  categorySelect.addEventListener('change', updateTypeOptions);
+  typeSelect.addEventListener('change', updateParams);
+  
+  updateTypeOptions();
+  
+  document.getElementById('createWorkoutBtn').addEventListener('click', async ()=>{
+    const name = document.getElementById('workoutName').value.trim();
+    const category = categorySelect.value;
+    const type = typeSelect.value;
+    if(!name){ showToast('Inserisci il nome'); return; }
+    
+    let workout = {id:uid(), name, category, type};
+    
+    if(category==='Tecnico-tattico'){
+      const teamInputs = document.querySelectorAll('.wTeamPlayers');
+      workout.teamsPlayers = [];
+      teamInputs.forEach((inp, idx)=>{
+        workout.teamsPlayers.push({teamNumber: idx+1, players: parseInt(inp.value)||1});
+      });
+      workout.totalPlayers = parseInt(document.getElementById('wTotalPlayers').value)||1;
+      workout.withGoalkeepers = document.getElementById('wWithGoalkeepers').checked;
+      workout.fieldLength = parseInt(document.getElementById('wFieldLength').value)||1;
+      workout.fieldWidth = parseInt(document.getElementById('wFieldWidth').value)||1;
+      workout.squareMetersPerPlayer = parseFloat(document.getElementById('wSquareMetersPerPlayer').value)||0;
+      workout.series = parseInt(document.getElementById('wSeries').value)||1;
+      workout.minutesPerSeries = parseInt(document.getElementById('wMinutesPerSeries').value)||1;
+      workout.recovery = parseInt(document.getElementById('wRecovery').value)||0;
+    }else if(category==='Atletico'){
+      const params = ATHLETIC_PARAMS[type] || {fields: []};
+      if(params.fields.includes('exercise')) workout.exercise = document.getElementById('wExercise').value;
+      if(params.fields.includes('series')) workout.series = parseInt(document.getElementById('wSeries').value)||1;
+      if(params.fields.includes('reps')) workout.reps = parseInt(document.getElementById('wReps').value)||1;
+      if(params.fields.includes('minutes')) workout.minutes = parseInt(document.getElementById('wMinutes').value)||1;
+      if(params.fields.includes('minutesPerSeries')) workout.minutesPerSeries = parseInt(document.getElementById('wMinutesPerSeries').value)||1;
+      if(params.fields.includes('distance')) workout.distance = parseInt(document.getElementById('wDistance').value)||20;
+      if(params.fields.includes('recovery')) workout.recovery = parseInt(document.getElementById('wRecovery').value)||0;
+      if(params.fields.includes('description')) workout.description = document.getElementById('wDescription').value.trim();
+      
+      // Save groups if aerobic workout
+      if(params.groups){
+        const groupNames = document.querySelectorAll('.wGroupName');
+        const groupPlayers = document.querySelectorAll('.wGroupPlayer');
+        workout.groups = [];
+        
+        for(let i=0; i<groupNames.length; i++){
+          const name = groupNames[i].value.trim() || 'Gruppo '+(i+1);
+          const players = Array.from(groupPlayers).filter(cb=>parseInt(cb.dataset.group)===i && cb.checked).map(cb=>cb.value);
+          workout.groups.push({name, players});
+        }
+      }
+    }
+    
+    STATE.workouts.push(workout);
+    await saveKey('workouts', STATE.workouts);
+    showToast('Esercitazione creata');
+    render();
+  });
+  
+  el.querySelectorAll('[data-del-workout]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      if(!confirm('Sei sicuro di voler eliminare questa esercitazione? L\'azione non può essere annullata.')) return;
+      STATE.workouts = STATE.workouts.filter(w=>w.id!==b.dataset.delWorkout);
+      await saveKey('workouts', STATE.workouts);
+      showToast('Esercitazione eliminata');
+      render();
+    });
+  });
+}
+
+/* ---------- CALENDARIO (Sessioni) ---------- */
+/* Helper functions for matches */
+function getTodayEvents(){
+  const today = todayStr();
+  return STATE.events.filter(e => e.date === today && e.type === 'Partita');
+}
+
+function getNextMatch(){
+  const today = todayStr();
+  return STATE.events.find(e => e.date >= today && e.type === 'Partita' && e.date !== today) || null;
+}
+
+function getLastMatch(){
+  const today = todayStr();
+  return STATE.events.slice().reverse().find(e => e.date < today && e.type === 'Partita') || null;
+}
+
+function getMatchStats(match){
+  const stats = {
+    goals: {},
+    assists: {},
+    lineup: {}
+  };
+  if(match.goals){
+    match.goals.forEach(g => {
+      stats.goals[g.playerId] = (stats.goals[g.playerId] || 0) + 1;
+    });
+  }
+  if(match.assists){
+    match.assists.forEach(a => {
+      stats.assists[a.playerId] = (stats.assists[a.playerId] || 0) + 1;
+    });
+  }
+  if(match.lineup){
+    match.lineup.forEach(l => {
+      stats.lineup[l.playerId] = l;
+    });
+  }
+  return stats;
+}
+
+function getMatchesAroundDate(date){
+  const matches = STATE.events.filter(e=>e.type==='Partita').sort((a,b)=>a.date.localeCompare(b.date));
+  const before = matches.reverse().find(m=>m.date<date) || null;
+  const after = matches.find(m=>m.date>date) || null;
+  return {before, after};
+}
+
+function calculateMD(date){
+  const {before, after} = getMatchesAroundDate(date);
+  
+  // Se non c'è nessuna partita
+  if(!before && !after) return null;
+  
+  // Solo partita precedente
+  if(before && !after) {
+    const daysAfter = Math.floor((new Date(date) - new Date(before.date)) / (1000*60*60*24));
+    return `MD+${daysAfter}`;
+  }
+  
+  // Solo partita successiva
+  if(!before && after) {
+    const daysBefore = Math.floor((new Date(after.date) - new Date(date)) / (1000*60*60*24));
+    return `MD-${daysBefore}`;
+  }
+  
+  // Entrambe le partite: formato MD+X/-Y
+  const daysAfterBefore = Math.floor((new Date(date) - new Date(before.date)) / (1000*60*60*24));
+  const daysBeforeAfter = Math.floor((new Date(after.date) - new Date(date)) / (1000*60*60*24));
+  return `MD+${daysAfterBefore}/-${daysBeforeAfter}`;
+}
+
+function getTodayWorkout(){
+  const today = todayStr();
+  return STATE.events.find(e => e.date === today && e.type === 'Allenamento') || null;
+}
+
+function getPlayersOfMovement(){
+  return STATE.players.filter(p => p.role !== 'Portiere' && p.status !== 'Infortunato');
+}
+
+function getTodayPresenceCount(eventId){
+  const event = STATE.events.find(e => e.id === eventId);
+  if(!event) return {present: 0, total: getPlayersOfMovement().length};
+  return {present: event.presentCount || 0, total: getPlayersOfMovement().length};
+}
+
+function isPlayerPresentToday(playerId){
+  const todayEvent = getTodayWorkout();
+  if(!todayEvent || !todayEvent.presentPlayers) return null;
+  return todayEvent.presentPlayers.includes(playerId);
+}
+
+function renderCalendario(el){
+  const isStaff = STATE.role==='staff';
+  const upcoming = STATE.events.slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const todayMatch = getTodayEvents()[0] || null;
+  const nextMatch = getNextMatch();
+  const lastMatch = getLastMatch();
+  
+  el.innerHTML = `
+    <div class="page-head"><h1>Calendario</h1><p>${STATE.teamConfig.name || 'Squadra'}</p></div>
+    
+    <!-- PARTITE EVIDENZIATE -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;">
+      ${todayMatch ? `
+        <div style="background:linear-gradient(135deg, #3F7A5C 0%, #2D5C43 100%);color:white;padding:20px;border-radius:10px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;opacity:0.9;">🎯 Oggi</div>
+          <div style="font-size:16px;font-weight:700;margin-top:8px;">${esc(todayMatch.title)}</div>
+          <div style="font-size:13px;margin-top:6px;opacity:0.9;">${todayMatch.time || 'Orario TBD'}</div>
+          ${todayMatch.result ? `
+            <div style="margin-top:12px;font-size:18px;font-weight:700;">${todayMatch.result.goalsFor}-${todayMatch.result.goalsAgainst}</div>
+          ` : '<div style="margin-top:12px;color:#FFD700;">⏳ In corso o da giocare</div>'}
+        </div>
+      ` : '<div style="background:#F0F0F0;padding:20px;border-radius:10px;text-align:center;color:#999;">Nessuna partita oggi</div>'}
+      
+      ${nextMatch ? `
+        <div style="background:linear-gradient(135deg, #C9922B 0%, #9C6E1C 100%);color:white;padding:20px;border-radius:10px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;opacity:0.9;">⏭️ Prossima</div>
+          <div style="font-size:16px;font-weight:700;margin-top:8px;">${esc(nextMatch.title)}</div>
+          <div style="font-size:13px;margin-top:6px;opacity:0.9;">${fmtDate(nextMatch.date)} ${nextMatch.time || ''}</div>
+          <div style="margin-top:12px;font-size:12px;opacity:0.8;"></div>
+        </div>
+      ` : '<div style="background:#F0F0F0;padding:20px;border-radius:10px;text-align:center;color:#999;">Nessuna partita in programma</div>'}
+      
+      ${lastMatch ? `
+        <div style="background:linear-gradient(135deg, #4B5563 0%, #2F3441 100%);color:white;padding:20px;border-radius:10px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;opacity:0.9;">✓ Ultima</div>
+          <div style="font-size:16px;font-weight:700;margin-top:8px;">${esc(lastMatch.title)}</div>
+          <div style="font-size:13px;margin-top:6px;opacity:0.9;">${fmtDate(lastMatch.date)}</div>
+          ${lastMatch.result ? `
+            <div style="margin-top:12px;font-size:18px;font-weight:700;">${lastMatch.result.goalsFor}-${lastMatch.result.goalsAgainst}</div>
+          ` : ''}
+        </div>
+      ` : '<div style="background:#F0F0F0;padding:20px;border-radius:10px;text-align:center;color:#999;">Nessuna partita precedente</div>'}
+    </div>
+    
+    <!-- CREA EVENTO (PARTITA O ALLENAMENTO) -->
+    ${isStaff?`
+      <div class="card">
+        <h3>Nuovo evento</h3>
+        <div style="margin-bottom:16px;">
+          <label style="margin-right:20px;">
+            <input type="radio" name="eventType" value="partita" id="typePartita" checked> ⚽ Partita
+          </label>
+          <label>
+            <input type="radio" name="eventType" value="allenamento" id="typeAllenamento"> 🏋️ Allenamento
+          </label>
+        </div>
+        
+        <!-- COMMON FIELDS -->
+        <div class="grid3">
+          <div><label>Data</label><input id="evDate" type="date" value="${todayStr()}"></div>
+          <div><label>Ora</label><input id="evTime" type="time" value="15:00"></div>
+          <div id="thirdFieldContainer"></div>
+        </div>
+        
+        <!-- PARTITA FIELDS -->
+        <div id="matchFields" style="display:block;">
+          <div class="grid2">
+            <div><label>Avversario</label><input id="matchOpponent" type="text" placeholder="Nome squadra"></div>
+            <div>
+              <label>Posizione</label>
+              <div style="display:flex;gap:16px;margin-top:8px;">
+                <label><input type="radio" name="homeAway" value="home" checked> 🏠 In casa</label>
+                <label><input type="radio" name="homeAway" value="away"> ✈️ Trasferta</label>
+              </div>
+            </div>
+          </div>
+          <div class="grid2">
+            <div><label>Tipo</label><select id="matchType"><option>Amichevole</option><option>Campionato</option><option>Coppa</option></select></div>
+            <div id="resultContainer" style="display:none;">
+              <label>Risultato</label>
+              <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+                <input id="matchGoalsFor" type="number" min="0" value="0" style="width:60px;padding:8px;border:1px solid var(--line);border-radius:4px;text-align:center;">
+                <span style="font-weight:700;">-</span>
+                <input id="matchGoalsAgainst" type="number" min="0" value="0" style="width:60px;padding:8px;border:1px solid var(--line);border-radius:4px;text-align:center;">
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- ALLENAMENTO FIELDS -->
+        <div id="trainingFields" style="display:none;">
+          <div style="margin-bottom:16px;">
+            <label>Titolo <span style="font-size:10px;color:var(--ink-soft);">(auto-generato)</span></label>
+            <input id="evTitle" type="text" placeholder="Auto-generato da MD..." readonly style="background:var(--chalk);cursor:not-allowed;">
+          </div>
+          <label>Microciclo (MD)</label>
+          <input id="evMD" type="text" placeholder="Es. MD+1, MD-2, MD+1/3" style="margin-top:8px;margin-bottom:16px;">
+          <label style="font-size:11px;color:var(--ink-soft);margin-top:4px;display:block;">
+            Lascia vuoto e sarà calcolato automaticamente se ci sono partite prima/dopo
+          </label>
+          <label style="margin-top:12px;">Seleziona esercitazioni <span style="font-size:10px;color:var(--ink-soft);">(opzionale)</span></label>
+          <div class="checkbox-group" id="workoutCheckboxes">
+            ${STATE.workouts.length===0 ? '<div class="empty">Nessuna esercitazione disponibile</div>' :
+              STATE.workouts.map(w=>`
+                <div class="checkbox-item">
+                  <input type="checkbox" id="work_${w.id}" value="${w.id}" data-name="${w.name}" data-duration="${calcWorkoutDuration(w)}">
+                  <label for="work_${w.id}">${esc(w.name)} (${calcWorkoutDuration(w)}min)</label>
+                </div>
+              `).join('')}
+          </div>
+          <div style="font-size:11px;color:var(--ink-soft);margin-top:8px;padding:8px;background:var(--chalk);border-radius:4px;border-left:3px solid var(--amber);">
+            💡 Puoi aggiungere esercitazioni anche dopo, cliccando su "Dettagli" dalla lista
+          </div>
+        </div>
+        
+        <div class="btn-row"><button class="btn" id="createEventBtn">Crea evento</button>${window.clipboardEvent && window.clipboardEvent.type === 'allenamento' ? `<button class="btn secondary" id="pasteEventBtn" style="background:var(--ok);">📥 Incolla Sessione</button>` : ''}</div>
+      </div>
+    `:''}
+    
+    <div class="card">
+      <h3>📊 Timeline Evento (5 giorni)</h3>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:16px;">
+        ${(() => {
+          const today = todayStr();
+          const result = [];
+          for(let i=-2; i<=2; i++){
+            const d = new Date(today+'T00:00:00');
+            d.setDate(d.getDate()+i);
+            const dateStr = d.toISOString().slice(0,10);
+            const dayEvents = upcoming.filter(e=>e.date===dateStr).sort((a,b)=>(a.time||'00:00').localeCompare(b.time||'00:00'));
+            const defaultLabel = i === -2 ? 'L-2' : i === -1 ? 'L-1' : i === 0 ? 'OGGI' : i === 1 ? 'D+1' : 'D+2';
+            const isToday = i === 0;
+            
+            // Se ci sono eventi, usa il nome del primo, altrimenti usa il label di default
+            let dayLabel = defaultLabel;
+            if(dayEvents.length > 0){
+              const firstEvent = dayEvents[0];
+              dayLabel = firstEvent.type === 'Partita' ? '⚽ Partita' : '🏋️ Allenamento';
+            }
+            
+            let html = `<div style="border:2px solid ${isToday ? 'var(--ok)' : 'var(--line)'};border-radius:8px;padding:12px;background:${isToday ? '#E3EFE7' : 'var(--chalk)'};min-height:140px;">`;
+            html += `<div style="font-size:11px;font-weight:600;color:${isToday ? 'var(--ok)' : 'var(--ink-soft)'};text-transform:uppercase;margin-bottom:8px;">${dayLabel}</div>`;
+            html += `<div style="font-size:10px;color:var(--ink-soft);margin-bottom:12px;">${fmtDate(dateStr)}</div>`;
+            
+            if(dayEvents.length === 0){
+              html += `<div style="font-size:11px;color:#999;text-align:center;padding:16px 0;">-</div>`;
+            } else {
+              dayEvents.forEach(e=>{
+                const isMatch = e.type === 'Partita';
+                html += `<div style="background:white;padding:8px;border-radius:4px;margin-bottom:8px;border-left:3px solid ${isMatch ? 'var(--amber)' : 'var(--pitch)'};font-size:10px;cursor:pointer;" class="timelineEvent" data-event-id="${e.id}">`;
+                html += `<div style="font-weight:600;color:var(--pitch);margin-bottom:2px;">${isMatch ? '⚽' : '🏋️'} ${esc(e.title.substring(0,14))}</div>`;
+                html += `<div style="color:var(--ink-soft);font-size:9px;">${e.time ? e.time : ''}</div>`;
+                if(e.md) html += `<div style="color:var(--amber);font-size:8px;font-weight:600;">${esc(e.md)}</div>`;
+                if(isMatch && e.result) html += `<div style="color:var(--amber);font-weight:600;font-size:10px;margin-top:3px;">${e.result.goalsFor}-${e.result.goalsAgainst}</div>`;
+                html += `</div>`;
+              });
+            }
+            
+            html += `</div>`;
+            result.push(html);
+          }
+          return result.join('');
+        })()}
+      </div>
+    </div>
+    
+    <div class="card">
+      <h3>📋 Tutti gli Eventi (${upcoming.length})</h3>
+      ${upcoming.length===0 ? '<div class="empty">Nessun evento</div>' :
+        upcoming.map(e=>{
+          const isMatch = e.type === 'Partita';
+          return `
+            <div style="padding:14px;border:1px solid var(--line);border-radius:8px;margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;align-items:start;">
+                <div style="flex:1;">
+                  <h4 style="margin:0 0 6px 0;color:var(--pitch);">${isMatch ? '⚽' : '🏋️'} ${esc(e.title)}</h4>
+                  <div style="font-size:12px;color:var(--ink-soft);">
+                    📅 ${fmtDate(e.date)} ${e.time ? '🕐 '+e.time : ''}
+                    ${isMatch ? `<div style="margin-top:4px;">${esc(e.matchType||'Partita')} ${e.result ? `| <strong style="color:var(--pitch);">${e.result.goalsFor}-${e.result.goalsAgainst}</strong>` : ''}</div>` : ''}
+                    ${!isMatch ? `<div style="margin-top:4px;font-size:11px;color:var(--amber);font-weight:600;">${e.md ? e.md + ' · ' : ''}Durata: ${getSessionDuration(e)}min</div>` : ''}
+                  </div>
+                </div>
+                ${isStaff ? `<button class="btn secondary" id="evt_edit_${e.id}" style="font-size:11px;padding:6px 10px;margin-right:6px;">Dettagli</button><button class="btn secondary deleteEventBtn" data-event-id="${e.id}" style="font-size:11px;padding:6px 10px;">Elimina</button>` : ''}
+              </div>
+              ${!isMatch ? `
+                <div style="margin-top:8px;font-size:11px;color:var(--pitch);padding:6px;background:var(--chalk);border-radius:4px;">
+                  👥 Presenti: ${e.presentCount || 0} / ${getPlayersOfMovement().length}
+                </div>
+              ` : ''}
+              ${isMatch && e.events && e.events.length > 0 ? `
+                <div style="margin-top:8px;font-size:11px;color:var(--amber);padding:6px;background:var(--chalk);border-radius:4px;">
+                  📊 ${e.events.filter(ev=>ev.type==='goal').length} gol | ${e.events.filter(ev=>ev.type==='assist').length} assist
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('')}
+    </div>
+  `;
+  
+  if(isStaff){
+    // Toggle between Partita and Allenamento
+    document.getElementById('typePartita').addEventListener('change', ()=>{
+      document.getElementById('matchFields').style.display = 'block';
+      document.getElementById('trainingFields').style.display = 'none';
+      checkResultVisibility();
+    });
+    
+    document.getElementById('typeAllenamento').addEventListener('change', ()=>{
+      document.getElementById('matchFields').style.display = 'none';
+      document.getElementById('trainingFields').style.display = 'block';
+      updateAllenamentoTitle();
+    });
+    
+    // Update title when date or MD changes
+    const updateAllenamentoTitle = ()=>{
+      const date = document.getElementById('evDate').value;
+      let md = document.getElementById('evMD').value.trim();
+      if(!md) md = calculateMD(date) || 'Allenamento';
+      document.getElementById('evTitle').value = md;
+    };
+    
+    document.getElementById('evDate').addEventListener('change', updateAllenamentoTitle);
+    document.getElementById('evMD').addEventListener('change', updateAllenamentoTitle);
+    document.getElementById('evMD').addEventListener('keyup', updateAllenamentoTitle);
+    
+    // Show result container only if date is in the past
+    const checkResultVisibility = ()=>{
+      const date = document.getElementById('evDate').value;
+      const today = todayStr();
+      document.getElementById('resultContainer').style.display = date < today ? 'block' : 'none';
+    };
+    
+    document.getElementById('evDate').addEventListener('change', checkResultVisibility);
+    checkResultVisibility();
+    
+    // Create event
+    if(document.getElementById('createEventBtn')){
+      document.getElementById('createEventBtn').addEventListener('click', async ()=>{
+        const date = document.getElementById('evDate').value;
+        const time = document.getElementById('evTime').value;
+        const eventType = document.querySelector('input[name="eventType"]:checked').value;
+        
+        if(eventType === 'partita'){
+          const opponent = document.getElementById('matchOpponent').value.trim();
+          const position = document.querySelector('input[name="homeAway"]:checked').value;
+          const matchType = document.getElementById('matchType').value;
+          
+          if(!opponent){ showToast('Inserisci avversario'); return; }
+          
+          const teamName = STATE.teamConfig.name || 'Squadra';
+          const title = position === 'home' ? `${teamName} - ${opponent}` : `${opponent} - ${teamName}`;
+          
+          const matchObj = {
+            id:uid(), 
+            date, time, title, type: 'Partita',
+            matchType: matchType,
+            opponent: opponent,
+            position: position, // 'home' or 'away'
+            result: null,
+            events: [], // Timeline events
+            lineup: [],
+            duration: 90
+          };
+          
+          // Add result if date is in past
+          if(date < todayStr()){
+            const goalsFor = parseInt(document.getElementById('matchGoalsFor').value || '0');
+            const goalsAgainst = parseInt(document.getElementById('matchGoalsAgainst').value || '0');
+            matchObj.result = {goalsFor, goalsAgainst};
+          }
+          
+          STATE.events.push(matchObj);
+          await saveKey('events', STATE.events);
+          showToast('Partita creata');
+          render();
+        } else {
+          let title = document.getElementById('evTitle').value.trim();
+          if(!title){
+            let md = document.getElementById('evMD').value.trim();
+            if(!md) md = calculateMD(date) || 'Allenamento';
+            title = md;
+          }
+          
+          const workoutIds = Array.from(document.querySelectorAll('#workoutCheckboxes input:checked')).map(cb=>cb.value);
+          // workoutIds può essere vuoto - le esercitazioni sono opzionali
+          
+          let md = document.getElementById('evMD').value.trim();
+          if(!md) md = calculateMD(date) || '';
+          
+          STATE.events.push({id:uid(), date, time, title, type:'Allenamento', workoutIds, md});
+          await saveKey('events', STATE.events);
+          showToast('✅ Sessione creata' + (md ? ` (${md})` : '') + (workoutIds.length > 0 ? ` con ${workoutIds.length} esercitazione(i)` : ' (senza esercitazioni)'));
+          render();
+        }
+      });
+    }
+    
+    // Paste event
+    if(document.getElementById('pasteEventBtn')){
+      document.getElementById('pasteEventBtn').addEventListener('click', async ()=>{
+        if(!window.clipboardEvent || window.clipboardEvent.type !== 'allenamento'){
+          showToast('❌ Nessuna sessione copiata');
+          return;
+        }
+        
+        const date = document.getElementById('evDate').value;
+        const time = document.getElementById('evTime').value;
+        const clipboard = JSON.parse(JSON.stringify(window.clipboardEvent.data));
+        
+        // Crea nuova sessione con la data selezionata
+        let md = calculateMD(date) || 'Allenamento';
+        const workoutIds = clipboard.workoutIds || [];
+        
+        STATE.events.push({id:uid(), date, time, title: md, type:'Allenamento', workoutIds, md});
+        await saveKey('events', STATE.events);
+        showToast('✅ Sessione incollata per ' + fmtDate(date) + (workoutIds.length > 0 ? ` con ${workoutIds.length} esercitazione(i)` : ''));
+        render();
+      });
+    }
+  }
+  
+  // Edit and delete match
+  if(isStaff){
+    el.querySelectorAll('[id^="evt_edit_"]').forEach(b=>{
+      b.addEventListener('click', async ()=>{
+        const eventId = b.id.substring(9);
+        const event = STATE.events.find(e=>e.id===eventId);
+        if(!event) return;
+        renderMatchDetails(event);
+      });
+    });
+    
+    // Delete event - using class and data attribute
+    el.querySelectorAll('.deleteEventBtn').forEach(b=>{
+      b.addEventListener('click', async (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+        if(!confirm('Sei sicuro di voler eliminare questo evento? L\'azione non può essere annullata.')) return;
+        const eventId = b.dataset.eventId;
+        STATE.events = STATE.events.filter(evt=>evt.id!==eventId);
+        await saveKey('events', STATE.events);
+        showToast('✅ Evento eliminato');
+        render();
+      });
+    });
+  }
+  
+  // Timeline event click
+  el.querySelectorAll('.timelineEvent').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      const eventId = card.dataset.eventId;
+      const event = STATE.events.find(e=>e.id===eventId);
+      if(!event) return;
+      if(event.type === 'Partita' && isStaff){
+        renderMatchDetails(event);
+      } else if(event.type === 'Allenamento' && isStaff){
+        renderAllenamentoDetails(event);
+      }
+    });
+  });
+}
+
+
+
+
+/* ---------- MATCH DETAILS ---------- */
+function renderAllenamentoDetails(event){
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;box-sizing:border-box;overflow-y:auto;';
+  
+  modal.innerHTML = `
+    <div style="background:white;border-radius:12px;max-width:600px;width:100%;padding:24px;margin:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
+        <div>
+          <h2 style="margin:0;color:var(--pitch);">🏋️ ${esc(event.title)}</h2>
+          <div style="font-size:12px;color:var(--ink-soft);">📅 ${fmtDate(event.date)} 🕐 ${event.time || '-'} ${event.md ? '| ' + esc(event.md) : ''}</div>
+        </div>
+        <button id="closeAllenamentoModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">✕</button>
+      </div>
+      
+      <div style="border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:20px;">
+        <h4 style="margin:0 0 12px 0;color:var(--pitch);font-size:13px;">Esercitazioni</h4>
+        
+        ${event.workoutIds && event.workoutIds.length > 0 ? `
+          <div style="margin-bottom:12px;">
+            ${event.workoutIds.map(wid => {
+              const workout = STATE.workouts.find(w => w.id === wid);
+              return workout ? `
+                <div style="padding:8px;background:var(--chalk);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+                  <div style="font-size:12px;">
+                    <strong>${esc(workout.name)}</strong> (${calcWorkoutDuration(workout)}min)
+                  </div>
+                  <button class="del-workout-btn" data-workout-id="${wid}" style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;">✕</button>
+                </div>
+              ` : '';
+            }).join('')}
+          </div>
+        ` : '<div style="font-size:12px;color:#999;margin-bottom:12px;padding:12px;background:var(--chalk);border-radius:6px;">Nessuna esercitazione</div>'}
+        
+        <div style="border-top:1px solid var(--line);padding-top:12px;">
+          <label style="margin-bottom:8px;display:block;font-size:12px;">Aggiungi esercitazione:</label>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <select id="addWorkoutSelect" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:4px;font-size:12px;">
+              <option value="">-- Seleziona --</option>
+              ${STATE.workouts.map(w=>`<option value="${w.id}">${esc(w.name)} (${calcWorkoutDuration(w)}min)</option>`).join('')}
+            </select>
+            <button id="addWorkoutBtn" class="btn" style="padding:8px 16px;font-size:12px;">+ Aggiungi</button>
+          </div>
+        </div>
+      </div>
+      
+      <div style="text-align:right;display:flex;gap:12px;justify-content:flex-end;">
+        <button id="copyAllenamentoBtn" class="btn secondary" style="padding:8px 20px;">📋 Copia</button>
+        <button id="saveAllenamentoBtn" class="btn" style="padding:8px 20px;">Salva</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Close button
+  document.getElementById('closeAllenamentoModal').addEventListener('click', ()=>{
+    modal.remove();
+  });
+  
+  // Close on backdrop click
+  modal.addEventListener('click', (e)=>{
+    if(e.target === modal) modal.remove();
+  });
+  
+  // Delete workout
+  modal.querySelectorAll('.del-workout-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const wid = btn.dataset.workoutId;
+      event.workoutIds = event.workoutIds.filter(id => id !== wid);
+      renderAllenamentoDetails(event); // Refresh
+    });
+  });
+  
+  // Add workout
+  document.getElementById('addWorkoutBtn').addEventListener('click', ()=>{
+    const selectEl = document.getElementById('addWorkoutSelect');
+    const wid = selectEl.value;
+    if(!wid){
+      showToast('Seleziona un esercitazione');
+      return;
+    }
+    if(!event.workoutIds) event.workoutIds = [];
+    if(!event.workoutIds.includes(wid)){
+      event.workoutIds.push(wid);
+    }
+    selectEl.value = '';
+    renderAllenamentoDetails(event); // Refresh
+  });
+  
+  // Copy button
+  document.getElementById('copyAllenamentoBtn').addEventListener('click', ()=>{
+    // Salva temporaneamente in clipboard interno
+    window.clipboardEvent = {type: 'allenamento', data: JSON.parse(JSON.stringify(event))};
+    showToast('📋 Sessione copiata! Seleziona una data e premi "Incolla"');
+    modal.remove();
+  });
+  
+  // Save
+  document.getElementById('saveAllenamentoBtn').addEventListener('click', async ()=>{
+    const idx = STATE.events.findIndex(e => e.id === event.id);
+    if(idx >= 0){
+      STATE.events[idx] = event;
+      await saveKey('events', STATE.events);
+      showToast('✅ Allenamento aggiornato');
+      render();
+      modal.remove();
+    }
+  });
+}
+
+function renderMatchDetails(match){
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;box-sizing:border-box;overflow-y:auto;';
+  
+  const teamName = STATE.teamConfig.name || 'Squadra';
+  const isHome = match.position === 'home';
+  const isPast = match.date < todayStr();
+  
+  modal.innerHTML = `
+    <div style="background:white;border-radius:12px;max-width:700px;width:100%;padding:24px;margin:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
+        <div>
+          <h2 style="margin:0;color:var(--pitch);">${esc(match.title)}</h2>
+          <div style="font-size:12px;color:var(--ink-soft);">📅 ${fmtDate(match.date)} 🕐 ${match.time || '-'} | ${esc(match.matchType)}</div>
+        </div>
+        <button id="closeMatchModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">✕</button>
+      </div>
+      
+      ${isPast ? `
+        <!-- PARTITA PASSATA: RISULTATO + TIMELINE -->
+        <div style="border:2px solid var(--amber);border-radius:8px;padding:16px;margin-bottom:20px;">
+          <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;">
+            ${isHome ? `
+              <div style="text-align:center;">
+                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">🏠 ${esc(teamName)}</div>
+                <select id="homeGoals" style="padding:10px;font-size:18px;font-weight:700;border:1px solid var(--line);border-radius:6px;text-align:center;">
+                  ${Array.from({length:11}, (_,i)=>`<option value="${i}" ${match.result?.goalsFor===i?'selected':''}>${i}</option>`).join('')}
+                </select>
+              </div>
+            ` : `
+              <div style="text-align:center;">
+                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">✈️ ${esc(match.opponent)}</div>
+                <select id="homeGoals" style="padding:10px;font-size:18px;font-weight:700;border:1px solid var(--line);border-radius:6px;text-align:center;">
+                  ${Array.from({length:11}, (_,i)=>`<option value="${i}" ${match.result?.goalsAgainst===i?'selected':''}>${i}</option>`).join('')}
+                </select>
+              </div>
+            `}
+            <div style="font-size:16px;font-weight:700;color:var(--ink-soft);">-</div>
+            ${isHome ? `
+              <div style="text-align:center;">
+                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">✈️ ${esc(match.opponent)}</div>
+                <select id="awayGoals" style="padding:10px;font-size:18px;font-weight:700;border:1px solid var(--line);border-radius:6px;text-align:center;">
+                  ${Array.from({length:11}, (_,i)=>`<option value="${i}" ${match.result?.goalsAgainst===i?'selected':''}>${i}</option>`).join('')}
+                </select>
+              </div>
+            ` : `
+              <div style="text-align:center;">
+                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">🏠 ${esc(teamName)}</div>
+                <select id="awayGoals" style="padding:10px;font-size:18px;font-weight:700;border:1px solid var(--line);border-radius:6px;text-align:center;">
+                  ${Array.from({length:11}, (_,i)=>`<option value="${i}" ${match.result?.goalsFor===i?'selected':''}>${i}</option>`).join('')}
+                </select>
+              </div>
+            `}
+          </div>
+        </div>
+        
+        <!-- TIMELINE EVENTI -->
+        <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:20px;">
+          <h4 style="margin:0 0 12px 0;color:var(--pitch);font-size:13px;">📊 Timeline (${match.events?.length || 0} eventi)</h4>
+          
+          ${match.events && match.events.length > 0 ? `
+            <div style="margin-bottom:12px;max-height:200px;overflow-y:auto;">
+              ${match.events.sort((a,b)=>a.minute-b.minute).map((evt, idx)=>`
+                <div style="padding:8px;background:var(--chalk);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+                  <div>
+                    <span style="font-weight:600;">${evt.minute}'</span>
+                    <span style="margin-left:8px;">${evt.type==='goal'?'⚽':'🎯'} ${esc(STATE.players.find(p=>p.id==evt.playerId)?.name||'?')}</span>
+                    ${evt.type==='goal'?`<span style="color:var(--ok);font-weight:600;margin-left:4px;"> GOL</span>`:`<span style="color:var(--amber);margin-left:4px;"> ASSIST</span>`}
+                  </div>
+                  <button class="del-evt-btn" data-evt-idx="${idx}" style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;">✕</button>
+                </div>
+              `).join('')}
+            </div>
+          ` : '<div style="font-size:12px;color:#999;text-align:center;margin-bottom:12px;">Nessun evento</div>'}
+          
+          <div style="border-top:1px solid var(--line);padding-top:12px;">
+            <div class="grid2" style="gap:8px;margin-bottom:8px;">
+              <select id="eventType" style="padding:8px;border:1px solid var(--line);border-radius:4px;font-size:12px;">
+                <option value="goal">⚽ Goal</option>
+                <option value="assist">🎯 Assist</option>
+              </select>
+              <input id="eventMinute" type="number" min="0" max="120" placeholder="Min." style="padding:8px;border:1px solid var(--line);border-radius:4px;font-size:12px;text-align:center;">
+            </div>
+            <div style="margin-bottom:8px;">
+              <select id="eventPlayer" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:4px;font-size:12px;">
+                <option value="">Seleziona giocatore...</option>
+                ${STATE.players.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}
+              </select>
+            </div>
+            <button id="addEventBtn" class="btn" style="width:100%;padding:8px;">+ Aggiungi evento</button>
+          </div>
+        </div>
+      ` : ''}
+      
+      <!-- MODULO (SEMPRE) -->
+      <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:20px;">
+        <h4 style="margin:0 0 12px 0;color:var(--pitch);font-size:13px;">📐 Modulo</h4>
+        <input id="modulo" type="text" placeholder="Es. 4-3-3" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;" value="${match.modulo || ''}">
+      </div>
+      
+      <!-- FORMAZIONE (SEMPRE) -->
+      <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:20px;">
+        <h4 style="margin:0 0 12px 0;color:var(--pitch);font-size:13px;">👥 Formazione</h4>
+        <div style="margin-bottom:16px;">
+          <h5 style="margin:0 0 10px 0;font-size:12px;color:var(--pitch);background:var(--chalk);padding:6px;border-radius:4px;">🔴 STARTING XI</h5>
+          <div style="max-height:200px;overflow-y:auto;">
+            ${STATE.players.filter(p=>match.lineup?.some(l=>l.playerId==p.id&&l.status==='starter')).length > 0 ? `
+              ${STATE.players.filter(p=>match.lineup?.some(l=>l.playerId==p.id&&l.status==='starter')).map(p=>{
+                const lineupEntry = match.lineup?.find(l=>l.playerId==p.id);
+                return `
+                  <div style="padding:8px;background:#FAFAFA;border-radius:4px;margin-bottom:6px;display:flex;gap:8px;align-items:center;font-size:12px;">
+                    <span style="color:var(--ink-soft);font-size:11px;min-width:20px;">${p.role}</span>
+                    <span style="flex:1;font-weight:600;">${esc(p.name)}</span>
+                    <input type="number" class="lineup-minutes" data-player-id="${p.id}" min="0" max="90" value="${lineupEntry?.minutes||90}" style="width:50px;padding:4px;border:1px solid var(--line);border-radius:4px;text-align:center;font-size:11px;">
+                    <span style="color:var(--ink-soft);font-size:11px;">min</span>
+                  </div>
+                `;
+              }).join('')}
+            ` : '<div style="font-size:12px;color:#999;text-align:center;padding:8px;">Nessun titolare</div>'}
+          </div>
+        </div>
+        <div>
+          <h5 style="margin:0 0 10px 0;font-size:12px;color:var(--pitch);background:var(--chalk);padding:6px;border-radius:4px;">🟡 PANCHINA</h5>
+          <div style="max-height:200px;overflow-y:auto;">
+            ${STATE.players.filter(p=>!match.lineup?.some(l=>l.playerId==p.id&&l.status==='starter')).map(p=>{
+              const lineupEntry = match.lineup?.find(l=>l.playerId==p.id);
+              return `
+                <div style="padding:8px;background:#FAFAFA;border-radius:4px;margin-bottom:6px;font-size:12px;">
+                  <div style="display:flex;gap:8px;align-items:center;margin-bottom:${lineupEntry?.minutes>0?'6px':'0px'};">
+                    <span style="color:var(--ink-soft);font-size:11px;min-width:20px;">${p.role}</span>
+                    <span style="flex:1;font-weight:600;">${esc(p.name)}</span>
+                    <label style="font-size:11px;">
+                      <input type="checkbox" class="player-starter-toggle" data-player-id="${p.id}" ${match.lineup?.some(l=>l.playerId==p.id&&l.status==='starter')?'checked':''}>
+                      Titolare
+                    </label>
+                  </div>
+                  ${lineupEntry && lineupEntry.minutes > 0 ? `
+                    <div style="margin-left:28px;padding:6px;background:white;border-radius:4px;border:1px solid var(--line);">
+                      <div style="margin-bottom:4px;font-size:11px;color:var(--ink-soft);">Minuti: </div>
+                      <input type="number" class="lineup-minutes" data-player-id="${p.id}" min="0" max="90" value="${lineupEntry.minutes}" style="width:50px;padding:4px;border:1px solid var(--line);border-radius:4px;text-align:center;font-size:11px;">
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+      
+      <div style="display:flex;gap:8px;">
+        <button id="saveMatchBtn" class="btn" style="flex:1;">💾 Salva Partita</button>
+        <button id="closeMatchModal2" class="btn secondary" style="flex:0.3;">Chiudi</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  const closeBtn = document.getElementById('closeMatchModal');
+  const closeBtn2 = document.getElementById('closeMatchModal2');
+  
+  if(closeBtn) closeBtn.addEventListener('click', ()=>modal.remove());
+  if(closeBtn2) closeBtn2.addEventListener('click', ()=>modal.remove());
+  
+  // Add event (only for past matches)
+  if(isPast && document.getElementById('addEventBtn')){
+    document.getElementById('addEventBtn').addEventListener('click', ()=>{
+      const type = document.getElementById('eventType').value;
+      const minute = parseInt(document.getElementById('eventMinute').value);
+      const playerId = parseInt(document.getElementById('eventPlayer').value);
+      
+      if(!playerId || minute < 0 || minute > 120){
+        showToast('Completa campi');
+        return;
+      }
+      
+      if(!match.events) match.events = [];
+      match.events.push({type, minute, playerId});
+      renderMatchDetails(match);
+      modal.remove();
+    });
+  }
+  
+  // Delete event
+  modal.querySelectorAll('.del-evt-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = parseInt(btn.dataset.evtIdx);
+      if(match.events) match.events.splice(idx, 1);
+      renderMatchDetails(match);
+      modal.remove();
+    });
+  });
+  
+  // Save match
+  if(document.getElementById('saveMatchBtn')){
+    document.getElementById('saveMatchBtn').addEventListener('click', async ()=>{
+      if(isPast){
+        const homeGoalsVal = parseInt(document.getElementById('homeGoals').value || '0');
+        const awayGoalsVal = parseInt(document.getElementById('awayGoals').value || '0');
+        
+        match.result = {
+          goalsFor: isHome ? homeGoalsVal : awayGoalsVal,
+          goalsAgainst: isHome ? awayGoalsVal : homeGoalsVal
+        };
+      }
+      
+      match.modulo = document.getElementById('modulo').value.trim();
+      
+      // Collect lineup
+      match.lineup = [];
+      modal.querySelectorAll('.lineup-minutes').forEach(inp=>{
+        const playerId = parseInt(inp.dataset.playerId);
+        const minutes = parseInt(inp.value || '0');
+        const isStar = modal.querySelector(`.player-starter-toggle[data-player-id="${playerId}"]`)?.checked || false;
+        
+        match.lineup.push({
+          playerId,
+          minutes: minutes,
+          status: isStar ? 'starter' : 'sub'
+        });
+      });
+      
+      await saveKey('events', STATE.events);
+      showToast('✅ Partita salvata');
+      modal.remove();
+      render();
+    });
+  }
+}
+
+
+
+function renderWellness(el){
+  try {
+    console.log('renderWellness called, currentPlayerId:', STATE.currentPlayerId);
+    if(!STATE.currentPlayerId){
+      el.innerHTML = `<div class="page-head"><h1>Wellness</h1></div><div class="card" style="background:#F0DAD6;border:1px solid #B5473A;color:#8B3429;"><p>❌ Errore: ID giocatore non valido. currentPlayerId=${STATE.currentPlayerId}. Accedi di nuovo.</p></div>`;
+      return;
+    }
+    
+    const hooper = getLatestHooperIndex(STATE.currentPlayerId);
+    const today = todayStr();
+    const hooperToday = STATE.hooperLog.find(h=>h.playerId===STATE.currentPlayerId && h.date===today);
+    const rpeEntries = STATE.rpeLog.filter(r=>r.playerId===STATE.currentPlayerId).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+    const painEntries = STATE.painLog.filter(p=>p.playerId===STATE.currentPlayerId).sort((a,b)=>b.date.localeCompare(a.date));
+    const hooperEntries = STATE.hooperLog.filter(h=>h.playerId===STATE.currentPlayerId).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+    
+    el.innerHTML = `
+    <div class="page-head"><h1>Wellness</h1><p>Il tuo stato di salute e prestazione</p></div>
+    
+    <div class="card">
+      <h3>Hooper Index di oggi</h3>
+      ${hooperToday ? `
+        <div style="padding:12px;background:var(--chalk);border-radius:6px;border-left:4px solid var(--amber);">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;">
+            <div><span style="font-size:11px;color:var(--ink-soft);">Stress</span><div style="font-size:18px;color:var(--amber);font-weight:600;">${hooperToday.stress}/5</div></div>
+            <div><span style="font-size:11px;color:var(--ink-soft);">Sonno</span><div style="font-size:18px;color:var(--amber);font-weight:600;">${hooperToday.sleep}/5</div></div>
+            <div><span style="font-size:11px;color:var(--ink-soft);">Muscoli</span><div style="font-size:18px;color:var(--amber);font-weight:600;">${hooperToday.muscles}/5</div></div>
+            <div><span style="font-size:11px;color:var(--ink-soft);">Umore</span><div style="font-size:18px;color:var(--amber);font-weight:600;">${hooperToday.mood}/5</div></div>
+          </div>
+          <div style="text-align:center;font-size:13px;color:var(--ink-soft);">Già compilato oggi</div>
+        </div>
+      ` : `
+        <div style="margin-top:12px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><label>Stress (al risveglio)</label><span id="hiStressVal" style="color:var(--amber);font-weight:600;">3/5</span></div>
+          <input id="hiStress" type="range" min="1" max="5" value="3">
+        </div>
+        <div style="margin-top:12px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><label>Qualità sonno</label><span id="hiSleepVal" style="color:var(--amber);font-weight:600;">3/5</span></div>
+          <input id="hiSleep" type="range" min="1" max="5" value="3">
+        </div>
+        <div style="margin-top:12px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><label>Muscoli/Fatica</label><span id="hiMusclesVal" style="color:var(--amber);font-weight:600;">3/5</span></div>
+          <input id="hiMuscles" type="range" min="1" max="5" value="3">
+        </div>
+        <div style="margin-top:12px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><label>Umore</label><span id="hiMoodVal" style="color:var(--amber);font-weight:600;">3/5</span></div>
+          <input id="hiMood" type="range" min="1" max="5" value="3">
+        </div>
+        <div class="btn-row"><button class="btn" id="saveHooperBtn">Salva Hooper Index</button></div>
+      `}
+    </div>
+    
+    <div class="card">
+      <h3>Registra RPE (Rate of Perceived Exertion)</h3>
+      <label>Sessione</label>
+      <select id="rpeSession">
+        <option value="">-- Seleziona sessione --</option>
+        ${STATE.events.filter(e=>e.type==='Allenamento').map(e=>`<option value="${e.id}">${esc(e.title)} - ${fmtDate(e.date)}</option>`).join('')}
+      </select>
+      <div style="margin-top:12px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><label>RPE (0-10)</label><span id="rpeVal" style="color:var(--amber);font-weight:600;">5/10</span></div>
+        <input id="rpeInput" type="range" min="0" max="10" value="5">
+      </div>
+      <div class="btn-row"><button class="btn" id="addRpeBtn">Salva RPE</button></div>
+    </div>
+    
+    <div class="card">
+      <h3>Registra dolore</h3>
+      <div class="grid2">
+        <div><label>Zona corporea</label><select id="painZone">${BODY_ZONES.map(z=>`<option>${z}</option>`).join('')}</select></div>
+        <div><label>Tipo di dolore</label><select id="painType">${PAIN_TYPES.map(t=>`<option>${t}</option>`).join('')}</select></div>
+      </div>
+      <div class="grid2">
+        <div><label>Intensità (0-10)</label><input id="painIntensity" type="number" min="0" max="10" value="5"></div>
+        <div></div>
+      </div>
+      <label>Note</label><textarea id="painNotes" placeholder="Descrizioni aggiuntive..."></textarea>
+      <div class="btn-row"><button class="btn" id="addPainBtn">Aggiungi dolore</button></div>
+    </div>
+    
+    <div class="card">
+      <h3>I miei RPE (ultimi 10)</h3>
+      ${rpeEntries.length===0 ? '<div class="empty">Nessun RPE registrato</div>' :
+        rpeEntries.map(r=>{
+          const sess = STATE.events.find(e=>e.id===r.sessionId);
+          return `<div style="padding:8px;border-bottom:1px solid var(--line);font-size:12px;"><strong>${sess?esc(sess.title):'Sessione'}</strong> - ${fmtDate(r.date)}<br><span style="color:var(--amber);font-weight:600;">RPE ${r.rpe}/10</span></div>`;
+        }).join('')}
+    </div>
+    
+    <div class="card">
+      <h3>Storico Hooper Index (ultimi 10)</h3>
+      ${hooperEntries.length===0 ? '<div class="empty">Nessun storico</div>' :
+        hooperEntries.map(h=>`<div style="padding:8px;border-bottom:1px solid var(--line);font-size:12px;"><strong>${fmtDate(h.date)}</strong> | S:${h.stress} So:${h.sleep} M:${h.muscles} U:${h.mood} = <span style="color:var(--amber);font-weight:600;">${Math.round((h.stress+h.sleep+h.muscles+h.mood)/20*100)}%</span></div>`).join('')}
+    </div>
+    
+    <div class="card">
+      <h3>Storico dolori</h3>
+      ${painEntries.length===0 ? '<div class="empty">Nessun dolore registrato</div>' :
+        painEntries.map(p=>`
+          <div style="padding:10px;border:1px solid var(--line);border-radius:6px;margin-bottom:8px;background:var(--chalk);">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+              <strong>${esc(p.zone)} - ${esc(p.type)}</strong>
+              <button style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;" data-del-pain="${p.id}">Elimina</button>
+            </div>
+            <div style="font-size:11px;color:var(--ink-soft);margin-bottom:4px;">${fmtDate(p.date)} | Intensità: <span style="color:var(--amber);font-weight:600;">${p.intensity}/10</span></div>
+            ${p.notes ? `<div style="font-size:11px;margin-top:4px;padding:6px;background:white;border-radius:4px;">${esc(p.notes)}</div>` : ''}
+          </div>
+        `).join('')}
+    </div>
+  `;
+  
+  if(!hooperToday && document.getElementById('saveHooperBtn')){
+    const updateRangeValues = ()=>{
+      document.getElementById('hiStressVal').textContent = document.getElementById('hiStress').value + '/5';
+      document.getElementById('hiSleepVal').textContent = document.getElementById('hiSleep').value + '/5';
+      document.getElementById('hiMusclesVal').textContent = document.getElementById('hiMuscles').value + '/5';
+      document.getElementById('hiMoodVal').textContent = document.getElementById('hiMood').value + '/5';
+    };
+    
+    document.getElementById('hiStress').addEventListener('input', updateRangeValues);
+    document.getElementById('hiSleep').addEventListener('input', updateRangeValues);
+    document.getElementById('hiMuscles').addEventListener('input', updateRangeValues);
+    document.getElementById('hiMood').addEventListener('input', updateRangeValues);
+    
+    document.getElementById('saveHooperBtn').addEventListener('click', async ()=>{
+      const stress = parseInt(document.getElementById('hiStress').value)||3;
+      const sleep = parseInt(document.getElementById('hiSleep').value)||3;
+      const muscles = parseInt(document.getElementById('hiMuscles').value)||3;
+      const mood = parseInt(document.getElementById('hiMood').value)||3;
+      
+      STATE.hooperLog.push({id:uid(), playerId:STATE.currentPlayerId, date:today, stress, sleep, muscles, mood});
+      await saveKey('hooper-log', STATE.hooperLog);
+      showToast('Hooper Index salvato');
+      render();
+    });
+  }
+  
+  if(document.getElementById('rpeInput')){
+    document.getElementById('rpeInput').addEventListener('input', ()=>{
+      document.getElementById('rpeVal').textContent = document.getElementById('rpeInput').value + '/10';
+    });
+  }
+  
+  if(document.getElementById('addRpeBtn')){
+    document.getElementById('addRpeBtn').addEventListener('click', async ()=>{
+      const sessionId = document.getElementById('rpeSession').value;
+      const rpe = parseInt(document.getElementById('rpeInput').value) || 5;
+      
+      if(!sessionId){
+        showToast('Seleziona una sessione');
+        return;
+      }
+      
+      STATE.rpeLog.push({id:uid(), playerId:STATE.currentPlayerId, date:today, sessionId, rpe});
+      await saveKey('rpe-log', STATE.rpeLog);
+      showToast('RPE salvato');
+      render();
+    });
+  }
+  
+  if(document.getElementById('addPainBtn')){
+    document.getElementById('addPainBtn').addEventListener('click', async ()=>{
+      const zone = document.getElementById('painZone').value;
+      const type = document.getElementById('painType').value;
+      const intensity = parseInt(document.getElementById('painIntensity').value)||5;
+      const notes = document.getElementById('painNotes').value.trim();
+      
+      STATE.painLog.push({id:uid(), playerId:STATE.currentPlayerId, date:today, zone, type, intensity, notes});
+      await saveKey('pain-log', STATE.painLog);
+      showToast('Dolore registrato');
+      render();
+    });
+  }
+  
+  el.querySelectorAll('[data-del-pain]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      if(!confirm('Sei sicuro di voler eliminare questo dolore? L\'azione non può essere annullata.')) return;
+      STATE.painLog = STATE.painLog.filter(p=>p.id!==b.dataset.delPain);
+      await saveKey('pain-log', STATE.painLog);
+      showToast('Dolore eliminato');
+      render();
+    });
+  });
+  } catch(err) {
+    console.error('Errore in renderWellness:', err);
+    el.innerHTML = `<div class="page-head"><h1>Wellness</h1></div><div class="card" style="background:#F0DAD6;border:1px solid #B5473A;color:#8B3429;"><p>❌ Errore interno: ${esc(err.message)}</p></div>`;
+  }
+}
+
+function renderPlayerCalendario(el){
+  const today = todayStr();
+  const playerId = STATE.currentPlayerId;
+  const allEvents = STATE.events.filter(e => e.type === 'Allenamento' || e.type === 'Partita').sort((a,b) => a.date.localeCompare(b.date));
+  
+  const todayWorkout = getTodayWorkout();
+  const isPresent = todayWorkout ? isPlayerPresentToday(playerId) : null;
+  
+  const pastEvents = allEvents.filter(e => e.date < today);
+  const todayEvents = allEvents.filter(e => e.date === today);
+  const futureEvents = allEvents.filter(e => e.date > today);
+  
+  el.innerHTML = `
+    <div class="page-head"><h1>Calendario</h1><p>I tuoi impegni</p></div>
+    
+    ${todayWorkout ? `
+      <div class="card" style="background:linear-gradient(135deg, var(--pitch) 0%, var(--pitch-dark) 100%);color:white;border:none;margin-bottom:24px;">
+        <h3 style="margin-top:0;color:white;">🏋️ Allenamento Odierno</h3>
+        <div style="margin-bottom:16px;">
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px;">${esc(todayWorkout.title)}</div>
+          <div style="font-size:12px;opacity:0.9;">
+            ${todayWorkout.time || 'Orario TBD'} · MD: ${esc(todayWorkout.md || '-')} · Durata: ${getSessionDuration(todayWorkout)}min
+          </div>
+        </div>
+        <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:12px;text-align:center;">
+          ${isPresent === null ? `
+            <div style="font-size:12px;opacity:0.9;">Stato registrazione non ancora disponibile</div>
+          ` : isPresent ? `
+            <div style="font-size:16px;font-weight:700;color:#A3E4B4;margin-bottom:4px;">✅ PRESENTE</div>
+            <div style="font-size:12px;opacity:0.9;">Sei registrato per la sessione odierna</div>
+          ` : `
+            <div style="font-size:16px;font-weight:700;color:#F7A9A3;margin-bottom:4px;">❌ ASSENTE</div>
+            <div style="font-size:12px;opacity:0.9;">Non sei registrato per la sessione odierna</div>
+          `}
+        </div>
+      </div>
+    ` : ''}
+    
+    ${todayEvents.length > 0 ? `
+      <div class="card">
+        <h3>Oggi</h3>
+        ${todayEvents.map(e => {
+          const isMatch = e.type === 'Partita';
+          return `
+            <div style="padding:12px;background:var(--chalk);border-radius:6px;margin-bottom:8px;">
+              <div style="font-weight:600;color:var(--pitch);margin-bottom:4px;">${isMatch ? '⚽' : '🏋️'} ${esc(e.title)}</div>
+              <div style="font-size:12px;color:var(--ink-soft);">
+                ${e.time || ''} ${e.md ? '· ' + esc(e.md) : ''} ${!isMatch ? '· Durata: ' + getSessionDuration(e) + 'min' : ''}
+              </div>
+              ${isMatch && e.result ? `<div style="font-size:12px;color:var(--amber);font-weight:600;margin-top:4px;">${e.result.goalsFor}-${e.result.goalsAgainst}</div>` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : ''}
+    
+    ${futureEvents.length > 0 ? `
+      <div class="card">
+        <h3>Prossimi impegni</h3>
+        ${futureEvents.map(e => {
+          const isMatch = e.type === 'Partita';
+          return `
+            <div style="padding:12px;border:1px solid var(--line);border-radius:6px;margin-bottom:8px;">
+              <div style="font-weight:600;color:var(--pitch);margin-bottom:4px;">${isMatch ? '⚽' : '🏋️'} ${esc(e.title)}</div>
+              <div style="font-size:12px;color:var(--ink-soft);">
+                📅 ${fmtDate(e.date)} ${e.time ? '🕐 ' + e.time : ''} ${e.md ? '· ' + esc(e.md) : ''} ${!isMatch ? '· Durata: ' + getSessionDuration(e) + 'min' : ''}
+              </div>
+              ${isMatch ? `<div style="font-size:11px;color:var(--amber);margin-top:4px;">${esc(e.matchType || 'Partita')}</div>` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : ''}
+    
+    ${pastEvents.length > 0 ? `
+      <div class="card">
+        <h3>Impegni passati</h3>
+        ${pastEvents.slice(-10).reverse().map(e => {
+          const isMatch = e.type === 'Partita';
+          return `
+            <div style="padding:12px;background:#F9F9F9;border-radius:6px;margin-bottom:8px;opacity:0.7;">
+              <div style="font-weight:600;color:var(--pitch);margin-bottom:4px;">${isMatch ? '⚽' : '🏋️'} ${esc(e.title)}</div>
+              <div style="font-size:12px;color:var(--ink-soft);">
+                📅 ${fmtDate(e.date)} ${e.time ? '🕐 ' + e.time : ''}
+              </div>
+              ${isMatch && e.result ? `<div style="font-size:12px;color:var(--amber);font-weight:600;margin-top:4px;">${e.result.goalsFor}-${e.result.goalsAgainst}</div>` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : ''}
+  `;
+}
+
+function renderImpostazioni(el){
+  el.innerHTML = `
+    <div class="page-head"><h1>Impostazioni</h1></div>
+    <div class="card"><h3>Nome squadra</h3><input id="setTeamName" type="text" value="${esc(STATE.teamConfig.name||'')}"><div class="btn-row"><button class="btn" id="saveTeamBtn">Salva</button></div></div>
+    <div class="card"><h3>Password staff</h3><input id="setStaffPassword" type="text" value="${esc(STATE.staffPassword||'staff')}"><div class="btn-row"><button class="btn" id="saveStaffPasswordBtn">Aggiorna</button></div></div>
+    <div class="card"><h3>Backup dati</h3><div class="btn-row"><button class="btn secondary" id="exportBtn">Scarica backup</button></div></div>
+  `;
+  
+  document.getElementById('saveTeamBtn').addEventListener('click', async ()=>{
+    STATE.teamConfig.name = document.getElementById('setTeamName').value.trim() || 'Squadra';
+    await saveKey('team-config', STATE.teamConfig);
+    showToast('Salvato');
+  });
+  
+  document.getElementById('saveStaffPasswordBtn').addEventListener('click', async ()=>{
+    const pwd = document.getElementById('setStaffPassword').value.trim();
+    if(!pwd){ showToast('Inserisci una password'); return; }
+    STATE.staffPassword = pwd;
+    await saveKey('staff-password', STATE.staffPassword);
+    showToast('Password aggiornata');
+  });
+  
+  document.getElementById('exportBtn').addEventListener('click', ()=>{
+    const backup = {date: new Date().toISOString(), teamConfig: STATE.teamConfig, players: STATE.players, events: STATE.events, workouts: STATE.workouts, tests: STATE.tests, rpe: STATE.rpeLog, hooper: STATE.hooperLog, pain: STATE.painLog};
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `player-hub-backup-${todayStr()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Backup scaricato');
+  });
+}
+
+function renderImpostazioniAdmin(el){
+  el.innerHTML = `
+    <div class="page-head"><h1>🔐 Impostazioni Amministratore</h1><p>Solo per l'amministratore del sistema</p></div>
+    
+    <div class="card">
+      <h3>Password Amministratore</h3>
+      <label style="margin-top:0;">Cambia la tua password di accesso</label>
+      <input id="setAdminPassword" type="text" value="${esc(STATE.adminPassword||'admin2024')}" style="margin-top:8px;">
+      <div class="btn-row"><button class="btn" id="saveAdminPasswordBtn">Aggiorna Password Admin</button></div>
+    </div>
+    
+    <div class="card">
+      <h3>Password Staff</h3>
+      <label style="margin-top:0;">Cambia il codice di accesso dello staff</label>
+      <input id="setStaffPassword" type="text" value="${esc(STATE.staffPassword||'staff')}" style="margin-top:8px;">
+      <div class="btn-row"><button class="btn" id="saveStaffPasswordBtn">Aggiorna Password Staff</button></div>
+    </div>
+    
+    <div class="card">
+      <h3>⚠️ Cancella Dati</h3>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px 0;">Azioni irreversibili</p>
+      <div class="btn-row">
+        <button class="btn secondary" id="deleteAllMatchesBtn" style="background:#F0DAD6;border-color:#B5473A;color:#B5473A;">🗑️ Elimina tutte le partite (${STATE.events.filter(e=>e.type==='match').length})</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn secondary" id="deleteAllWorkoutsBtn" style="background:#F0DAD6;border-color:#B5473A;color:#B5473A;">🗑️ Elimina tutti gli allenamenti (${STATE.events.filter(e=>e.type==='workout').length})</button>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h3>Importa Upgrade/Patch</h3>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px 0;">Importa un file HTML con una versione aggiornata dell'applicazione. Il file verrà scaricato automaticamente sul tuo computer.</p>
+      <input id="upgradeFile" type="file" accept=".html" style="margin:12px 0;">
+      <div class="btn-row"><button class="btn" id="importUpgradeBtn">📥 Importa Upgrade</button></div>
+    </div>
+    
+    <div class="card">
+      <h3>Ripristina Backup</h3>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px 0;">Importa un file di backup JSON per ripristinare i dati precedenti.</p>
+      <input id="backupFile" type="file" accept=".json" style="margin:12px 0;">
+      <div class="btn-row"><button class="btn secondary" id="importBackupBtn">📂 Ripristina Backup</button></div>
+    </div>
+  `;
+  
+  document.getElementById('saveAdminPasswordBtn').addEventListener('click', async ()=>{
+    const pwd = document.getElementById('setAdminPassword').value.trim();
+    if(!pwd){ showToast('Inserisci una password'); return; }
+    STATE.adminPassword = pwd;
+    await saveKey('admin-password', STATE.adminPassword);
+    showToast('✅ Password admin aggiornata');
+  });
+  
+  document.getElementById('saveStaffPasswordBtn').addEventListener('click', async ()=>{
+    const pwd = document.getElementById('setStaffPassword').value.trim();
+    if(!pwd){ showToast('Inserisci una password'); return; }
+    STATE.staffPassword = pwd;
+    await saveKey('staff-password', STATE.staffPassword);
+    showToast('✅ Password staff aggiornata');
+  });
+  
+  document.getElementById('deleteAllMatchesBtn').addEventListener('click', async ()=>{
+    const matchCount = STATE.events.filter(e=>e.type==='match').length;
+    if(matchCount === 0){ showToast('Nessuna partita da eliminare'); return; }
+    if(!confirm(`⚠️ Eliminare TUTTE le ${matchCount} partite? Azione irreversibile!`)) return;
+    
+    STATE.events = STATE.events.filter(e=>e.type!=='match');
+    await saveKey('events', STATE.events);
+    showToast(`✅ ${matchCount} partite eliminate`);
+    render();
+  });
+  
+  document.getElementById('deleteAllWorkoutsBtn').addEventListener('click', async ()=>{
+    const workoutCount = STATE.events.filter(e=>e.type==='workout').length;
+    if(workoutCount === 0){ showToast('Nessun allenamento da eliminare'); return; }
+    if(!confirm(`⚠️ Eliminare TUTTI i ${workoutCount} allenamenti? Azione irreversibile!`)) return;
+    
+    STATE.events = STATE.events.filter(e=>e.type!=='workout');
+    await saveKey('events', STATE.events);
+    showToast(`✅ ${workoutCount} allenamenti eliminati`);
+    render();
+  });
+  
+  document.getElementById('importUpgradeBtn').addEventListener('click', async ()=>{
+    const file = document.getElementById('upgradeFile').files[0];
+    if(!file){ showToast('Seleziona un file HTML'); return; }
+    
+    const reader = new FileReader();
+    reader.onload = async (e)=>{
+      try{
+        const content = e.target.result;
+        // Verifica che sia un file HTML valido
+        if(!content.includes('TEAM HUB PRO')){
+          showToast('File non valido - non è un Team Hub Pro');
+          return;
+        }
+        
+        // Salva come backup il file attuale prima di scaricare il nuovo
+        const blob = new Blob([content], {type:'text/html'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `player-hub-upgrade-${todayStr()}.html`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        
+        showToast('✅ Upgrade scaricato! Apri il nuovo file per usare la versione aggiornata.');
+      }catch(err){
+        showToast('❌ Errore importazione upgrade');
+      }
+    };
+    reader.readAsText(file);
+  });
+  
+  document.getElementById('importBackupBtn').addEventListener('click', async ()=>{
+    const file = document.getElementById('backupFile').files[0];
+    if(!file){ showToast('Seleziona un file JSON'); return; }
+    
+    if(!confirm('⚠️ Sei sicuro? I dati attuali verranno sovrascritti con il backup importato.')){
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = async (e)=>{
+      try{
+        const backup = JSON.parse(e.target.result);
+        
+        if(backup.teamConfig) STATE.teamConfig = backup.teamConfig;
+        if(backup.players) STATE.players = backup.players;
+        if(backup.events) STATE.events = backup.events;
+        if(backup.workouts) STATE.workouts = backup.workouts;
+        if(backup.tests) STATE.tests = backup.tests;
+        if(backup.rpe) STATE.rpeLog = backup.rpe;
+        if(backup.hooper) STATE.hooperLog = backup.hooper;
+        if(backup.pain) STATE.painLog = backup.pain;
+        
+        await saveKey('team-config', STATE.teamConfig);
+        await saveKey('players', STATE.players);
+        await saveKey('events', STATE.events);
+        await saveKey('workouts', STATE.workouts);
+        await saveKey('tests', STATE.tests);
+        await saveKey('rpe-log', STATE.rpeLog);
+        await saveKey('hooper-log', STATE.hooperLog);
+        await saveKey('pain-log', STATE.painLog);
+        
+        showToast('✅ Backup ripristinato con successo!');
+        document.getElementById('backupFile').value = '';
+        render();
+      }catch(err){
+        showToast('❌ Errore nel ripristino backup - file non valido');
+      }
+    };
+    reader.readAsText(file);
+  });
+}
+
+// ========== FIRESTORE REAL-TIME SYNC ==========
+async function setupFirestoreSync(){
+  if(!db || !TEAM_ID) return;
+  
+  console.log('🔄 Inizializzando sincronizzazione real-time Firestore...');
+  
+  try{
+    // Ascolta i cambiamenti nella collezione 'data' della squadra
+    db.collection('teams').doc(TEAM_ID).collection('data').onSnapshot(snapshot => {
+      console.log('📡 Dati aggiornati da Firestore:', snapshot.size, 'documenti');
+      snapshot.docChanges().forEach(change => {
+        if(change.type === 'added' || change.type === 'modified'){
+          const key = change.doc.id;
+          const data = change.doc.data().value;
+          
+          // Aggiorna lo STATE corrispondente
+          if(key === 'players') STATE.players = data;
+          if(key === 'workouts') STATE.workouts = data;
+          if(key === 'events') STATE.events = data;
+          if(key === 'tests') STATE.tests = data;
+          if(key === 'rpe-log') STATE.rpeLog = data;
+          if(key === 'hooper-log') STATE.hooperLog = data;
+          if(key === 'pain-log') STATE.painLog = data;
+          if(key === 'team-config') STATE.teamConfig = data;
+          
+          console.log('✅ Sincronizzato:', key);
+        }
+      });
+      
+      // Aggiorna la UI se è necessario
+      if(STATE.loggedIn) render();
+    }, err => {
+      console.error('❌ Errore sincronizzazione Firestore:', err);
+    });
+  }catch(err){
+    console.error('❌ Errore setup sync Firestore:', err);
+  }
+}
+
+// Avvia Firebase e poi i dati
+console.log('⏳ Aspettando caricamento...');
+initFirebase();
+
+// Timeout di 5 secondi - se non carica, mostra comunque la login
+const loadTimeout = setTimeout(()=>{
+  console.warn('⏱️ Timeout caricamento, mostro login comunque');
+  if(!STATE.loggedIn) render();
+}, 5000);
+
+loadAll().then(()=>{
+  clearTimeout(loadTimeout);
+  console.log('✅ Dati caricati');
+  render();
+  setupFirestoreSync();
+}).catch(err=>{
+  clearTimeout(loadTimeout);
+  console.error('❌ Errore caricamento:', err);
+  if(!STATE.loggedIn) render(); // Mostra login anche se caricamento fallisce
+});
+</script>
+</body>
+</html>
