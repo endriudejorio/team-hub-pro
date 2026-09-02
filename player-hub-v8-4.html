@@ -509,6 +509,7 @@ function showToast(msg){
 async function loadAll(){
   STATE.teamConfig = await loadKey('team-config', {name:'Alense'});
   STATE.players = await loadKey('players', []);
+  STATE.customPasswords = await loadKey('customPasswords', {});
   
   if(STATE.players.length===0){
     STATE.players = ALENSE_PLAYERS.map(p=>({
@@ -797,9 +798,8 @@ function renderLogin(el){
     if(!password){ showToast('Inserisci la tua password'); return; }
     const [playerId, playerName, defaultPassword] = selected.split('|');
     
-    // Controlla prima se c'è una password personalizzata
-    const customPasswords = JSON.parse(localStorage.getItem('customPasswords') || '{}');
-    const correctPassword = customPasswords[playerId] || defaultPassword;
+    // Controlla prima se c'è una password personalizzata in Firestore/STATE
+    const correctPassword = (STATE.customPasswords && STATE.customPasswords[playerId]) || defaultPassword;
     
     if(password !== correctPassword){ showToast('Password non corretta'); return; }
     login('player', playerId);
@@ -3131,18 +3131,17 @@ function renderImpostazioniAdmin(el){
       const input = el.querySelector(`.player-password-input[data-player-id="${playerId}"]`);
       const newPassword = input.value.trim();
       
-      const customPasswords = JSON.parse(localStorage.getItem('customPasswords') || '{}');
+      if(!STATE.customPasswords) STATE.customPasswords = {};
       
       if(newPassword === ''){
-        delete customPasswords[playerId];
+        delete STATE.customPasswords[playerId];
         showToast(`✅ Password di ${STATE.players.find(p=>p.id===playerId)?.name} ripristinata a default`);
       } else {
-        customPasswords[playerId] = newPassword;
+        STATE.customPasswords[playerId] = newPassword;
         showToast(`✅ Password aggiornata per ${STATE.players.find(p=>p.id===playerId)?.name}`);
       }
       
-      localStorage.setItem('customPasswords', JSON.stringify(customPasswords));
-      await saveKey('customPasswords', customPasswords);
+      await saveKey('customPasswords', STATE.customPasswords);
     });
   });
   
