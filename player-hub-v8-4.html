@@ -795,7 +795,12 @@ function renderLogin(el){
     const password = document.getElementById('playerPasswordInput').value.trim();
     if(!selected){ showToast('Seleziona il tuo nome'); return; }
     if(!password){ showToast('Inserisci la tua password'); return; }
-    const [playerId, playerName, correctPassword] = selected.split('|');
+    const [playerId, playerName, defaultPassword] = selected.split('|');
+    
+    // Controlla prima se c'è una password personalizzata
+    const customPasswords = JSON.parse(localStorage.getItem('customPasswords') || '{}');
+    const correctPassword = customPasswords[playerId] || defaultPassword;
+    
     if(password !== correctPassword){ showToast('Password non corretta'); return; }
     login('player', playerId);
   });
@@ -3080,6 +3085,20 @@ function renderImpostazioniAdmin(el){
     </div>
     
     <div class="card">
+      <h3>🔑 Password Personalizzate Giocatori</h3>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px 0;">Imposta password personalizzate per i giocatori (lascia vuoto per usare la password di default: nome + 2024)</p>
+      <div style="max-height:400px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;">
+        ${STATE.players.map(p=>`
+          <div style="padding:12px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:center;">
+            <div style="font-weight:600;font-size:13px;">${esc(p.name)}</div>
+            <input class="player-password-input" data-player-id="${p.id}" type="text" placeholder="Password personalizzata (vuoto = default)" style="padding:6px;border:1px solid var(--line);border-radius:4px;font-size:12px;">
+            <button class="save-player-password-btn" data-player-id="${p.id}" style="padding:6px 10px;background:var(--amber);color:var(--pitch);border:none;border-radius:4px;cursor:pointer;font-size:11px;">Salva</button>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    
+    <div class="card">
       <h3>⚠️ Cancella Dati</h3>
       <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px 0;">Azioni irreversibili</p>
       <div class="btn-row">
@@ -3104,6 +3123,28 @@ function renderImpostazioniAdmin(el){
       <div class="btn-row"><button class="btn secondary" id="importBackupBtn">📂 Ripristina Backup</button></div>
     </div>
   `;
+  
+  // Event listeners for custom passwords
+  el.querySelectorAll('.save-player-password-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const playerId = btn.dataset.playerId;
+      const input = el.querySelector(`.player-password-input[data-player-id="${playerId}"]`);
+      const newPassword = input.value.trim();
+      
+      const customPasswords = JSON.parse(localStorage.getItem('customPasswords') || '{}');
+      
+      if(newPassword === ''){
+        delete customPasswords[playerId];
+        showToast(`✅ Password di ${STATE.players.find(p=>p.id===playerId)?.name} ripristinata a default`);
+      } else {
+        customPasswords[playerId] = newPassword;
+        showToast(`✅ Password aggiornata per ${STATE.players.find(p=>p.id===playerId)?.name}`);
+      }
+      
+      localStorage.setItem('customPasswords', JSON.stringify(customPasswords));
+      await saveKey('customPasswords', customPasswords);
+    });
+  });
   
   document.getElementById('saveAdminPasswordBtn').addEventListener('click', async ()=>{
     const pwd = document.getElementById('setAdminPassword').value.trim();
