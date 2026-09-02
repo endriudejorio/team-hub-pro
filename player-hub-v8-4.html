@@ -853,16 +853,10 @@ function renderDashboard(el){
           </div>
         </div>
         
-        <div style="background:var(--chalk);padding:12px;border-radius:8px;margin-bottom:12px;">
+        <div style="background:var(--chalk);padding:12px;border-radius:8px;margin-bottom:12px;cursor:pointer;transition:all 0.2s;" id="presenceCard">
           <div style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;font-weight:600;margin-bottom:6px;">Presenza</div>
           <div style="font-size:24px;font-weight:700;color:var(--pitch);">${presenceData.present} <span style="font-size:16px;color:var(--ink-soft);">/ ${presenceData.total}</span></div>
-          <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">Giocatori di movimento</div>
-        </div>
-        
-        <label style="margin-top:0;">Numero di presenti</label>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <input id="presenceInput" type="number" min="0" max="${playersOfMovement.length}" value="${presenceData.present}" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:4px;">
-          <button class="btn" id="savePresenceBtn">Salva</button>
+          <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">Giocatori di movimento (clicca per dettagli)</div>
         </div>
       </div>
     ` : `
@@ -880,20 +874,66 @@ function renderDashboard(el){
     </div>
   `;
   
-  // Event listener per salvare i presenti
-  if(todayWorkout && document.getElementById('savePresenceBtn')){
-    document.getElementById('savePresenceBtn').addEventListener('click', async ()=>{
-      const count = parseInt(document.getElementById('presenceInput').value || '0');
-      if(count < 0 || count > playersOfMovement.length){
-        showToast('Numero non valido');
-        return;
-      }
-      todayWorkout.presentCount = count;
-      await saveKey('events', STATE.events);
-      showToast(`✅ ${count} presenti registrati`);
-      render();
+  // Click sul numero presenti per aprire modale
+  if(todayWorkout && document.getElementById('presenceCard')){
+    document.getElementById('presenceCard').addEventListener('click', ()=>{
+      showPresenceModal(todayWorkout.id, playersOfMovement);
     });
   }
+}
+
+function showPresenceModal(workoutId, allPlayers){
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;box-sizing:border-box;overflow-y:auto;';
+  
+  // Leggi i presenti da localStorage
+  const attendanceKey = 'attendance_'+workoutId;
+  const attendance = JSON.parse(localStorage.getItem(attendanceKey) || '{}');
+  
+  const presentIds = Object.keys(attendance).filter(id => attendance[id] === true);
+  const absentIds = allPlayers.filter(p => !presentIds.includes(p.id)).map(p => p.id);
+  
+  const presentPlayers = presentIds.map(id => STATE.players.find(p => p.id === id)).filter(p => p);
+  const absentPlayers = absentIds.map(id => STATE.players.find(p => p.id === id)).filter(p => p);
+  
+  modal.innerHTML = `
+    <div style="background:white;border-radius:12px;max-width:500px;width:100%;padding:24px;margin:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <h2 style="margin:0;color:var(--pitch);">Presence Report</h2>
+        <button id="closeModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">✕</button>
+      </div>
+      
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;gap:20px;">
+          <div style="flex:1;">
+            <h3 style="color:var(--ok);font-size:14px;margin:0 0 12px 0;">✅ Presenti (${presentPlayers.length})</h3>
+            <div style="max-height:200px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:10px;">
+              ${presentPlayers.length === 0 ? '<div style="color:var(--ink-soft);font-size:12px;">Nessuno presente</div>' :
+                presentPlayers.map(p => `<div style="padding:6px;border-bottom:1px solid var(--line);font-size:13px;">${esc(p.name)}</div>`).join('')}
+            </div>
+          </div>
+          
+          <div style="flex:1;">
+            <h3 style="color:var(--clay);font-size:14px;margin:0 0 12px 0;">❌ Assenti (${absentPlayers.length})</h3>
+            <div style="max-height:200px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:10px;">
+              ${absentPlayers.length === 0 ? '<div style="color:var(--ink-soft);font-size:12px;">Tutti presenti!</div>' :
+                absentPlayers.map(p => `<div style="padding:6px;border-bottom:1px solid var(--line);font-size:13px;color:var(--ink-soft);">${esc(p.name)}</div>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div style="text-align:right;">
+        <button id="closeBtn" class="btn" style="padding:8px 16px;">Chiudi</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  document.getElementById('closeModal').addEventListener('click', () => modal.remove());
+  document.getElementById('closeBtn').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => { if(e.target === modal) modal.remove(); });
 }
 
 /* ---------- GIOCATORI ---------- */
@@ -1266,7 +1306,10 @@ function renderAllenamenti(el){
             <div class="workout-item-row">
               <div><span style="font-size:10px;color:var(--ink-soft);">${w.category}</span> - ${esc(w.type)}</div>
               <div>Durata: <span class="workout-item-val">${calcWorkoutDuration(w)}min</span></div>
-              <button style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;" data-del-workout="${w.id}">Elimina</button>
+              <div style="display:flex;gap:8px;">
+                <button style="background:none;border:none;color:var(--amber);cursor:pointer;font-size:12px;" data-edit-workout="${w.id}">Modifica</button>
+                <button style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;" data-del-workout="${w.id}">Elimina</button>
+              </div>
             </div>
             <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;line-height:1.6;">
               ${w.category==='Tecnico-tattico' ? 
@@ -1625,6 +1668,14 @@ function renderAllenamenti(el){
     render();
   });
   
+  el.querySelectorAll('[data-edit-workout]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const workoutId = b.dataset.editWorkout;
+      const workout = STATE.workouts.find(w => w.id === workoutId);
+      if(workout) renderEditWorkoutModal(workout);
+    });
+  });
+  
   el.querySelectorAll('[data-del-workout]').forEach(b=>{
     b.addEventListener('click', async ()=>{
       if(!confirm('Sei sicuro di voler eliminare questa esercitazione? L\'azione non può essere annullata.')) return;
@@ -1633,6 +1684,65 @@ function renderAllenamenti(el){
       showToast('Esercitazione eliminata');
       render();
     });
+  });
+}
+
+function renderEditWorkoutModal(workout){
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;box-sizing:border-box;overflow-y:auto;';
+  
+  modal.innerHTML = `
+    <div style="background:white;border-radius:12px;max-width:600px;width:100%;padding:24px;margin:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <h2 style="margin:0;color:var(--pitch);">Modifica Esercitazione</h2>
+        <button id="closeEditModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">✕</button>
+      </div>
+      
+      <div style="margin-bottom:16px;">
+        <label style="display:block;margin-bottom:8px;font-weight:600;color:var(--ink-soft);">Nome</label>
+        <input id="editWorkoutName" type="text" value="${esc(workout.name)}" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:6px;font-size:14px;">
+      </div>
+      
+      <div style="margin-bottom:16px;">
+        <label style="display:block;margin-bottom:8px;font-weight:600;color:var(--ink-soft);">Categoria</label>
+        <input type="text" value="${esc(workout.category)}" readonly style="width:100%;padding:10px;border:1px solid var(--line);border-radius:6px;font-size:14px;background:var(--chalk);cursor:not-allowed;">
+      </div>
+      
+      <div style="margin-bottom:16px;">
+        <label style="display:block;margin-bottom:8px;font-weight:600;color:var(--ink-soft);">Tipo</label>
+        <input type="text" value="${esc(workout.type)}" readonly style="width:100%;padding:10px;border:1px solid var(--line);border-radius:6px;font-size:14px;background:var(--chalk);cursor:not-allowed;">
+      </div>
+      
+      <div style="font-size:11px;color:var(--ink-soft);background:var(--chalk);padding:12px;border-radius:6px;margin-bottom:20px;">
+        <strong>Nota:</strong> Per modificare categoria e tipo, elimina questa esercitazione e creane una nuova.
+      </div>
+      
+      <div style="display:flex;gap:12px;justify-content:flex-end;">
+        <button id="closeEditBtn" class="btn secondary" style="padding:8px 16px;">Chiudi</button>
+        <button id="saveEditWorkoutBtn" class="btn" style="padding:8px 16px;">Salva</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  document.getElementById('closeEditModal').addEventListener('click', () => modal.remove());
+  document.getElementById('closeEditBtn').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => { if(e.target === modal) modal.remove(); });
+  
+  document.getElementById('saveEditWorkoutBtn').addEventListener('click', async () => {
+    const newName = document.getElementById('editWorkoutName').value.trim();
+    if(!newName){ showToast('Inserisci un nome'); return; }
+    
+    workout.name = newName;
+    const idx = STATE.workouts.findIndex(w => w.id === workout.id);
+    if(idx >= 0){
+      STATE.workouts[idx] = workout;
+      await saveKey('workouts', STATE.workouts);
+      showToast('✅ Esercitazione aggiornata');
+      render();
+      modal.remove();
+    }
   });
 }
 
@@ -1855,9 +1965,14 @@ function renderCalendario(el){
           const today = todayStr();
           const result = [];
           for(let i=-2; i<=2; i++){
-            const d = new Date(today+'T00:00:00');
-            d.setDate(d.getDate()+i);
-            const dateStr = d.toISOString().slice(0,10);
+            // Calcola la data usando la timezone locale
+            const baseDate = new Date(today.split('-')[0], parseInt(today.split('-')[1])-1, parseInt(today.split('-')[2]));
+            baseDate.setDate(baseDate.getDate() + i);
+            const year = baseDate.getFullYear();
+            const month = String(baseDate.getMonth()+1).padStart(2, '0');
+            const day = String(baseDate.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            
             const dayEvents = upcoming.filter(e=>e.date===dateStr).sort((a,b)=>(a.time||'00:00').localeCompare(b.time||'00:00'));
             const defaultLabel = i === -2 ? 'L-2' : i === -1 ? 'L-1' : i === 0 ? 'OGGI' : i === 1 ? 'D+1' : 'D+2';
             const isToday = i === 0;
@@ -2058,7 +2173,11 @@ function renderCalendario(el){
         const eventId = b.id.substring(9);
         const event = STATE.events.find(e=>e.id===eventId);
         if(!event) return;
-        renderMatchDetails(event);
+        if(event.type === 'Partita'){
+          renderMatchDetails(event);
+        } else if(event.type === 'Allenamento'){
+          renderEditAllenamentoModal(event);
+        }
       });
     });
     
@@ -2195,6 +2314,102 @@ function renderAllenamentoDetails(event){
   
   // Save
   document.getElementById('saveAllenamentoBtn').addEventListener('click', async ()=>{
+    const idx = STATE.events.findIndex(e => e.id === event.id);
+    if(idx >= 0){
+      STATE.events[idx] = event;
+      await saveKey('events', STATE.events);
+      showToast('✅ Allenamento aggiornato');
+      render();
+      modal.remove();
+    }
+  });
+}
+
+function renderEditAllenamentoModal(event){
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;box-sizing:border-box;overflow-y:auto;';
+  
+  modal.innerHTML = `
+    <div style="background:white;border-radius:12px;max-width:600px;width:100%;padding:24px;margin:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
+        <div>
+          <h2 style="margin:0;color:var(--pitch);">🏋️ ${esc(event.title)}</h2>
+          <div style="font-size:12px;color:var(--ink-soft);">📅 ${fmtDate(event.date)} 🕐 ${event.time || '-'} ${event.md ? '| ' + esc(event.md) : ''}</div>
+        </div>
+        <button id="closeEditAllenamento" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">✕</button>
+      </div>
+      
+      <div style="border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:20px;">
+        <h4 style="margin:0 0 12px 0;color:var(--pitch);font-size:13px;">Sessioni</h4>
+        
+        ${event.workoutIds && event.workoutIds.length > 0 ? `
+          <div style="margin-bottom:12px;">
+            ${event.workoutIds.map(wid => {
+              const workout = STATE.workouts.find(w => w.id === wid);
+              return workout ? `
+                <div style="padding:8px;background:var(--chalk);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+                  <div style="font-size:12px;">
+                    <strong>${esc(workout.name)}</strong> (${calcWorkoutDuration(workout)}min)
+                  </div>
+                  <button class="del-workout-from-event" data-workout-id="${wid}" style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;">✕</button>
+                </div>
+              ` : '';
+            }).join('')}
+          </div>
+        ` : '<div style="font-size:12px;color:#999;margin-bottom:12px;padding:12px;background:var(--chalk);border-radius:6px;">Nessuna sessione</div>'}
+        
+        <div style="border-top:1px solid var(--line);padding-top:12px;">
+          <label style="margin-bottom:8px;display:block;font-size:12px;">Aggiungi sessione:</label>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <select id="addWorkoutToEventSelect" style="flex:1;padding:8px;border:1px solid var(--line);border-radius:4px;font-size:12px;">
+              <option value="">-- Seleziona --</option>
+              ${STATE.workouts.map(w=>`<option value="${w.id}">${esc(w.name)} (${calcWorkoutDuration(w)}min)</option>`).join('')}
+            </select>
+            <button id="addWorkoutToEventBtn" class="btn" style="padding:8px 12px;font-size:12px;">+ Aggiungi</button>
+          </div>
+        </div>
+      </div>
+      
+      <div style="text-align:right;display:flex;gap:12px;justify-content:flex-end;">
+        <button id="closeEditAllenamentoBtn" class="btn secondary" style="padding:8px 20px;">Chiudi</button>
+        <button id="saveEditAllenamentoBtn" class="btn" style="padding:8px 20px;">Salva</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  document.getElementById('closeEditAllenamento').addEventListener('click', () => modal.remove());
+  document.getElementById('closeEditAllenamentoBtn').addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => { if(e.target === modal) modal.remove(); });
+  
+  // Delete workout from event
+  modal.querySelectorAll('.del-workout-from-event').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const wid = btn.dataset.workoutId;
+      event.workoutIds = event.workoutIds.filter(id => id !== wid);
+      renderEditAllenamentoModal(event);
+    });
+  });
+  
+  // Add workout to event
+  document.getElementById('addWorkoutToEventBtn').addEventListener('click', ()=>{
+    const selectEl = document.getElementById('addWorkoutToEventSelect');
+    const wid = selectEl.value;
+    if(!wid){
+      showToast('Seleziona una sessione');
+      return;
+    }
+    if(!event.workoutIds) event.workoutIds = [];
+    if(!event.workoutIds.includes(wid)){
+      event.workoutIds.push(wid);
+    }
+    selectEl.value = '';
+    renderEditAllenamentoModal(event);
+  });
+  
+  // Save changes
+  document.getElementById('saveEditAllenamentoBtn').addEventListener('click', async ()=>{
     const idx = STATE.events.findIndex(e => e.id === event.id);
     if(idx >= 0){
       STATE.events[idx] = event;
