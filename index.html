@@ -679,52 +679,56 @@ function showToast(msg){
 }
 
 async function loadAll(){
-  STATE.teamConfig = await loadKey('team-config', {name:'Alense'});
-  STATE.players = await loadKey('players', []);
-  
-  // Carica customPasswords SEMPRE da Firestore (sono condivise tra dispositivi!)
-  if(db && TEAM_ID){
-    try{
-      const doc = await db.collection('teams').doc(TEAM_ID).collection('data').doc('customPasswords').get();
-      if(doc.exists && doc.data().value){
-        STATE.customPasswords = doc.data().value;
-        console.log('📡 CustomPasswords da Firestore:', STATE.customPasswords);
-      } else {
-        STATE.customPasswords = {};
-      }
-    }catch(e){
-      console.warn('⚠️ Errore caricamento customPasswords:', e.message);
-      STATE.customPasswords = {};
-    }
+  // Tutte le letture partono insieme: in sequenza servivano diversi secondi
+  const chiavi = [
+    ['team-config',      {name:'Alense'}],
+    ['players',          []],
+    ['workouts',         []],
+    ['events',           []],
+    ['tests',            []],
+    ['rpe-log',          []],
+    ['hooper-log',       []],
+    ['pain-log',         []],
+    ['staff-password',   'staff'],
+    ['admin-password',   'admin2024'],
+    ['accessCodes',      {}],
+    ['customPasswords',  {}]
+  ];
 
-    // I codici di accesso vanno letti da Firestore, mai dal dispositivo
-    try{
-      const cdoc = await db.collection('teams').doc(TEAM_ID).collection('data').doc('accessCodes').get();
-      STATE.accessCodes = (cdoc.exists && cdoc.data().value) ? cdoc.data().value : {};
-      console.log('📡 AccessCodes caricati:', Object.keys(STATE.accessCodes).length);
-    }catch(e){
-      console.warn('⚠️ Errore caricamento accessCodes:', e.message);
-      STATE.accessCodes = {};
-    }
-  } else {
-    STATE.customPasswords = {};
-    STATE.accessCodes = {};
-  }
-  
-  if(STATE.players.length===0){
-    // Rosa reale con id stabili: gli RPE storici vi si agganciano
+  const t0 = Date.now();
+  const risultati = await Promise.all(chiavi.map(([k, def]) => loadKey(k, def).catch(err=>{
+    console.warn('Lettura fallita per', k, '-', err.message);
+    return def;
+  })));
+  console.log('Dati letti in', Date.now() - t0, 'ms');
+
+  const dati = {};
+  chiavi.forEach(([k], i)=>{ dati[k] = risultati[i]; });
+
+  STATE.teamConfig      = dati['team-config'];
+  STATE.players         = dati['players'] || [];
+  STATE.workouts        = dati['workouts'] || [];
+  STATE.events          = dati['events'] || [];
+  STATE.tests           = dati['tests'] || [];
+  STATE.rpeLog          = dati['rpe-log'] || [];
+  STATE.hooperLog       = dati['hooper-log'] || [];
+  STATE.painLog         = dati['pain-log'] || [];
+  STATE.staffPassword   = dati['staff-password'];
+  STATE.adminPassword   = dati['admin-password'];
+  STATE.accessCodes     = dati['accessCodes'] || {};
+  STATE.customPasswords = dati['customPasswords'] || {};
+
+  // La pagina si sblocca qui: i salvataggi qui sotto non devono farla aspettare
+  STATE.loading = false;
+
+  if(STATE.players.length === 0){
     STATE.players = ALENSE_PLAYERS.map(p=>Object.assign({}, p));
-    await saveKey('players', STATE.players);
-  }else{
+    saveKey('players', STATE.players);
+  } else {
     STATE.players.forEach(p=>{ if(!p.status) p.status = 'Disponibile'; });
   }
 
-  STATE.workouts = await loadKey('workouts', []);
-  STATE.events = await loadKey('events', []);
-  STATE.tests = await loadKey('tests', []);
-  STATE.rpeLog = await loadKey('rpe-log', []);
-
-  // Primo avvio: carico gli RPE storici e la sessione fittizia che ne fissa la durata
+  // Primo avvio: RPE storici e sessione fittizia che ne fissa la durata
   if(STATE.rpeLog.length === 0 && typeof ALENSE_RPE_SEED !== 'undefined' && ALENSE_RPE_SEED.length){
     STATE.rpeLog = ALENSE_RPE_SEED.map(r=>Object.assign({}, r));
     if(!STATE.events.some(e=>e.id === 'rpe-import-session')){
@@ -733,17 +737,13 @@ async function loadAll(){
         title:'Sessioni storiche (importate)', date:'2000-01-01',
         importedDuration:65, workoutIds:[], presentPlayers:[]
       });
-      await saveKey('events', STATE.events);
+      saveKey('events', STATE.events);
     }
-    await saveKey('rpe-log', STATE.rpeLog);
+    saveKey('rpe-log', STATE.rpeLog);
     console.log('Importati', STATE.rpeLog.length, 'RPE storici');
   }
-  STATE.hooperLog = await loadKey('hooper-log', []);
-  STATE.painLog = await loadKey('pain-log', []);
-  STATE.staffPassword = await loadKey('staff-password', 'staff');
-  STATE.adminPassword = await loadKey('admin-password', 'admin2024');
-  STATE.loading = false;
-  console.log('📦 Tutti i dati caricati');
+
+  console.log('Dati pronti');
   return true;
 }
 
