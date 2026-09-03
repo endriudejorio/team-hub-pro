@@ -293,6 +293,7 @@ const NAV_STAFF = [
   {id:'dashboard', label:'Dashboard', icon:'📊'},
   {id:'giocatori', label:'Rosa', icon:'👥'},
   {id:'performance', label:'Performance', icon:'📈'},
+  {id:'medica', label:'Area Medica', icon:'🩺'},
   {id:'allenamenti', label:'Allenamenti', icon:'🎯'},
   {id:'calendario', label:'Calendario', icon:'📅'},
   {id:'impostazioni', label:'Impostazioni', icon:'⚙️'},
@@ -307,6 +308,7 @@ const NAV_ADMIN = [
   {id:'dashboard', label:'Dashboard', icon:'📊'},
   {id:'giocatori', label:'Rosa', icon:'👥'},
   {id:'performance', label:'Performance', icon:'📈'},
+  {id:'medica', label:'Area Medica', icon:'🩺'},
   {id:'allenamenti', label:'Allenamenti', icon:'🎯'},
   {id:'calendario', label:'Calendario', icon:'📅'},
   {id:'impostazioni', label:'Impostazioni Staff', icon:'⚙️'},
@@ -601,6 +603,103 @@ const BODY_ZONES = [
   'Piede Sinistro',
 ];
 
+/* ---------- AREA MEDICA ----------
+   L'infortunio e' un'entita' con inizio, durata e rientro: solo cosi' si puo'
+   rispondere a "quanti giorni abbiamo perso" e "quante ricadute sulla stessa zona". */
+
+const INJURY_TYPES = ['Muscolare','Articolare','Tendineo','Legamentoso','Osseo','Contusione','Altro'];
+const INJURY_MECHANISMS = ['Non da contatto','Da contatto','Sovraccarico','Recidiva','Non noto'];
+const INJURY_CONTEXTS = ['Allenamento','Partita','Fuori dal campo'];
+
+/* Fasi del rientro: RTP smette di essere un'etichetta e diventa un percorso */
+const RTP_STAGES = [
+  {id:'riposo',       label:'Riposo / trattamento'},
+  {id:'individuale',  label:'Lavoro individuale'},
+  {id:'parziale',     label:'Gruppo parziale'},
+  {id:'completo',     label:'Gruppo completo'},
+  {id:'partita',      label:'Disponibile per la partita'}
+];
+
+const INJURY_STATUS = [
+  {value:'attivo',   label:'In corso',   color:'var(--clay)'},
+  {value:'rtp',      label:'In rientro', color:'var(--amber-dark)'},
+  {value:'risolto',  label:'Risolto',    color:'var(--ok)'}
+];
+
+function injuryStatusMeta(v){
+  return INJURY_STATUS.find(x=>x.value===v) || INJURY_STATUS[0];
+}
+
+/* Giorni di indisponibilita': fino alla data di rientro, o fino a oggi se ancora aperto */
+function injuryDaysLost(inj){
+  if(!inj || !inj.dateStart) return 0;
+  const fine = inj.dateEnd || todayStr();
+  const a = new Date(inj.dateStart + 'T00:00:00');
+  const b = new Date(fine + 'T00:00:00');
+  return Math.max(0, Math.round((b - a) / 86400000));
+}
+
+function getInjuries(playerId){
+  const list = STATE.injuries || [];
+  const filtered = playerId ? list.filter(i => String(i.playerId) === String(playerId)) : list;
+  return filtered.slice().sort((a,b)=>String(b.dateStart).localeCompare(String(a.dateStart)));
+}
+
+function getOpenInjuries(playerId){
+  return getInjuries(playerId).filter(i => i.status !== 'risolto');
+}
+
+/* Zona corporea semplificata, per capire dove si concentrano i problemi */
+function zonaSemplice(zona){
+  return String(zona || '')
+    .replace(/\s*(Destr[ao]|Sinistr[ao]|Centrale)\s*$/i, '')
+    .trim() || 'Non indicata';
+}
+
+/* Quante volte la squadra si e' fatta male nella stessa zona */
+function infortuniPerZona(){
+  const mappa = {};
+  getInjuries().forEach(i=>{
+    const z = zonaSemplice(i.zone);
+    if(!mappa[z]) mappa[z] = {zona:z, n:0, giorni:0, giocatori:{}};
+    mappa[z].n++;
+    mappa[z].giorni += injuryDaysLost(i);
+    mappa[z].giocatori[String(i.playerId)] = true;
+  });
+  return Object.keys(mappa).map(z=>({
+    zona: z, n: mappa[z].n, giorni: mappa[z].giorni,
+    giocatori: Object.keys(mappa[z].giocatori).length
+  })).sort((a,b)=> b.n - a.n || b.giorni - a.giorni);
+}
+
+/* Ricadute: stessa zona, stesso giocatore, piu' di una volta */
+function ricadute(){
+  const mappa = {};
+  getInjuries().forEach(i=>{
+    const k = String(i.playerId) + '|' + zonaSemplice(i.zone);
+    if(!mappa[k]) mappa[k] = [];
+    mappa[k].push(i);
+  });
+  return Object.keys(mappa).filter(k => mappa[k].length > 1).map(k=>{
+    const [pid, zona] = k.split('|');
+    return {
+      player: STATE.players.find(p=>String(p.id)===pid),
+      zona, episodi: mappa[k].length,
+      giorni: mappa[k].reduce((a,i)=>a+injuryDaysLost(i),0)
+    };
+  }).sort((a,b)=>b.episodi-a.episodi);
+}
+
+/* Quadro dell'infermeria */
+function quadroInfermeria(){
+  const aperti = getOpenInjuries();
+  const totGiorni = getInjuries().reduce((a,i)=>a+injuryDaysLost(i),0);
+  const stagione = getInjuries().length;
+  const indisponibili = STATE.players.filter(p=>p.status !== 'Disponibile');
+  const doloriAperti = STATE.players.reduce((a,p)=>a + getOpenPainIssues(p.id).length, 0);
+  return {aperti, totGiorni, stagione, indisponibili, doloriAperti};
+}
+
 const PAIN_TYPES = [
   'Acuto',
   'Sordo',
@@ -701,6 +800,7 @@ let STATE = {
   hooperLog: [],
   painLog: [],
   loading: true,
+  injuries: [],
   staffPassword: 'staff',
   adminPassword: 'admin2024',
 };
@@ -830,7 +930,8 @@ async function loadAll(){
     ['staff-password',   'staff'],
     ['admin-password',   'admin2024'],
     ['accessCodes',      {}],
-    ['customPasswords',  {}]
+    ['customPasswords',  {}],
+    ['injuries',         []]
   ];
 
   const t0 = Date.now();
@@ -859,6 +960,7 @@ async function loadAll(){
   console.log('Password caricate — staff:', STATE.staffPassword.length, 'caratteri | admin:', STATE.adminPassword.length, 'caratteri');
   STATE.accessCodes     = dati['accessCodes'] || {};
   STATE.customPasswords = dati['customPasswords'] || {};
+  STATE.injuries        = dati['injuries'] || [];
 
   // La pagina si sblocca qui: i salvataggi qui sotto non devono farla aspettare
   STATE.loading = false;
@@ -1119,6 +1221,7 @@ function render(){
     dashboard: renderDashboard,
     giocatori: renderGiocatori,
     performance: renderPerformance,
+    medica: renderMedica,
     allenamenti: renderAllenamenti,
     calendario: renderCalendario,
     impostazioni: renderImpostazioni,
@@ -1131,6 +1234,7 @@ function render(){
     dashboard: renderDashboard,
     giocatori: renderGiocatori,
     performance: renderPerformance,
+    medica: renderMedica,
     allenamenti: renderAllenamenti,
     calendario: renderCalendario,
     impostazioni: renderImpostazioni,
@@ -3324,6 +3428,470 @@ function renderGiocatori(el){
 }
 
 /* ---------- TEST ---------- */
+/* ---------- AREA MEDICA ---------- */
+function renderMedica(el){
+  const tab = el.dataset.medTab || 'infermeria';
+  const tabBtn = (id, label)=>
+    `<button class="med-tab" data-tab="${id}" style="padding:9px 16px;border:none;border-bottom:3px solid ${tab===id?'var(--clay)':'transparent'};background:none;font-size:13px;font-weight:${tab===id?'700':'500'};color:${tab===id?'var(--pitch)':'var(--ink-soft)'};cursor:pointer;">${label}</button>`;
+
+  el.innerHTML = `
+    <div class="page-head"><h1>Area Medica</h1><p>Infortuni, rientri e disponibilita</p></div>
+    <div style="display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:20px;overflow-x:auto;">
+      ${tabBtn('infermeria','Infermeria')}
+      ${tabBtn('registro','Registro infortuni')}
+      ${tabBtn('dolori','Dolori')}
+      ${tabBtn('analisi','Analisi')}
+    </div>
+    <div id="medContent"></div>
+  `;
+
+  el.querySelectorAll('.med-tab').forEach(b=>{
+    b.addEventListener('click', ()=>{ el.dataset.medTab = b.dataset.tab; renderMedica(el); });
+  });
+
+  const c = document.getElementById('medContent');
+  if(!c) return;
+  if(tab === 'infermeria') renderInfermeria(c);
+  else if(tab === 'registro') renderRegistroInfortuni(c);
+  else if(tab === 'dolori') renderMedDolori(c);
+  else renderMedAnalisi(c);
+}
+
+/* --- Infermeria: chi è fuori adesso e a che punto è --- */
+function renderInfermeria(el){
+  const q = quadroInfermeria();
+
+  el.innerHTML = `
+    <div class="tiles" style="grid-template-columns:repeat(4,1fr);">
+      <div class="tile">
+        <div class="tile-accent" style="background:${q.aperti.length ? 'var(--clay)' : 'var(--ok)'};"></div>
+        <div class="tile-lbl">Infortuni aperti</div>
+        <div class="tile-big" style="color:${q.aperti.length ? 'var(--clay)' : 'var(--ok)'};">${q.aperti.length}</div>
+        <div class="tile-sub">${q.aperti.length ? 'in corso o in rientro' : 'nessuno'}</div>
+      </div>
+      <div class="tile">
+        <div class="tile-lbl">Non disponibili</div>
+        <div class="tile-big">${q.indisponibili.length}<small>/${STATE.players.length}</small></div>
+        <div class="tile-sub">stato diverso da disponibile</div>
+      </div>
+      <div class="tile">
+        <div class="tile-lbl">Giorni persi</div>
+        <div class="tile-big">${q.totGiorni}</div>
+        <div class="tile-sub">${q.stagione} episodi registrati</div>
+      </div>
+      <div class="tile">
+        <div class="tile-accent" style="background:${q.doloriAperti ? 'var(--amber-dark)' : 'var(--ok)'};"></div>
+        <div class="tile-lbl">Dolori aperti</div>
+        <div class="tile-big" style="color:${q.doloriAperti ? 'var(--amber-dark)' : 'var(--ok)'};">${q.doloriAperti}</div>
+        <div class="tile-sub">segnalazioni non chiuse</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h3 style="margin:0;">In infermeria</h3>
+        <button class="btn" id="nuovoInfortunioBtn" style="font-size:12px;padding:7px 12px;">+ Registra infortunio</button>
+      </div>
+      ${q.aperti.length === 0 ? '<div class="empty">Nessun infortunio aperto. Buon segno.</div>' : q.aperti.map(inj=>{
+        const p = STATE.players.find(x=>String(x.id)===String(inj.playerId));
+        const meta = injuryStatusMeta(inj.status);
+        const gg = injuryDaysLost(inj);
+        const fase = inj.stage ? RTP_STAGES.find(x=>x.id===inj.stage) : null;
+        const idxFase = fase ? RTP_STAGES.findIndex(x=>x.id===inj.stage) : -1;
+        return `
+          <div style="border:1px solid var(--line);border-left:4px solid ${meta.color};border-radius:8px;padding:14px;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:180px;">
+                <div style="font-size:15px;font-weight:700;color:var(--pitch);">${esc(p ? p.name : 'Giocatore rimosso')}</div>
+                <div style="font-size:12.5px;color:var(--ink-soft);">
+                  ${esc(inj.zone || '—')} · ${esc(inj.type || '—')}
+                  ${inj.diagnosis ? ' · ' + esc(inj.diagnosis) : ''}
+                </div>
+                <div style="font-size:11.5px;color:var(--ink-soft);margin-top:4px;">
+                  Dal ${fmtDate(inj.dateStart)} · <strong style="color:${meta.color};">${gg} giorni</strong>
+                  ${inj.expectedReturn ? ' · rientro previsto ' + fmtDate(inj.expectedReturn) : ''}
+                </div>
+              </div>
+              <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                <button class="med-edit btn secondary" data-id="${inj.id}" style="font-size:11px;padding:5px 10px;">Modifica</button>
+                <button class="med-chiudi btn secondary" data-id="${inj.id}" style="font-size:11px;padding:5px 10px;color:var(--ok);">Chiudi</button>
+              </div>
+            </div>
+
+            <div style="margin-top:12px;">
+              <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft);font-weight:700;margin-bottom:6px;">Percorso di rientro</div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                ${RTP_STAGES.map((st,i)=>`
+                  <button class="med-stage" data-id="${inj.id}" data-stage="${st.id}"
+                    style="flex:1;min-width:92px;padding:7px 6px;border:1px solid ${i<=idxFase ? 'var(--ok)' : 'var(--line)'};border-radius:6px;cursor:pointer;font-size:10.5px;font-weight:${i===idxFase?'700':'500'};
+                    background:${i<idxFase ? '#E3EFE7' : i===idxFase ? 'var(--ok)' : 'white'};color:${i===idxFase ? 'white' : i<idxFase ? 'var(--ok)' : 'var(--ink-soft)'};">
+                    ${st.label}
+                  </button>`).join('')}
+              </div>
+            </div>
+
+            ${inj.notes ? `<div style="margin-top:10px;font-size:12px;padding:8px;background:var(--chalk);border-radius:6px;">${esc(inj.notes)}</div>` : ''}
+          </div>`;
+      }).join('')}
+    </div>
+
+    ${q.indisponibili.length ? `
+      <div class="card">
+        <h3>Stato rosa</h3>
+        ${q.indisponibili.map(p=>{
+          const meta = statusMeta(p.status);
+          const inj = getOpenInjuries(p.id)[0];
+          return `
+            <div class="med-row mini-row" data-player-id="${p.id}" style="cursor:pointer;border-bottom:1px solid var(--line);padding:8px 0;">
+              <span>${esc(p.name)}<br><span style="font-size:10.5px;color:var(--ink-soft);">${inj ? esc(inj.zone) : 'nessun infortunio registrato'}${p.returnDate ? ' · rientro ' + fmtDate(p.returnDate) : ''}</span></span>
+              <strong style="color:${meta.color};">${meta.label}</strong>
+            </div>`;
+        }).join('')}
+        ${q.indisponibili.some(p=>getOpenInjuries(p.id).length===0)
+          ? '<div style="font-size:11px;color:var(--amber-dark);margin-top:10px;">Alcuni giocatori non disponibili non hanno un infortunio registrato: registralo per contare i giorni persi.</div>' : ''}
+      </div>` : ''}
+  `;
+
+  const nuovo = document.getElementById('nuovoInfortunioBtn');
+  if(nuovo) nuovo.addEventListener('click', ()=> formInfortunio(null, ()=>renderInfermeria(el)));
+
+  el.querySelectorAll('.med-edit').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const inj = (STATE.injuries||[]).find(x=>x.id===b.dataset.id);
+      if(inj) formInfortunio(inj, ()=>renderInfermeria(el));
+    });
+  });
+
+  el.querySelectorAll('.med-chiudi').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const inj = (STATE.injuries||[]).find(x=>x.id===b.dataset.id);
+      if(!inj) return;
+      const p = STATE.players.find(x=>String(x.id)===String(inj.playerId));
+      if(!confirm('Chiudere l infortunio di ' + (p?p.name:'') + '?\n\nLa data di rientro sara oggi e il giocatore tornera Disponibile.')) return;
+      inj.status = 'risolto';
+      inj.dateEnd = todayStr();
+      if(p){ p.status = 'Disponibile'; p.returnDate = ''; await saveKey('players', STATE.players); }
+      await saveKey('injuries', STATE.injuries);
+      showToast('Infortunio chiuso dopo ' + injuryDaysLost(inj) + ' giorni');
+      renderInfermeria(el);
+    });
+  });
+
+  el.querySelectorAll('.med-stage').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const inj = (STATE.injuries||[]).find(x=>x.id===b.dataset.id);
+      if(!inj) return;
+      inj.stage = b.dataset.stage;
+      // Superata la prima fase il giocatore e' in rientro
+      inj.status = (b.dataset.stage === 'riposo') ? 'attivo' : 'rtp';
+      const p = STATE.players.find(x=>String(x.id)===String(inj.playerId));
+      if(p && inj.status === 'rtp' && p.status === 'Infortunato'){
+        p.status = 'RTP';
+        await saveKey('players', STATE.players);
+      }
+      await saveKey('injuries', STATE.injuries);
+      renderInfermeria(el);
+    });
+  });
+
+  el.querySelectorAll('.med-row').forEach(r=>{
+    r.addEventListener('click', ()=> showPlayerReport(r.dataset.playerId));
+  });
+}
+
+/* --- Registro: tutti gli episodi, aperti e chiusi --- */
+function renderRegistroInfortuni(el){
+  const tutti = getInjuries();
+  el.innerHTML = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h3 style="margin:0;">Registro (${tutti.length})</h3>
+        <button class="btn" id="regNuovoBtn" style="font-size:12px;padding:7px 12px;">+ Registra</button>
+      </div>
+      ${tutti.length === 0 ? '<div class="empty">Nessun infortunio registrato. Puoi inserire anche episodi passati.</div>' : `
+        <table>
+          <thead><tr><th>Giocatore</th><th>Zona</th><th>Tipo</th><th>Dal</th><th>Al</th><th>Giorni</th><th>Stato</th><th></th></tr></thead>
+          <tbody>
+            ${tutti.map(inj=>{
+              const p = STATE.players.find(x=>String(x.id)===String(inj.playerId));
+              const meta = injuryStatusMeta(inj.status);
+              return `
+                <tr>
+                  <td><strong>${esc(p ? p.name : '—')}</strong></td>
+                  <td style="font-size:12px;">${esc(inj.zone||'—')}</td>
+                  <td style="font-size:12px;">${esc(inj.type||'—')}</td>
+                  <td style="font-size:12px;">${fmtDate(inj.dateStart)}</td>
+                  <td style="font-size:12px;">${inj.dateEnd ? fmtDate(inj.dateEnd) : '—'}</td>
+                  <td><strong>${injuryDaysLost(inj)}</strong></td>
+                  <td><span style="font-size:11px;font-weight:600;color:${meta.color};">${meta.label}</span></td>
+                  <td>
+                    <button class="reg-edit" data-id="${inj.id}" style="background:none;border:1px solid var(--line);border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;">Apri</button>
+                    <button class="reg-del" data-id="${inj.id}" style="background:none;border:1px solid var(--line);border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--clay);">Elimina</button>
+                  </td>
+                </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`}
+    </div>
+  `;
+
+  const nb = document.getElementById('regNuovoBtn');
+  if(nb) nb.addEventListener('click', ()=> formInfortunio(null, ()=>renderRegistroInfortuni(el)));
+
+  el.querySelectorAll('.reg-edit').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const inj = (STATE.injuries||[]).find(x=>x.id===b.dataset.id);
+      if(inj) formInfortunio(inj, ()=>renderRegistroInfortuni(el));
+    });
+  });
+  el.querySelectorAll('.reg-del').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      if(!confirm('Eliminare questo episodio dal registro?\n\nSi perdono anche i giorni conteggiati.')) return;
+      STATE.injuries = (STATE.injuries||[]).filter(x=>x.id !== b.dataset.id);
+      await saveKey('injuries', STATE.injuries);
+      showToast('Episodio eliminato');
+      renderRegistroInfortuni(el);
+    });
+  });
+}
+
+/* --- Dolori: tutte le segnalazioni aperte della squadra --- */
+function renderMedDolori(el){
+  const righe = [];
+  STATE.players.forEach(p=>{
+    getPainIssues(p.id).forEach(issue=> righe.push({p, issue}));
+  });
+  const aperti = righe.filter(x=>x.issue.status !== 'closed');
+  const chiusi = righe.filter(x=>x.issue.status === 'closed');
+  const ordine = {active:0, silent:1, stale:2};
+  aperti.sort((a,b)=> (ordine[a.issue.status]-ordine[b.issue.status]) || (b.issue.lastIntensity - a.issue.lastIntensity));
+
+  const blocco = (titolo, lista, colore)=> lista.length === 0 ? '' : `
+    <div class="card">
+      <h3 style="color:${colore};">${titolo} (${lista.length})</h3>
+      ${lista.map(x=>`
+        <div class="med-row" data-player-id="${x.p.id}" style="cursor:pointer;padding:9px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;">
+          <div>
+            <div style="font-size:13px;font-weight:600;">${esc(x.p.name)} <span style="color:var(--ink-soft);font-weight:400;">— ${esc(x.issue.zone)}</span></div>
+            <div style="font-size:10.5px;color:var(--ink-soft);">
+              ${x.issue.days === 0 ? 'oggi' : x.issue.days + ' giorni fa'} · ${x.issue.count} segnalazion${x.issue.count===1?'e':'i'}
+              ${x.issue.count>1 ? ' · picco ' + x.issue.peak + '/10' : ''}
+              ${x.issue.direction>0 ? ' · <span style="color:var(--clay);font-weight:600;">in aumento</span>' : x.issue.direction<0 ? ' · <span style="color:var(--ok);">in calo</span>' : ''}
+            </div>
+          </div>
+          <div style="text-align:right;white-space:nowrap;">
+            <div style="font-size:16px;font-weight:700;color:${x.issue.color};">${x.issue.lastIntensity}/10</div>
+            <div style="font-size:10px;color:${x.issue.color};">${x.issue.label}</div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+
+  el.innerHTML = (aperti.length === 0 && chiusi.length === 0)
+    ? '<div class="card"><div class="empty">Nessuna segnalazione di dolore.</div></div>'
+    : blocco('Da seguire', aperti, 'var(--clay)') + blocco('Risolti', chiusi, 'var(--ok)') +
+      '<div class="card"><div style="font-size:11.5px;color:var(--ink-soft);">Le segnalazioni si chiudono dalla scheda del giocatore. Una zona resta aperta finche non la chiudi tu: il tempo cambia solo l etichetta.</div></div>';
+
+  el.querySelectorAll('.med-row').forEach(r=>{
+    r.addEventListener('click', ()=> showPlayerReport(r.dataset.playerId));
+  });
+}
+
+/* --- Analisi: dove e quanto ci facciamo male --- */
+function renderMedAnalisi(el){
+  const zone = infortuniPerZona();
+  const ric = ricadute();
+  const perContesto = {};
+  const perMeccanismo = {};
+  getInjuries().forEach(i=>{
+    const c = i.context || 'Non indicato';
+    const m = i.mechanism || 'Non noto';
+    perContesto[c] = (perContesto[c]||0)+1;
+    perMeccanismo[m] = (perMeccanismo[m]||0)+1;
+  });
+
+  const perGiocatore = STATE.players.map(p=>{
+    const inj = getInjuries(p.id);
+    return {p, n: inj.length, giorni: inj.reduce((a,i)=>a+injuryDaysLost(i),0)};
+  }).filter(x=>x.n>0).sort((a,b)=>b.giorni-a.giorni);
+
+  el.innerHTML = getInjuries().length === 0
+    ? '<div class="card"><div class="empty">Nessun dato da analizzare. Registra gli infortuni, anche quelli passati, per vedere dove si concentrano.</div></div>'
+    : `
+    <div class="card">
+      <h3>Zone piu colpite</h3>
+      <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">Se piu giocatori si fanno male nella stessa zona, spesso non e sfortuna.</div>
+      ${zone.slice(0,10).map(z=>{
+        const max = zone[0].n || 1;
+        return `
+          <div style="margin-bottom:8px;">
+            <div class="mini-row" style="padding:2px 0;">
+              <span>${esc(z.zona)} <span style="color:var(--ink-soft);font-size:11px;">${z.giocatori} giocator${z.giocatori===1?'e':'i'}</span></span>
+              <strong>${z.n} episod${z.n===1?'io':'i'} · ${z.giorni} gg</strong>
+            </div>
+            <div style="height:6px;background:var(--chalk);border-radius:3px;overflow:hidden;">
+              <div style="height:100%;width:${Math.round(z.n/max*100)}%;background:var(--clay);"></div>
+            </div>
+          </div>`;
+      }).join('')}
+    </div>
+
+    ${ric.length ? `
+      <div class="card" style="border-left:4px solid var(--clay);">
+        <h3 style="color:#8B3429;">Ricadute (${ric.length})</h3>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">Stesso giocatore, stessa zona, piu di una volta.</div>
+        ${ric.map(r=>`
+          <div class="med-row mini-row" data-player-id="${r.player ? r.player.id : ''}" style="cursor:pointer;border-bottom:1px solid var(--line);padding:7px 0;">
+            <span>${esc(r.player ? r.player.name : '—')} <span style="color:var(--ink-soft);">— ${esc(r.zona)}</span></span>
+            <strong style="color:var(--clay);">${r.episodi} episodi · ${r.giorni} gg</strong>
+          </div>`).join('')}
+      </div>` : ''}
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Dove succede</h3>
+        ${Object.keys(perContesto).map(k=>`<div class="mini-row"><span>${esc(k)}</span><strong>${perContesto[k]}</strong></div>`).join('')}
+      </div>
+      <div class="card">
+        <h3>Come succede</h3>
+        ${Object.keys(perMeccanismo).map(k=>`<div class="mini-row"><span>${esc(k)}</span><strong>${perMeccanismo[k]}</strong></div>`).join('')}
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Giorni persi per giocatore</h3>
+      ${perGiocatore.map(x=>`
+        <div class="med-row mini-row" data-player-id="${x.p.id}" style="cursor:pointer;border-bottom:1px solid var(--line);padding:7px 0;">
+          <span>${esc(x.p.name)} <span style="color:var(--ink-soft);font-size:11px;">${x.n} episod${x.n===1?'io':'i'}</span></span>
+          <strong>${x.giorni} giorni</strong>
+        </div>`).join('')}
+    </div>
+  `;
+
+  el.querySelectorAll('.med-row').forEach(r=>{
+    r.addEventListener('click', ()=>{ if(r.dataset.playerId) showPlayerReport(r.dataset.playerId); });
+  });
+}
+
+/* --- Modulo di inserimento e modifica --- */
+function formInfortunio(inj, onDone){
+  const nuovo = !inj;
+  const old = document.getElementById('infortunioModal');
+  if(old) old.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'infortunioModal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:flex-start;justify-content:center;z-index:10001;padding:20px;box-sizing:border-box;overflow-y:auto;';
+
+  const v = inj || {};
+  modal.innerHTML = `
+    <div style="background:white;border-radius:12px;max-width:560px;width:100%;padding:24px;margin:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 style="margin:0;color:var(--pitch);">${nuovo ? 'Registra infortunio' : 'Modifica infortunio'}</h2>
+        <button id="infClose" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">&#10005;</button>
+      </div>
+
+      <label>Giocatore</label>
+      <select id="infPlayer" ${nuovo ? '' : 'disabled'}>
+        <option value="">Seleziona...</option>
+        ${STATE.players.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name)))
+          .map(p=>`<option value="${p.id}" ${String(v.playerId)===String(p.id)?'selected':''}>${esc(p.name)}</option>`).join('')}
+      </select>
+
+      <div class="grid2" style="gap:12px;">
+        <div><label>Data infortunio</label><input id="infStart" type="date" value="${v.dateStart || todayStr()}" max="${todayStr()}"></div>
+        <div><label>Zona</label><select id="infZone">${BODY_ZONES.map(z=>`<option ${v.zone===z?'selected':''}>${z}</option>`).join('')}</select></div>
+      </div>
+
+      <div class="grid2" style="gap:12px;">
+        <div><label>Tipo</label><select id="infType">${INJURY_TYPES.map(t=>`<option ${v.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
+        <div><label>Meccanismo</label><select id="infMech">${INJURY_MECHANISMS.map(m=>`<option ${v.mechanism===m?'selected':''}>${m}</option>`).join('')}</select></div>
+      </div>
+
+      <div class="grid2" style="gap:12px;">
+        <div><label>Contesto</label><select id="infCtx">${INJURY_CONTEXTS.map(cx=>`<option ${v.context===cx?'selected':''}>${cx}</option>`).join('')}</select></div>
+        <div><label>Rientro previsto</label><input id="infExpected" type="date" value="${v.expectedReturn || ''}"></div>
+      </div>
+
+      <label>Diagnosi</label>
+      <input id="infDiag" type="text" value="${esc(v.diagnosis || '')}" placeholder="Es. lesione di primo grado del bicipite femorale">
+
+      <label>Note</label>
+      <textarea id="infNotes" placeholder="Dinamica, esami, indicazioni del medico">${esc(v.notes || '')}</textarea>
+
+      ${!nuovo ? `
+        <div class="grid2" style="gap:12px;">
+          <div><label>Data rientro effettiva</label><input id="infEnd" type="date" value="${v.dateEnd || ''}" max="${todayStr()}"></div>
+          <div><label>Stato</label><select id="infStatus">${INJURY_STATUS.map(st=>`<option value="${st.value}" ${v.status===st.value?'selected':''}>${st.label}</option>`).join('')}</select></div>
+        </div>` : ''}
+
+      <div style="font-size:11.5px;color:var(--ink-soft);margin-top:12px;padding:10px;background:var(--chalk);border-radius:6px;">
+        ${nuovo ? 'Registrando l infortunio il giocatore passa automaticamente allo stato Infortunato.' : 'Chiudendo l episodio il giocatore torna Disponibile.'}
+      </div>
+
+      <div class="btn-row" style="justify-content:flex-end;">
+        <button id="infCancel" class="btn secondary">Annulla</button>
+        <button id="infSave" class="btn">${nuovo ? 'Registra' : 'Salva'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  const chiudi = ()=> modal.remove();
+  document.getElementById('infClose').addEventListener('click', chiudi);
+  document.getElementById('infCancel').addEventListener('click', chiudi);
+  modal.addEventListener('click', e=>{ if(e.target === modal) chiudi(); });
+
+  document.getElementById('infSave').addEventListener('click', async ()=>{
+    const playerId = nuovo ? document.getElementById('infPlayer').value : v.playerId;
+    if(!playerId){ showToast('Seleziona il giocatore'); return; }
+    const dateStart = document.getElementById('infStart').value;
+    if(!dateStart){ showToast('Indica la data'); return; }
+    if(dateStart > todayStr()){ showToast('La data non puo essere futura'); return; }
+
+    const dati = {
+      playerId: String(playerId),
+      dateStart: dateStart,
+      zone: document.getElementById('infZone').value,
+      type: document.getElementById('infType').value,
+      mechanism: document.getElementById('infMech').value,
+      context: document.getElementById('infCtx').value,
+      expectedReturn: document.getElementById('infExpected').value,
+      diagnosis: document.getElementById('infDiag').value.trim(),
+      notes: document.getElementById('infNotes').value.trim()
+    };
+
+    const p = STATE.players.find(x=>String(x.id)===String(playerId));
+
+    if(nuovo){
+      if(!confirm('Registrare l infortunio di ' + (p?p.name:'') + '?\n\nIl giocatore passera allo stato Infortunato.')) return;
+      if(!Array.isArray(STATE.injuries)) STATE.injuries = [];
+      STATE.injuries.push(Object.assign({id: uid(), status:'attivo', stage:'riposo', dateEnd:''}, dati));
+      if(p){
+        p.status = 'Infortunato';
+        p.returnDate = dati.expectedReturn || '';
+        await saveKey('players', STATE.players);
+      }
+    } else {
+      const fine = document.getElementById('infEnd');
+      const stato = document.getElementById('infStatus');
+      Object.assign(inj, dati);
+      inj.dateEnd = fine ? fine.value : inj.dateEnd;
+      inj.status = stato ? stato.value : inj.status;
+      if(inj.status === 'risolto' && !inj.dateEnd) inj.dateEnd = todayStr();
+      if(p){
+        if(inj.status === 'risolto'){ p.status = 'Disponibile'; p.returnDate = ''; }
+        else if(inj.status === 'rtp'){ p.status = 'RTP'; p.returnDate = dati.expectedReturn || ''; }
+        else { p.status = 'Infortunato'; p.returnDate = dati.expectedReturn || ''; }
+        await saveKey('players', STATE.players);
+      }
+    }
+
+    await saveKey('injuries', STATE.injuries);
+    showToast(nuovo ? 'Infortunio registrato' : 'Modifiche salvate');
+    chiudi();
+    if(onDone) onDone();
+  });
+}
+
 /* ---------- AREA PERFORMANCE ---------- */
 function renderPerformance(el){
   const tab = el.dataset.perfTab || 'test';
@@ -6076,6 +6644,29 @@ function renderImpostazioniAdmin(el){
       </div>
     </div>
 
+    ${(()=>{
+      const salv = elencaSalvagenti();
+      if(salv.length === 0) return '';
+      const nomi = {'players':'Rosa giocatori','events':'Calendario (partite e allenamenti)','workouts':'Esercitazioni','tests':'Test','rpe-log':'RPE','hooper-log':'Wellness','pain-log':'Dolori'};
+      return `
+        <div class="card" style="border:2px solid #B5473A;">
+          <h3 style="color:#8B3429;">Dati recuperabili (${salv.length})</h3>
+          <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px 0;">
+            Questo dispositivo ha conservato una copia di dati che sono spariti dal cloud.
+            Controlla la data e ripristina quello che ti serve.
+          </p>
+          ${salv.map(x=>`
+            <div style="border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:8px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;">
+              <div>
+                <div style="font-size:13px;font-weight:600;">${esc(nomi[x.chiave] || x.chiave)}</div>
+                <div style="font-size:11px;color:var(--clay);">passato da <strong>${x.avevo}</strong> a <strong>${x.arrivato}</strong> voci</div>
+                <div style="font-size:10.5px;color:var(--ink-soft);">${x.quando ? fmtDate(String(x.quando).slice(0,10)) + ' alle ' + String(x.quando).slice(11,16) : ''}</div>
+              </div>
+              <button class="ripristina-salvagente btn" data-chiave="${esc(x.chiave)}" style="font-size:12px;padding:8px 14px;white-space:nowrap;">Ripristina ${x.avevo}</button>
+            </div>`).join('')}
+        </div>`;
+    })()}
+
     <div class="card">
       <h3>Backup e ripristino</h3>
       <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px 0;">
@@ -6332,6 +6923,17 @@ function renderImpostazioniAdmin(el){
     });
   }
 
+  el.querySelectorAll('.ripristina-salvagente').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const chiave = btn.dataset.chiave;
+      if(!confirm('Ripristinare i dati conservati per "' + chiave + '"?\n\nQuello che c\'e adesso sul cloud verra sostituito.')) return;
+      const n = await ripristinaSalvagente(chiave);
+      if(n === false){ showToast('Copia non leggibile'); return; }
+      showToast(n + ' voci ripristinate');
+      render();
+    });
+  });
+
   // --- Backup completo ---
   document.getElementById('fullBackupBtn').addEventListener('click', ()=>{
     const backup = {
@@ -6348,7 +6950,8 @@ function renderImpostazioniAdmin(el){
       tests: STATE.tests,
       rpeLog: STATE.rpeLog,
       hooperLog: STATE.hooperLog,
-      painLog: STATE.painLog
+      painLog: STATE.painLog,
+      injuries: STATE.injuries || []
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
@@ -6402,6 +7005,7 @@ function renderImpostazioniAdmin(el){
       STATE.rpeLog = data.rpeLog || data.rpe || [];
       STATE.hooperLog = data.hooperLog || data.hooper || [];
       STATE.painLog = data.painLog || data.pain || [];
+      STATE.injuries = data.injuries || [];
       if(data.staffPassword) STATE.staffPassword = data.staffPassword;
 
       await saveKey('team-config', STATE.teamConfig);
@@ -6414,6 +7018,7 @@ function renderImpostazioniAdmin(el){
       await saveKey('rpe-log', STATE.rpeLog);
       await saveKey('hooper-log', STATE.hooperLog);
       await saveKey('pain-log', STATE.painLog);
+      await saveKey('injuries', STATE.injuries);
 
       showToast('Backup ripristinato');
       render();
@@ -6497,47 +7102,113 @@ function renderImpostazioniAdmin(el){
 }
 
 // ========== FIRESTORE REAL-TIME SYNC ==========
+/* Conserva una copia locale prima che un dato venga sostituito da uno molto piu' piccolo.
+   E' la rete che ci e' mancata quando i dati sono spariti. */
+const CHIAVI_SALVAGUARDIA = ['players','events','workouts','tests','rpe-log','hooper-log','pain-log','injuries'];
+
+function salvaguarda(key, nuovo){
+  if(CHIAVI_SALVAGUARDIA.indexOf(key) === -1) return;
+  let vecchio = null;
+  try{ const raw = localStorage.getItem(key); if(raw) vecchio = JSON.parse(raw); }catch(e){ return; }
+  if(!Array.isArray(vecchio) || vecchio.length === 0) return;
+
+  const nuovaLung = Array.isArray(nuovo) ? nuovo.length : 0;
+  // Perdita sospetta: sparisce tutto, o piu' della meta'
+  if(nuovaLung === 0 || nuovaLung < vecchio.length / 2){
+    const etichetta = 'salvagente_' + key;
+    try{
+      localStorage.setItem(etichetta, JSON.stringify({
+        quando: new Date().toISOString(),
+        avevo: vecchio.length,
+        arrivato: nuovaLung,
+        dati: vecchio
+      }));
+      console.warn('SALVAGENTE: ' + key + ' e passato da ' + vecchio.length + ' a ' + nuovaLung +
+                   ' voci. Copia conservata in questo dispositivo.');
+      PERDITE_RILEVATE[key] = {avevo: vecchio.length, arrivato: nuovaLung};
+    }catch(e){}
+  }
+}
+
+const PERDITE_RILEVATE = {};
+
 async function setupFirestoreSync(){
   if(!db || !TEAM_ID) return;
-  
-  console.log('🔄 Inizializzando sincronizzazione real-time Firestore...');
-  
+
   try{
-    // Ascolta i cambiamenti nella collezione 'data' della squadra
     db.collection('teams').doc(TEAM_ID).collection('data').onSnapshot(snapshot => {
-      console.log('📡 Dati aggiornati da Firestore:', snapshot.size, 'documenti');
       snapshot.docChanges().forEach(change => {
-        if(change.type === 'added' || change.type === 'modified'){
-          const key = change.doc.id;
-          const data = change.doc.data().value;
-          
-          // Aggiorna lo STATE corrispondente
-          if(key === 'players') STATE.players = data;
-          if(key === 'workouts') STATE.workouts = data;
-          if(key === 'events') STATE.events = data;
-          if(key === 'tests') STATE.tests = data;
-          if(key === 'rpe-log') STATE.rpeLog = data;
-          if(key === 'hooper-log') STATE.hooperLog = data;
-          if(key === 'pain-log') STATE.painLog = data;
-          if(key === 'team-config') STATE.teamConfig = data;
-          if(key === 'accessCodes') STATE.accessCodes = data || {};
-          if(key === 'customPasswords') STATE.customPasswords = data || {};
+        if(change.type !== 'added' && change.type !== 'modified') return;
 
-          // Tiene aggiornata anche la riserva offline
-          try{ localStorage.setItem(key, JSON.stringify(data)); }catch(e){}
+        const key = change.doc.id;
+        const dati = change.doc.data() || {};
+        const data = dati.value;
 
-          console.log('✅ Sincronizzato:', key);
+        // Non accetto valori assenti: sovrascriverebbero con nulla
+        if(typeof data === 'undefined' || data === null){
+          console.warn('Sincronizzazione ignorata per', key, '- valore assente');
+          return;
         }
+
+        salvaguarda(key, data);
+
+        if(key === 'players') STATE.players = data;
+        if(key === 'workouts') STATE.workouts = data;
+        if(key === 'events') STATE.events = data;
+        if(key === 'tests') STATE.tests = data;
+        if(key === 'rpe-log') STATE.rpeLog = data;
+        if(key === 'hooper-log') STATE.hooperLog = data;
+        if(key === 'pain-log') STATE.painLog = data;
+        if(key === 'team-config') STATE.teamConfig = data;
+        if(key === 'accessCodes') STATE.accessCodes = data || {};
+        if(key === 'customPasswords') STATE.customPasswords = data || {};
+        if(key === 'injuries') STATE.injuries = data || [];
+
+        try{ localStorage.setItem(key, JSON.stringify(data)); }catch(e){}
       });
-      
-      // Aggiorna la UI se è necessario
+
       if(STATE.loggedIn) render();
     }, err => {
-      console.error('❌ Errore sincronizzazione Firestore:', err);
+      console.error('Errore sincronizzazione:', err);
     });
   }catch(err){
-    console.error('❌ Errore setup sync Firestore:', err);
+    console.error('Errore avvio sincronizzazione:', err);
   }
+}
+
+/* Elenca i salvagenti disponibili su questo dispositivo */
+function elencaSalvagenti(){
+  const out = [];
+  try{
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && k.indexOf('salvagente_') === 0){
+        try{
+          const v = JSON.parse(localStorage.getItem(k));
+          out.push({chiave: k.replace('salvagente_',''), etichetta: k, quando: v.quando, avevo: v.avevo, arrivato: v.arrivato});
+        }catch(e){}
+      }
+    }
+  }catch(e){}
+  return out.sort((a,b)=>String(b.quando).localeCompare(String(a.quando)));
+}
+
+async function ripristinaSalvagente(chiave){
+  const etichetta = 'salvagente_' + chiave;
+  let pacchetto;
+  try{ pacchetto = JSON.parse(localStorage.getItem(etichetta)); }catch(e){ return false; }
+  if(!pacchetto || !Array.isArray(pacchetto.dati)) return false;
+
+  const mappa = {
+    'players':'players','events':'events','workouts':'workouts','tests':'tests',
+    'rpe-log':'rpeLog','hooper-log':'hooperLog','pain-log':'painLog','injuries':'injuries'
+  };
+  const campo = mappa[chiave];
+  if(!campo) return false;
+
+  STATE[campo] = pacchetto.dati;
+  await saveKey(chiave, pacchetto.dati);
+  return pacchetto.dati.length;
 }
 
 // Avvia Firebase e poi i dati
