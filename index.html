@@ -292,7 +292,7 @@ function initFirebase(){
 const NAV_STAFF = [
   {id:'dashboard', label:'Dashboard', icon:'📊'},
   {id:'giocatori', label:'Rosa', icon:'👥'},
-  {id:'test', label:'Test', icon:'📈'},
+  {id:'performance', label:'Performance', icon:'📈'},
   {id:'allenamenti', label:'Allenamenti', icon:'🎯'},
   {id:'calendario', label:'Calendario', icon:'📅'},
   {id:'impostazioni', label:'Impostazioni', icon:'⚙️'},
@@ -306,7 +306,7 @@ const NAV_PLAYER = [
 const NAV_ADMIN = [
   {id:'dashboard', label:'Dashboard', icon:'📊'},
   {id:'giocatori', label:'Rosa', icon:'👥'},
-  {id:'test', label:'Test', icon:'📈'},
+  {id:'performance', label:'Performance', icon:'📈'},
   {id:'allenamenti', label:'Allenamenti', icon:'🎯'},
   {id:'calendario', label:'Calendario', icon:'📅'},
   {id:'impostazioni', label:'Impostazioni Staff', icon:'⚙️'},
@@ -340,6 +340,126 @@ const ALENSE_PLAYERS = [
 /* RPE storici importati dal log CR10 (luglio-settembre 2026).
    Durata sessione assunta: 65 minuti, impostata su 'rpe-import-session'. */
 const ALENSE_RPE_SEED = [{"id":"rpe_imp_0000","playerId":"alense_stella_leonardo","date":"2026-07-21","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0001","playerId":"alense_bandera_patrick","date":"2026-07-21","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0002","playerId":"alense_simonini_matteo","date":"2026-07-21","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0003","playerId":"alense_azzolini_marco","date":"2026-07-21","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0004","playerId":"alense_menegot_luca","date":"2026-07-21","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0005","playerId":"alense_emanuelli_manuel","date":"2026-07-21","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0006","playerId":"alense_deimichei_tommaso","date":"2026-07-21","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0007","playerId":"alense_trainotti_christian","date":"2026-07-21","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0008","playerId":"alense_valentini_alberto","date":"2026-07-21","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0009","playerId":"alense_moscatelli_lorenzo","date":"2026-07-21","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0010","playerId":"alense_pereira_martino_gabriel","date":"2026-07-21","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0011","playerId":"alense_benedetti_leonardo","date":"2026-07-21","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0012","playerId":"alense_deimichei_tommaso","date":"2026-07-21","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0013","playerId":"alense_morandini_andrea","date":"2026-07-21","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0014","playerId":"alense_devigili_elia","date":"2026-07-21","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0015","playerId":"alense_cominelli_luca","date":"2026-07-21","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0016","playerId":"alense_fiorini_davide","date":"2026-07-21","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0017","playerId":"alense_amico_gianluca","date":"2026-07-21","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0018","playerId":"alense_stella_leonardo","date":"2026-07-22","sessionId":"rpe-import-session","rpe":10,"imported":true},{"id":"rpe_imp_0019","playerId":"alense_azzolini_marco","date":"2026-07-22","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0020","playerId":"alense_deimichei_tommaso","date":"2026-07-22","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0021","playerId":"alense_amico_gianluca","date":"2026-07-22","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0022","playerId":"alense_bandera_patrick","date":"2026-07-22","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0023","playerId":"alense_simonini_matteo","date":"2026-07-22","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0024","playerId":"alense_devigili_elia","date":"2026-07-22","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0025","playerId":"alense_pereira_martino_gabriel","date":"2026-07-22","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0026","playerId":"alense_moscatelli_lorenzo","date":"2026-07-22","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0027","playerId":"alense_menegot_luca","date":"2026-07-22","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0028","playerId":"alense_morandini_andrea","date":"2026-07-22","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0029","playerId":"alense_valentini_alberto","date":"2026-07-22","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0030","playerId":"alense_cominelli_luca","date":"2026-07-22","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0031","playerId":"alense_emanuelli_manuel","date":"2026-07-22","sessionId":"rpe-import-session","rpe":10,"imported":true},{"id":"rpe_imp_0032","playerId":"alense_trainotti_christian","date":"2026-07-22","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0033","playerId":"alense_benedetti_leonardo","date":"2026-07-22","sessionId":"rpe-import-session","rpe":10,"imported":true},{"id":"rpe_imp_0034","playerId":"alense_fiorini_davide","date":"2026-07-22","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0035","playerId":"alense_valentini_alberto","date":"2026-07-23","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0036","playerId":"alense_benedetti_leonardo","date":"2026-07-23","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0037","playerId":"alense_moscatelli_lorenzo","date":"2026-07-23","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0038","playerId":"alense_trainotti_christian","date":"2026-07-23","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0039","playerId":"alense_emanuelli_manuel","date":"2026-07-23","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0040","playerId":"alense_deimichei_tommaso","date":"2026-07-24","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0041","playerId":"alense_moscatelli_lorenzo","date":"2026-07-24","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0042","playerId":"alense_morandini_andrea","date":"2026-07-24","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0043","playerId":"alense_pereira_martino_gabriel","date":"2026-07-24","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0044","playerId":"alense_menegot_luca","date":"2026-07-24","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0045","playerId":"alense_simonini_matteo","date":"2026-07-24","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0046","playerId":"alense_bandera_patrick","date":"2026-07-24","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0047","playerId":"alense_amico_gianluca","date":"2026-07-24","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0048","playerId":"alense_azzolini_marco","date":"2026-07-24","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0049","playerId":"alense_cominelli_luca","date":"2026-07-24","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0050","playerId":"alense_guzzo_simone","date":"2026-07-24","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0051","playerId":"alense_emanuelli_manuel","date":"2026-07-23","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0052","playerId":"alense_bandera_patrick","date":"2026-07-27","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0053","playerId":"alense_moscatelli_lorenzo","date":"2026-07-27","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0054","playerId":"alense_morandini_andrea","date":"2026-07-27","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0055","playerId":"alense_valentini_alberto","date":"2026-07-27","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0056","playerId":"alense_menegot_luca","date":"2026-07-27","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0057","playerId":"alense_pereira_martino_gabriel","date":"2026-07-27","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0058","playerId":"alense_cominelli_luca","date":"2026-07-27","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0059","playerId":"alense_benedetti_leonardo","date":"2026-07-27","sessionId":"rpe-import-session","rpe":10,"imported":true},{"id":"rpe_imp_0060","playerId":"alense_emanuelli_manuel","date":"2026-07-27","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0061","playerId":"alense_amico_gianluca","date":"2026-07-27","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0062","playerId":"alense_hmidi_omar","date":"2026-07-28","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0063","playerId":"alense_deimichei_tommaso","date":"2026-07-27","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0064","playerId":"alense_bandera_patrick","date":"2026-07-28","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0065","playerId":"alense_manfredi_andrea","date":"2026-07-28","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0066","playerId":"alense_amico_gianluca","date":"2026-07-28","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0067","playerId":"alense_volani_giacomo","date":"2026-07-28","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0068","playerId":"alense_valentini_alberto","date":"2026-07-28","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0069","playerId":"alense_morandini_andrea","date":"2026-07-28","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0070","playerId":"alense_menegot_luca","date":"2026-07-28","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0071","playerId":"alense_guzzo_simone","date":"2026-07-27","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0072","playerId":"alense_guzzo_simone","date":"2026-07-28","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0073","playerId":"alense_cominelli_luca","date":"2026-07-28","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0074","playerId":"alense_hmidi_omar","date":"2026-07-28","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0075","playerId":"alense_pereira_martino_gabriel","date":"2026-07-28","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0076","playerId":"alense_deimichei_tommaso","date":"2026-07-28","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0077","playerId":"alense_trainotti_christian","date":"2026-07-28","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0078","playerId":"alense_bandera_patrick","date":"2026-07-29","sessionId":"rpe-import-session","rpe":10,"imported":true},{"id":"rpe_imp_0079","playerId":"alense_simonini_matteo","date":"2026-07-29","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0080","playerId":"alense_stella_leonardo","date":"2026-07-29","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0081","playerId":"alense_manfredi_andrea","date":"2026-07-29","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0082","playerId":"alense_cominelli_luca","date":"2026-07-29","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0083","playerId":"alense_devigili_elia","date":"2026-07-27","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0084","playerId":"alense_devigili_elia","date":"2026-07-28","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0085","playerId":"alense_devigili_elia","date":"2026-07-29","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0086","playerId":"alense_morandini_andrea","date":"2026-07-29","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0087","playerId":"alense_pereira_martino_gabriel","date":"2026-07-29","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0088","playerId":"alense_guzzo_simone","date":"2026-07-29","sessionId":"rpe-import-session","rpe":10,"imported":true},{"id":"rpe_imp_0089","playerId":"alense_benedetti_leonardo","date":"2026-07-29","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0090","playerId":"alense_menegot_luca","date":"2026-07-29","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0091","playerId":"alense_hmidi_omar","date":"2026-07-29","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0092","playerId":"alense_amico_gianluca","date":"2026-07-29","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0093","playerId":"alense_bandera_patrick","date":"2026-07-31","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0094","playerId":"alense_azzolini_marco","date":"2026-07-31","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0095","playerId":"alense_emanuelli_manuel","date":"2026-07-31","sessionId":"rpe-import-session","rpe":1,"imported":true},{"id":"rpe_imp_0096","playerId":"alense_pereira_martino_gabriel","date":"2026-07-31","sessionId":"rpe-import-session","rpe":1,"imported":true},{"id":"rpe_imp_0097","playerId":"alense_cominelli_luca","date":"2026-07-31","sessionId":"rpe-import-session","rpe":1,"imported":true},{"id":"rpe_imp_0098","playerId":"alense_moscatelli_lorenzo","date":"2026-07-31","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0099","playerId":"alense_manfredi_andrea","date":"2026-07-31","sessionId":"rpe-import-session","rpe":1,"imported":true},{"id":"rpe_imp_0100","playerId":"alense_stella_leonardo","date":"2026-07-31","sessionId":"rpe-import-session","rpe":1,"imported":true},{"id":"rpe_imp_0101","playerId":"alense_valentini_alberto","date":"2026-07-31","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0102","playerId":"alense_morandini_andrea","date":"2026-07-31","sessionId":"rpe-import-session","rpe":1,"imported":true},{"id":"rpe_imp_0103","playerId":"alense_menegot_luca","date":"2026-07-31","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0104","playerId":"alense_amico_gianluca","date":"2026-07-31","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0105","playerId":"alense_guzzo_simone","date":"2026-07-31","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0106","playerId":"alense_volani_giacomo","date":"2026-08-01","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0107","playerId":"alense_fiorini_davide","date":"2026-08-01","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0108","playerId":"alense_moscatelli_lorenzo","date":"2026-08-01","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0109","playerId":"alense_morandini_andrea","date":"2026-08-01","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0110","playerId":"alense_menegot_luca","date":"2026-08-02","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0111","playerId":"alense_hmidi_omar","date":"2026-08-01","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0112","playerId":"alense_guzzo_simone","date":"2026-08-01","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0113","playerId":"alense_amico_gianluca","date":"2026-08-01","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0114","playerId":"alense_stella_leonardo","date":"2026-08-01","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0115","playerId":"alense_azzolini_marco","date":"2026-08-03","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0116","playerId":"alense_amico_gianluca","date":"2026-08-03","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0117","playerId":"alense_bandera_patrick","date":"2026-08-03","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0118","playerId":"alense_manfredi_andrea","date":"2026-08-03","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0119","playerId":"alense_pereira_martino_gabriel","date":"2026-08-03","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0120","playerId":"alense_morandini_andrea","date":"2026-08-03","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0121","playerId":"alense_valentini_alberto","date":"2026-08-03","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0122","playerId":"alense_volani_giacomo","date":"2026-08-03","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0123","playerId":"alense_deimichei_tommaso","date":"2026-08-03","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0124","playerId":"alense_guzzo_simone","date":"2026-08-03","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0125","playerId":"alense_fiorini_davide","date":"2026-08-03","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0126","playerId":"alense_cominelli_luca","date":"2026-08-03","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0127","playerId":"alense_moscatelli_lorenzo","date":"2026-08-03","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0128","playerId":"alense_trainotti_christian","date":"2026-08-03","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0129","playerId":"alense_emanuelli_manuel","date":"2026-08-03","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0130","playerId":"alense_menegot_luca","date":"2026-08-03","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0131","playerId":"alense_devigili_elia","date":"2026-08-03","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0132","playerId":"alense_simonini_matteo","date":"2026-08-03","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0133","playerId":"alense_benedetti_leonardo","date":"2026-08-03","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0134","playerId":"alense_stella_leonardo","date":"2026-08-03","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0135","playerId":"alense_hmidi_omar","date":"2026-08-03","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0136","playerId":"alense_manfredi_andrea","date":"2026-08-04","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0137","playerId":"alense_amico_gianluca","date":"2026-08-04","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0138","playerId":"alense_bandera_patrick","date":"2026-08-04","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0139","playerId":"alense_cominelli_luca","date":"2026-08-04","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0140","playerId":"alense_pereira_martino_gabriel","date":"2026-08-04","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0141","playerId":"alense_fiorini_davide","date":"2026-08-04","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0142","playerId":"alense_valentini_alberto","date":"2026-08-04","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0143","playerId":"alense_stella_leonardo","date":"2026-08-04","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0144","playerId":"alense_moscatelli_lorenzo","date":"2026-08-04","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0145","playerId":"alense_morandini_andrea","date":"2026-08-04","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0146","playerId":"alense_guzzo_simone","date":"2026-08-04","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0147","playerId":"alense_menegot_luca","date":"2026-08-04","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0148","playerId":"alense_deimichei_tommaso","date":"2026-08-04","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0149","playerId":"alense_hmidi_omar","date":"2026-08-04","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0150","playerId":"alense_manfredi_andrea","date":"2026-08-06","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0151","playerId":"alense_amico_gianluca","date":"2026-08-06","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0152","playerId":"alense_pereira_martino_gabriel","date":"2026-08-06","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0153","playerId":"alense_benedetti_leonardo","date":"2026-08-06","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0154","playerId":"alense_stella_leonardo","date":"2026-08-06","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0155","playerId":"alense_trainotti_christian","date":"2026-08-06","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0156","playerId":"alense_valentini_alberto","date":"2026-08-06","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0157","playerId":"alense_emanuelli_manuel","date":"2026-08-06","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0158","playerId":"alense_morandini_andrea","date":"2026-08-06","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0159","playerId":"alense_cominelli_luca","date":"2026-08-06","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0160","playerId":"alense_guzzo_simone","date":"2026-08-06","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0161","playerId":"alense_moscatelli_lorenzo","date":"2026-08-06","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0162","playerId":"alense_fiorini_davide","date":"2026-08-06","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0163","playerId":"alense_volani_giacomo","date":"2026-08-06","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0164","playerId":"alense_manfredi_andrea","date":"2026-08-07","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0165","playerId":"alense_amico_gianluca","date":"2026-08-07","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0166","playerId":"alense_bandera_patrick","date":"2026-08-07","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0167","playerId":"alense_morandini_andrea","date":"2026-08-07","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0168","playerId":"alense_benedetti_leonardo","date":"2026-08-07","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0169","playerId":"alense_pereira_martino_gabriel","date":"2026-08-07","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0170","playerId":"alense_cominelli_luca","date":"2026-08-07","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0171","playerId":"alense_emanuelli_manuel","date":"2026-08-07","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0172","playerId":"alense_volani_giacomo","date":"2026-08-08","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0173","playerId":"alense_moscatelli_lorenzo","date":"2026-08-08","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0174","playerId":"alense_guzzo_simone","date":"2026-08-07","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0175","playerId":"alense_valentini_alberto","date":"2026-08-08","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0176","playerId":"alense_stella_leonardo","date":"2026-08-08","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0177","playerId":"alense_morandini_andrea","date":"2026-08-08","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0178","playerId":"alense_moscatelli_lorenzo","date":"2026-08-08","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0179","playerId":"alense_pereira_martino_gabriel","date":"2026-08-10","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0180","playerId":"alense_moscatelli_lorenzo","date":"2026-08-10","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0181","playerId":"alense_guzzo_simone","date":"2026-08-10","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0182","playerId":"alense_benedetti_leonardo","date":"2026-08-10","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0183","playerId":"alense_valentini_alberto","date":"2026-08-10","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0184","playerId":"alense_cominelli_luca","date":"2026-08-10","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0185","playerId":"alense_emanuelli_manuel","date":"2026-08-10","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0186","playerId":"alense_stella_leonardo","date":"2026-08-10","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0187","playerId":"alense_trainotti_christian","date":"2026-08-11","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0188","playerId":"alense_fiorini_davide","date":"2026-08-11","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0189","playerId":"alense_stella_leonardo","date":"2026-08-11","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0190","playerId":"alense_pereira_martino_gabriel","date":"2026-08-11","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0191","playerId":"alense_valentini_alberto","date":"2026-08-11","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0192","playerId":"alense_cominelli_luca","date":"2026-08-11","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0193","playerId":"alense_amico_gianluca","date":"2026-08-11","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0194","playerId":"alense_devigili_elia","date":"2026-08-12","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0195","playerId":"alense_bandera_patrick","date":"2026-08-11","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0196","playerId":"alense_emanuelli_manuel","date":"2026-08-11","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0197","playerId":"alense_manfredi_andrea","date":"2026-08-12","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0198","playerId":"alense_benedetti_leonardo","date":"2026-08-11","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0199","playerId":"alense_moscatelli_lorenzo","date":"2026-08-11","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0200","playerId":"alense_guzzo_simone","date":"2026-08-11","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0201","playerId":"alense_hmidi_omar","date":"2026-08-11","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0202","playerId":"alense_moscatelli_lorenzo","date":"2026-08-13","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0203","playerId":"alense_valentini_alberto","date":"2026-08-13","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0204","playerId":"alense_cominelli_luca","date":"2026-08-13","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0205","playerId":"alense_amico_gianluca","date":"2026-08-13","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0206","playerId":"alense_pereira_martino_gabriel","date":"2026-08-13","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0207","playerId":"alense_manfredi_andrea","date":"2026-08-13","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0208","playerId":"alense_valentini_alberto","date":"2026-08-17","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0209","playerId":"alense_benedetti_leonardo","date":"2026-08-17","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0210","playerId":"alense_morandini_andrea","date":"2026-08-17","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0211","playerId":"alense_pereira_martino_gabriel","date":"2026-08-17","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0212","playerId":"alense_moscatelli_lorenzo","date":"2026-08-17","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0213","playerId":"alense_menegot_luca","date":"2026-08-17","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0214","playerId":"alense_manfredi_andrea","date":"2026-08-17","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0215","playerId":"alense_cominelli_luca","date":"2026-08-17","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0216","playerId":"alense_volani_giacomo","date":"2026-08-17","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0217","playerId":"alense_amico_gianluca","date":"2026-08-17","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0218","playerId":"alense_guzzo_simone","date":"2026-08-17","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0219","playerId":"alense_amico_gianluca","date":"2026-08-18","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0220","playerId":"alense_valentini_alberto","date":"2026-08-18","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0221","playerId":"alense_moscatelli_lorenzo","date":"2026-08-18","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0222","playerId":"alense_pereira_martino_gabriel","date":"2026-08-18","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0223","playerId":"alense_cominelli_luca","date":"2026-08-18","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0224","playerId":"alense_morandini_andrea","date":"2026-08-18","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0225","playerId":"alense_emanuelli_manuel","date":"2026-08-18","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0226","playerId":"alense_devigili_elia","date":"2026-08-17","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0227","playerId":"alense_volani_giacomo","date":"2026-08-18","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0228","playerId":"alense_trainotti_christian","date":"2026-08-17","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0229","playerId":"alense_emanuelli_manuel","date":"2026-08-17","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0230","playerId":"alense_trainotti_christian","date":"2026-08-18","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0231","playerId":"alense_guzzo_simone","date":"2026-08-18","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0232","playerId":"alense_devigili_elia","date":"2026-08-18","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0233","playerId":"alense_stella_leonardo","date":"2026-08-18","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0234","playerId":"alense_moscatelli_lorenzo","date":"2026-08-19","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0235","playerId":"alense_morandini_andrea","date":"2026-08-19","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0236","playerId":"alense_emanuelli_manuel","date":"2026-08-19","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0237","playerId":"alense_guzzo_simone","date":"2026-08-19","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0238","playerId":"alense_amico_gianluca","date":"2026-08-19","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0239","playerId":"alense_manfredi_andrea","date":"2026-08-21","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0240","playerId":"alense_valentini_alberto","date":"2026-08-21","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0241","playerId":"alense_cominelli_luca","date":"2026-08-21","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0242","playerId":"alense_morandini_andrea","date":"2026-08-21","sessionId":"rpe-import-session","rpe":1,"imported":true},{"id":"rpe_imp_0243","playerId":"alense_amico_gianluca","date":"2026-08-21","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0244","playerId":"alense_deimichei_tommaso","date":"2026-08-21","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0245","playerId":"alense_moscatelli_lorenzo","date":"2026-08-21","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0246","playerId":"alense_moscatelli_lorenzo","date":"2026-08-23","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0247","playerId":"alense_emanuelli_manuel","date":"2026-08-23","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0248","playerId":"alense_manfredi_andrea","date":"2026-08-23","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0249","playerId":"alense_morandini_andrea","date":"2026-08-23","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0250","playerId":"alense_amico_gianluca","date":"2026-08-23","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0251","playerId":"alense_valentini_alberto","date":"2026-08-23","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0252","playerId":"alense_volani_giacomo","date":"2026-08-23","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0253","playerId":"alense_hmidi_omar","date":"2026-08-23","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0254","playerId":"alense_bandera_patrick","date":"2026-08-23","sessionId":"rpe-import-session","rpe":1,"imported":true},{"id":"rpe_imp_0255","playerId":"alense_guzzo_simone","date":"2026-08-23","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0256","playerId":"alense_guzzo_simone","date":"2026-08-21","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0257","playerId":"alense_fiorini_davide","date":"2026-08-23","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0258","playerId":"alense_bandera_patrick","date":"2026-08-25","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0259","playerId":"alense_manfredi_andrea","date":"2026-08-25","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0260","playerId":"alense_amico_gianluca","date":"2026-08-25","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0261","playerId":"alense_guzzo_simone","date":"2026-08-25","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0262","playerId":"alense_stella_leonardo","date":"2026-08-25","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0263","playerId":"alense_cominelli_luca","date":"2026-08-25","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0264","playerId":"alense_moscatelli_lorenzo","date":"2026-08-25","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0265","playerId":"alense_valentini_alberto","date":"2026-08-25","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0266","playerId":"alense_benedetti_leonardo","date":"2026-08-25","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0267","playerId":"alense_emanuelli_manuel","date":"2026-08-25","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0268","playerId":"alense_morandini_andrea","date":"2026-08-25","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0269","playerId":"alense_devigili_elia","date":"2026-08-25","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0270","playerId":"alense_fiorini_davide","date":"2026-08-25","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0271","playerId":"alense_menegot_luca","date":"2026-08-25","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0272","playerId":"alense_trainotti_christian","date":"2026-08-25","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0273","playerId":"alense_azzolini_marco","date":"2026-08-25","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0274","playerId":"alense_volani_giacomo","date":"2026-08-25","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0275","playerId":"alense_hmidi_omar","date":"2026-08-25","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0276","playerId":"alense_bandera_patrick","date":"2026-08-26","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0277","playerId":"alense_cominelli_luca","date":"2026-08-26","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0278","playerId":"alense_amico_gianluca","date":"2026-08-26","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0279","playerId":"alense_manfredi_andrea","date":"2026-08-26","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0280","playerId":"alense_trainotti_christian","date":"2026-08-26","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0281","playerId":"alense_volani_giacomo","date":"2026-08-26","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0282","playerId":"alense_menegot_luca","date":"2026-08-26","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0283","playerId":"alense_morandini_andrea","date":"2026-08-26","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0284","playerId":"alense_benedetti_leonardo","date":"2026-08-26","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0285","playerId":"alense_stella_leonardo","date":"2026-08-26","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0286","playerId":"alense_azzolini_marco","date":"2026-08-26","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0287","playerId":"alense_emanuelli_manuel","date":"2026-08-26","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0288","playerId":"alense_valentini_alberto","date":"2026-08-26","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0289","playerId":"alense_devigili_elia","date":"2026-08-26","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0290","playerId":"alense_moscatelli_lorenzo","date":"2026-08-26","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0291","playerId":"alense_fiorini_davide","date":"2026-08-26","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0292","playerId":"alense_guzzo_simone","date":"2026-08-26","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0293","playerId":"alense_hmidi_omar","date":"2026-08-26","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0294","playerId":"alense_bandera_patrick","date":"2026-08-28","sessionId":"rpe-import-session","rpe":1,"imported":true},{"id":"rpe_imp_0295","playerId":"alense_morandini_andrea","date":"2026-08-28","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0296","playerId":"alense_valentini_alberto","date":"2026-08-28","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0297","playerId":"alense_stella_leonardo","date":"2026-08-28","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0298","playerId":"alense_moscatelli_lorenzo","date":"2026-08-28","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0299","playerId":"alense_trainotti_christian","date":"2026-08-28","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0300","playerId":"alense_emanuelli_manuel","date":"2026-08-28","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0301","playerId":"alense_volani_giacomo","date":"2026-08-28","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0302","playerId":"alense_manfredi_andrea","date":"2026-08-28","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0303","playerId":"alense_fiorini_davide","date":"2026-08-28","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0304","playerId":"alense_cominelli_luca","date":"2026-08-28","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0305","playerId":"alense_devigili_elia","date":"2026-08-28","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0306","playerId":"alense_benedetti_leonardo","date":"2026-08-28","sessionId":"rpe-import-session","rpe":2,"imported":true},{"id":"rpe_imp_0307","playerId":"alense_azzolini_marco","date":"2026-08-28","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0308","playerId":"alense_amico_gianluca","date":"2026-08-28","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0309","playerId":"alense_guzzo_simone","date":"2026-08-28","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0310","playerId":"alense_moscatelli_lorenzo","date":"2026-08-30","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0311","playerId":"alense_guzzo_simone","date":"2026-08-30","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0312","playerId":"alense_volani_giacomo","date":"2026-08-30","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0313","playerId":"alense_cominelli_luca","date":"2026-08-30","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0314","playerId":"alense_emanuelli_manuel","date":"2026-08-30","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0315","playerId":"alense_menegot_luca","date":"2026-08-30","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0316","playerId":"alense_manfredi_andrea","date":"2026-08-30","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0317","playerId":"alense_valentini_alberto","date":"2026-08-30","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0318","playerId":"alense_fiorini_davide","date":"2026-08-30","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0319","playerId":"alense_amico_gianluca","date":"2026-08-30","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0320","playerId":"alense_bandera_patrick","date":"2026-09-01","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0321","playerId":"alense_cominelli_luca","date":"2026-09-01","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0322","playerId":"alense_pereira_martino_gabriel","date":"2026-09-01","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0323","playerId":"alense_moscatelli_lorenzo","date":"2026-09-01","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0324","playerId":"alense_deimichei_tommaso","date":"2026-09-01","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0325","playerId":"alense_valentini_alberto","date":"2026-09-01","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0326","playerId":"alense_morandini_andrea","date":"2026-09-01","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0327","playerId":"alense_emanuelli_manuel","date":"2026-09-01","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0328","playerId":"alense_guzzo_simone","date":"2026-09-01","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0329","playerId":"alense_stella_leonardo","date":"2026-09-01","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0330","playerId":"alense_benedetti_leonardo","date":"2026-09-01","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0331","playerId":"alense_fiorini_davide","date":"2026-09-01","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0332","playerId":"alense_devigili_elia","date":"2026-09-01","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0333","playerId":"alense_amico_gianluca","date":"2026-09-01","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0334","playerId":"alense_manfredi_andrea","date":"2026-09-01","sessionId":"rpe-import-session","rpe":3,"imported":true},{"id":"rpe_imp_0335","playerId":"alense_manfredi_andrea","date":"2026-09-02","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0336","playerId":"alense_trainotti_christian","date":"2026-09-01","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0337","playerId":"alense_trainotti_christian","date":"2026-09-02","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0338","playerId":"alense_bandera_patrick","date":"2026-09-02","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0339","playerId":"alense_fiorini_davide","date":"2026-09-02","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0340","playerId":"alense_cominelli_luca","date":"2026-09-02","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0341","playerId":"alense_stella_leonardo","date":"2026-09-02","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0342","playerId":"alense_guzzo_simone","date":"2026-09-02","sessionId":"rpe-import-session","rpe":9,"imported":true},{"id":"rpe_imp_0343","playerId":"alense_menegot_luca","date":"2026-09-02","sessionId":"rpe-import-session","rpe":5,"imported":true},{"id":"rpe_imp_0344","playerId":"alense_moscatelli_lorenzo","date":"2026-09-02","sessionId":"rpe-import-session","rpe":6,"imported":true},{"id":"rpe_imp_0345","playerId":"alense_pereira_martino_gabriel","date":"2026-09-02","sessionId":"rpe-import-session","rpe":4,"imported":true},{"id":"rpe_imp_0346","playerId":"alense_valentini_alberto","date":"2026-09-02","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0347","playerId":"alense_benedetti_leonardo","date":"2026-09-02","sessionId":"rpe-import-session","rpe":7,"imported":true},{"id":"rpe_imp_0348","playerId":"alense_emanuelli_manuel","date":"2026-09-02","sessionId":"rpe-import-session","rpe":8,"imported":true},{"id":"rpe_imp_0349","playerId":"alense_devigili_elia","date":"2026-09-02","sessionId":"rpe-import-session","rpe":6,"imported":true}];
+
+/* ---------- ANALISI PERFORMANCE ----------
+   Un numero da solo non dice niente: conta il confronto con se stessi,
+   con la squadra e con il proprio ruolo. */
+
+/* Per certi test il valore basso e' migliore (tempi), per altri il valore alto (salti, distanze) */
+const TEST_LOWER_IS_BETTER = ['Sprint 20m','Sprint 30m','T-Test COD','Navetta 5-10-15m'];
+
+function lowerIsBetter(tipo){
+  return TEST_LOWER_IS_BETTER.indexOf(tipo) !== -1;
+}
+
+/* Tutti i risultati di un tipo di test, ordinati dal piu' recente */
+function testResultsByType(tipo){
+  const out = [];
+  STATE.tests.filter(t => t.type === tipo).forEach(t=>{
+    (t.results || []).forEach(r=>{
+      if(typeof r.value === 'number' && !isNaN(r.value)){
+        out.push({playerId: String(r.playerId), value: r.value, date: t.date, testId: t.id, testName: t.name});
+      }
+    });
+  });
+  return out.sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+}
+
+/* Storico di un giocatore su un tipo di test */
+function playerTestHistory(playerId, tipo){
+  return testResultsByType(tipo).filter(r => r.playerId === String(playerId));
+}
+
+/* Il miglior risultato di sempre: record personale */
+function personalBest(playerId, tipo){
+  const st = playerTestHistory(playerId, tipo);
+  if(st.length === 0) return null;
+  return st.reduce((best, r)=>{
+    if(!best) return r;
+    return lowerIsBetter(tipo) ? (r.value < best.value ? r : best)
+                               : (r.value > best.value ? r : best);
+  }, null);
+}
+
+/* Quadro completo di un giocatore su un tipo di test */
+function testSnapshot(playerId, tipo){
+  const storia = playerTestHistory(playerId, tipo);
+  if(storia.length === 0) return null;
+
+  const ultimo = storia[0];
+  const precedente = storia[1] || null;
+  const record = personalBest(playerId, tipo);
+
+  // Media di squadra sull'ultima rilevazione di ciascuno
+  const perGiocatore = {};
+  testResultsByType(tipo).forEach(r=>{ if(!perGiocatore[r.playerId]) perGiocatore[r.playerId] = r; });
+  const valori = Object.keys(perGiocatore).map(k=>perGiocatore[k].value);
+  const media = valori.length ? valori.reduce((a,b)=>a+b,0)/valori.length : null;
+
+  const delta = precedente ? ultimo.value - precedente.value : null;
+  const vsMedia = media !== null ? ultimo.value - media : null;
+  const vsRecord = record ? ultimo.value - record.value : null;
+
+  // Un miglioramento e' un calo sui tempi, un aumento sugli altri
+  const migliorato = delta === null ? null : (lowerIsBetter(tipo) ? delta < 0 : delta > 0);
+  // "meglioDellaMedia" invece di "sopra": su un tempo, sopra la media e' peggio
+  const meglioDellaMedia = vsMedia === null ? null : (lowerIsBetter(tipo) ? vsMedia < 0 : vsMedia > 0);
+
+  // Posizione in squadra
+  const classifica = Object.keys(perGiocatore)
+    .map(k=>({playerId:k, value:perGiocatore[k].value}))
+    .sort((a,b)=> lowerIsBetter(tipo) ? a.value-b.value : b.value-a.value);
+  const posizione = classifica.findIndex(x=>x.playerId === String(playerId)) + 1;
+
+  return {
+    ultimo, precedente, record, media,
+    delta, migliorato, vsMedia, meglioDellaMedia, vsRecord,
+    posizione, suTotale: classifica.length,
+    rilevazioni: storia.length
+  };
+}
+
+/* Media per ruolo: un centrale e un esterno non hanno gli stessi numeri */
+function testMediaPerRuolo(tipo, ruolo){
+  const perGiocatore = {};
+  testResultsByType(tipo).forEach(r=>{ if(!perGiocatore[r.playerId]) perGiocatore[r.playerId] = r; });
+  const valori = Object.keys(perGiocatore)
+    .filter(pid=>{
+      const p = STATE.players.find(x=>String(x.id)===pid);
+      return p && p.role === ruolo;
+    })
+    .map(pid=>perGiocatore[pid].value);
+  if(valori.length === 0) return null;
+  return {media: valori.reduce((a,b)=>a+b,0)/valori.length, n: valori.length};
+}
+
+/* CMJ come sentinella della fatica neuromuscolare.
+   Riferimento = miglior valore registrato. Un calo oltre il 10% e' un segnale. */
+const CMJ_SOGLIA_ATTENZIONE = 5;   // percento
+const CMJ_SOGLIA_ALLARME = 10;
+
+function cmjFatica(playerId){
+  const storia = playerTestHistory(playerId, 'CMJ');
+  if(storia.length < 2) return null;
+  const riferimento = personalBest(playerId, 'CMJ');
+  const ultimo = storia[0];
+  if(!riferimento || riferimento.value === 0) return null;
+
+  const calo = ((riferimento.value - ultimo.value) / riferimento.value) * 100;
+  let livello, etichetta, colore;
+  if(calo >= CMJ_SOGLIA_ALLARME){ livello='allarme'; etichetta='Fatica neuromuscolare'; colore='var(--clay)'; }
+  else if(calo >= CMJ_SOGLIA_ATTENZIONE){ livello='attenzione'; etichetta='Calo da verificare'; colore='var(--amber-dark)'; }
+  else { livello='ok'; etichetta='Nella norma'; colore='var(--ok)'; }
+
+  return {
+    calo: Math.round(calo*10)/10,
+    riferimento: riferimento.value,
+    attuale: ultimo.value,
+    data: ultimo.date,
+    giorni: daysSince(ultimo.date),
+    livello, etichetta, colore
+  };
+}
 
 const TEST_SPECS = {
   '30-15 Intermittent': {unit: 'km/h', description: 'Boucheit – Velocità massima raggiunta'},
@@ -607,15 +727,21 @@ function daysAgo(n){
 
 // ========== STORAGE FUNCTIONS (localStorage + Firestore) ==========
 async function saveKey(key, value){
-  // Salva SEMPRE su localStorage (locale)
+  // PROTEZIONE: se il caricamento iniziale e' fallito, lo stato in memoria
+  // non rappresenta i dati veri. Scrivere ora li cancellerebbe.
+  if(LOAD_FAILED){
+    console.error('SCRITTURA BLOCCATA per', key, '- il caricamento iniziale era fallito');
+    showToast('Dati non caricati correttamente: ricarica la pagina prima di salvare');
+    return false;
+  }
+
+  // Salva sempre la copia locale
   try{
     localStorage.setItem(key, JSON.stringify(value));
-    console.log('✅ Salvato localStorage:', key);
   }catch(e){
-    console.error('❌ Errore localStorage:', e.message);
+    console.error('Errore salvataggio locale:', e.message);
   }
-  
-  // Prova a sincronizzare su Firestore (opzionale)
+
   if(db && TEAM_ID){
     try{
       await db.collection('teams').doc(TEAM_ID).collection('data').doc(key).set({
@@ -623,40 +749,52 @@ async function saveKey(key, value){
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         playerId: STATE.currentPlayerId || 'admin'
       });
-      console.log('📡 Sincronizzato Firestore:', key);
+      return true;
     }catch(e){
-      console.warn('⚠️ Sync Firestore fallito:', e.message);
+      console.error('Salvataggio su Firestore fallito:', e.message);
+      showToast('Salvataggio non riuscito: controlla la connessione');
+      return false;
     }
   }
+  return true;
 }
 
+/* Stato dell'ultima lettura: serve a non scrivere quando non si e' letto */
+let LOAD_FAILED = false;
+const LOAD_STATUS = {};
+
 async function loadKey(key, fallback){
-  // Firestore e' la fonte di verita': i dati sono condivisi tra dispositivi.
-  // localStorage serve solo come riserva quando si e' offline.
+  // Distinguo tre casi: dato letto, documento assente, lettura fallita.
+  // Confonderli significa sovrascrivere dati veri con un array vuoto.
   if(db && TEAM_ID){
     try{
       const doc = await db.collection('teams').doc(TEAM_ID).collection('data').doc(key).get();
       if(doc.exists && typeof doc.data().value !== 'undefined'){
         const result = doc.data().value;
         try{ localStorage.setItem(key, JSON.stringify(result)); }catch(e){}
-        console.log('📡 Caricato da Firestore:', key);
         return result;
       }
+      // Documento assente davvero: nessun dato salvato per questa chiave
+      LOAD_STATUS[key] = 'vuoto';
+      return fallback;
     }catch(e){
-      console.warn('⚠️ Firestore non raggiungibile per', key, '-', e.message);
+      console.error('LETTURA FALLITA per', key, '-', e.message);
+      LOAD_STATUS[key] = 'errore';
+      LOAD_FAILED = true;
     }
+  } else {
+    LOAD_STATUS[key] = 'errore';
+    LOAD_FAILED = true;
   }
 
-  // Riserva offline
+  // Riserva locale: meglio dei dati vecchi che nessun dato
   try{
     const stored = localStorage.getItem(key);
     if(stored){
-      console.log('💾 Caricato da riserva locale:', key);
+      console.warn('Uso la riserva locale per', key);
       return JSON.parse(stored);
     }
-  }catch(e){
-    console.warn('⚠️ Errore lettura riserva locale:', e.message);
-  }
+  }catch(e){}
 
   return fallback;
 }
@@ -725,7 +863,9 @@ async function loadAll(){
   // La pagina si sblocca qui: i salvataggi qui sotto non devono farla aspettare
   STATE.loading = false;
 
-  if(STATE.players.length === 0){
+  // I dati iniziali si caricano SOLO se Firestore ha risposto e il documento
+  // era davvero assente. Se la lettura e' fallita, non tocco niente.
+  if(STATE.players.length === 0 && LOAD_STATUS['players'] === 'vuoto' && !LOAD_FAILED){
     STATE.players = ALENSE_PLAYERS.map(p=>Object.assign({}, p));
     saveKey('players', STATE.players);
   } else {
@@ -733,7 +873,7 @@ async function loadAll(){
   }
 
   // Primo avvio: RPE storici e sessione fittizia che ne fissa la durata
-  if(STATE.rpeLog.length === 0 && typeof ALENSE_RPE_SEED !== 'undefined' && ALENSE_RPE_SEED.length){
+  if(STATE.rpeLog.length === 0 && LOAD_STATUS['rpe-log'] === 'vuoto' && !LOAD_FAILED && typeof ALENSE_RPE_SEED !== 'undefined' && ALENSE_RPE_SEED.length){
     STATE.rpeLog = ALENSE_RPE_SEED.map(r=>Object.assign({}, r));
     if(!STATE.events.some(e=>e.id === 'rpe-import-session')){
       STATE.events.push({
@@ -928,12 +1068,20 @@ function render(){
     root.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Inter;color:#5C6459;">Caricamento...</div>';
     return;
   }
+
+  // Se il caricamento e' fallito, avviso in cima e blocco i salvataggi
+  const bannerErrore = LOAD_FAILED
+    ? '<div style="background:#B5473A;color:white;padding:10px 14px;text-align:center;font-size:12.5px;font-weight:600;">' +
+      'Dati non caricati correttamente. I salvataggi sono bloccati per non perdere nulla. ' +
+      '<button onclick="location.reload()" style="margin-left:8px;padding:4px 10px;border:1px solid rgba(255,255,255,0.6);background:transparent;color:white;border-radius:4px;cursor:pointer;font-size:11px;">Ricarica</button></div>'
+    : '';
   if(!STATE.loggedIn){
     renderLogin(root);
     return;
   }
   const navItems = STATE.role==='staff' ? NAV_STAFF : STATE.role==='admin' ? NAV_ADMIN : NAV_PLAYER;
   root.innerHTML = `
+    ${bannerErrore}
     <div class="app">
       <div class="sidebar">
         <div class="brand">
@@ -970,7 +1118,7 @@ function render(){
   const staffRenderers = {
     dashboard: renderDashboard,
     giocatori: renderGiocatori,
-    test: renderTest,
+    performance: renderPerformance,
     allenamenti: renderAllenamenti,
     calendario: renderCalendario,
     impostazioni: renderImpostazioni,
@@ -982,7 +1130,7 @@ function render(){
   const adminRenderers = {
     dashboard: renderDashboard,
     giocatori: renderGiocatori,
-    test: renderTest,
+    performance: renderPerformance,
     allenamenti: renderAllenamenti,
     calendario: renderCalendario,
     impostazioni: renderImpostazioni,
@@ -1115,7 +1263,10 @@ async function setAccessCode(playerId, code){
 }
 
 function renderLogin(el){
-  el.innerHTML = `
+  const bannerErrore = LOAD_FAILED
+    ? '<div style="background:#B5473A;color:white;padding:10px;text-align:center;font-size:12.5px;font-weight:600;">Connessione ai dati non riuscita. Ricarica la pagina.</div>'
+    : '';
+  el.innerHTML = `${bannerErrore}
     <div class="login-screen">
       <div class="login-card">
         <h1>TEAM HUB PRO</h1>
@@ -3173,6 +3324,268 @@ function renderGiocatori(el){
 }
 
 /* ---------- TEST ---------- */
+/* ---------- AREA PERFORMANCE ---------- */
+function renderPerformance(el){
+  const tab = el.dataset.perfTab || 'test';
+  const tabBtn = (id, label)=>
+    `<button class="perf-tab" data-tab="${id}" style="padding:9px 16px;border:none;border-bottom:3px solid ${tab===id?'var(--amber)':'transparent'};background:none;font-size:13px;font-weight:${tab===id?'700':'500'};color:${tab===id?'var(--pitch)':'var(--ink-soft)'};cursor:pointer;">${label}</button>`;
+
+  el.innerHTML = `
+    <div class="page-head"><h1>Area Performance</h1><p>Test, carico e rendimento</p></div>
+    <div style="display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:20px;overflow-x:auto;">
+      ${tabBtn('test','Test')}
+      ${tabBtn('confronti','Confronti')}
+      ${tabBtn('carico','Carico')}
+      ${tabBtn('stagione','Stagione')}
+    </div>
+    <div id="perfContent"></div>
+  `;
+
+  el.querySelectorAll('.perf-tab').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      el.dataset.perfTab = b.dataset.tab;
+      renderPerformance(el);
+    });
+  });
+
+  const content = document.getElementById('perfContent');
+  if(!content) return;
+
+  if(tab === 'test') renderTest(content);
+  else if(tab === 'confronti') renderPerfConfronti(content);
+  else if(tab === 'carico') renderPerfCarico(content);
+  else renderPerfStagione(content);
+}
+
+/* --- Confronti: un tipo di test alla volta, tutta la squadra --- */
+function renderPerfConfronti(el){
+  const tipiUsati = [];
+  STATE.tests.forEach(t=>{ if(t.type && tipiUsati.indexOf(t.type) === -1 && (t.results||[]).length) tipiUsati.push(t.type); });
+
+  if(tipiUsati.length === 0){
+    el.innerHTML = '<div class="card"><div class="empty">Nessun risultato ancora inserito. Crea un test e registra i valori per vedere i confronti.</div></div>';
+    return;
+  }
+
+  const tipo = el.dataset.tipo && tipiUsati.indexOf(el.dataset.tipo) !== -1 ? el.dataset.tipo : tipiUsati[0];
+  const unita = (TEST_SPECS[tipo] || {}).unit || '';
+  const basso = lowerIsBetter(tipo);
+
+  // Ultimo risultato di ciascun giocatore, in classifica
+  const perGiocatore = {};
+  testResultsByType(tipo).forEach(r=>{ if(!perGiocatore[r.playerId]) perGiocatore[r.playerId] = r; });
+  const righe = Object.keys(perGiocatore).map(pid=>{
+    const p = STATE.players.find(x=>String(x.id)===pid);
+    return {p, pid, snap: testSnapshot(pid, tipo)};
+  }).filter(x=>x.p && x.snap)
+    .sort((a,b)=> basso ? a.snap.ultimo.value - b.snap.ultimo.value : b.snap.ultimo.value - a.snap.ultimo.value);
+
+  const media = righe.length ? righe.reduce((a,x)=>a+x.snap.ultimo.value,0)/righe.length : 0;
+
+  // Medie per ruolo
+  const ruoli = [];
+  righe.forEach(x=>{ if(x.p.role && ruoli.indexOf(x.p.role) === -1) ruoli.push(x.p.role); });
+
+  el.innerHTML = `
+    <div class="card">
+      <label style="margin-top:0;">Tipo di test</label>
+      <select id="perfTipoSelect">
+        ${tipiUsati.map(t=>`<option value="${esc(t)}" ${t===tipo?'selected':''}>${esc(t)}</option>`).join('')}
+      </select>
+      <div style="font-size:11.5px;color:var(--ink-soft);margin-top:8px;">
+        ${esc((TEST_SPECS[tipo]||{}).description || '')} — ${basso ? 'valore piu basso = migliore' : 'valore piu alto = migliore'}
+      </div>
+    </div>
+
+    <div class="tiles" style="grid-template-columns:repeat(3,1fr);">
+      <div class="tile">
+        <div class="tile-lbl">Media squadra</div>
+        <div class="tile-big">${Math.round(media*100)/100}<small> ${esc(unita)}</small></div>
+        <div class="tile-sub">${righe.length} giocatori testati</div>
+      </div>
+      <div class="tile">
+        <div class="tile-accent" style="background:var(--ok);"></div>
+        <div class="tile-lbl">Migliore</div>
+        <div class="tile-big" style="font-size:22px;">${righe.length ? esc(String(righe[0].p.name).split(' ')[0]) : '—'}</div>
+        <div class="tile-sub">${righe.length ? righe[0].snap.ultimo.value + ' ' + esc(unita) : ''}</div>
+      </div>
+      <div class="tile">
+        <div class="tile-lbl">Ultima rilevazione</div>
+        <div class="tile-big" style="font-size:22px;">${righe.length ? fmtDate(righe[0].snap.ultimo.date) : '—'}</div>
+        <div class="tile-sub">${STATE.tests.filter(t=>t.type===tipo).length} sessioni registrate</div>
+      </div>
+    </div>
+
+    ${ruoli.length > 1 ? `
+      <div class="card">
+        <h3>Media per ruolo</h3>
+        ${ruoli.map(r=>{
+          const m = testMediaPerRuolo(tipo, r);
+          if(!m) return '';
+          return `<div class="mini-row"><span>${esc(r)} <span style="color:var(--ink-soft);">(${m.n})</span></span><strong>${Math.round(m.media*100)/100} ${esc(unita)}</strong></div>`;
+        }).join('')}
+      </div>` : ''}
+
+    <div class="card">
+      <h3>Classifica squadra</h3>
+      <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">Ultimo valore di ciascuno. Tocca un giocatore per la scheda completa.</div>
+      <div style="border:1px solid var(--line);border-radius:6px;overflow:hidden;">
+        ${righe.map((x,i)=>{
+          const sn = x.snap;
+          const diffMedia = Math.round((sn.ultimo.value - media)*100)/100;
+          const segno = diffMedia > 0 ? '+' : '';
+          return `
+            <div class="perf-row" data-player-id="${x.pid}" style="padding:10px 12px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;cursor:pointer;">
+              <div style="font-size:13px;font-weight:700;color:${i===0?'var(--amber-dark)':'var(--ink-soft)'};">${i+1}</div>
+              <div style="min-width:0;">
+                <div style="font-size:13px;font-weight:600;">${esc(x.p.name)}</div>
+                <div style="font-size:10.5px;color:var(--ink-soft);">
+                  ${esc(x.p.role || '—')} · ${fmtDate(sn.ultimo.date)}
+                  ${sn.delta !== null ? ' · <span style="color:' + (sn.migliorato ? 'var(--ok)' : 'var(--clay)') + ';font-weight:600;">' +
+                     (sn.migliorato ? 'migliorato' : 'peggiorato') + ' di ' + Math.abs(Math.round(sn.delta*100)/100) + ' ' + esc(unita) + '</span>' : ' · prima rilevazione'}
+                </div>
+              </div>
+              <div style="text-align:right;white-space:nowrap;">
+                <div style="font-size:16px;font-weight:700;color:var(--pitch);">${sn.ultimo.value}</div>
+                <div style="font-size:10px;color:${sn.meglioDellaMedia ? 'var(--ok)' : 'var(--ink-soft)'};">${segno}${diffMedia} vs media</div>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    ${tipo === 'CMJ' ? `
+      <div class="card">
+        <h3>Fatica neuromuscolare</h3>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">
+          Confronto fra il salto attuale e il miglior valore registrato. Un calo oltre il ${CMJ_SOGLIA_ALLARME}% e un segnale di affaticamento residuo.
+        </div>
+        ${(()=>{
+          const cali = STATE.players.map(p=>({p, f: cmjFatica(p.id)})).filter(x=>x.f)
+            .sort((a,b)=>b.f.calo - a.f.calo);
+          if(cali.length === 0) return '<div class="empty">Servono almeno due rilevazioni CMJ per giocatore.</div>';
+          return cali.map(x=>`
+            <div class="mini-row" style="border-bottom:1px solid var(--line);padding:7px 0;">
+              <span>${esc(x.p.name)} <span style="color:var(--ink-soft);font-size:11px;">${x.f.riferimento} &rarr; ${x.f.attuale} cm</span></span>
+              <strong style="color:${x.f.colore};">${x.f.calo > 0 ? '-' : '+'}${Math.abs(x.f.calo)}% · ${x.f.etichetta}</strong>
+            </div>`).join('');
+        })()}
+      </div>` : ''}
+  `;
+
+  const sel = document.getElementById('perfTipoSelect');
+  if(sel) sel.addEventListener('change', ()=>{ el.dataset.tipo = sel.value; renderPerfConfronti(el); });
+
+  el.querySelectorAll('.perf-row').forEach(row=>{
+    row.addEventListener('click', ()=> showPlayerReport(row.dataset.playerId));
+  });
+}
+
+/* --- Carico: ACWR di tutta la rosa --- */
+function renderPerfCarico(el){
+  const conDati = [], senzaDati = [];
+  STATE.players.forEach(p=>{
+    const a = getACWR(p.id);
+    if(a && !a.insufficient) conDati.push({p, a}); else senzaDati.push({p, a});
+  });
+  conDati.sort((x,y)=> y.a.ratio - x.a.ratio);
+  const media = conDati.length ? conDati.reduce((s,x)=>s+x.a.ratio,0)/conDati.length : null;
+
+  const gruppo = (titolo, zone, colore)=>{
+    const righe = conDati.filter(x=> zone.indexOf(x.a.zone) !== -1);
+    if(righe.length === 0) return '';
+    return `
+      <div class="card">
+        <h3 style="color:${colore};">${titolo} (${righe.length})</h3>
+        ${righe.map(x=>`
+          <div class="perf-row mini-row" data-player-id="${x.p.id}" style="cursor:pointer;border-bottom:1px solid var(--line);padding:8px 0;">
+            <span>${esc(x.p.name)}<br><span style="font-size:10.5px;color:var(--ink-soft);">settimana ${x.a.acute} UA · media 4 sett. ${x.a.chronicWeekly} UA</span></span>
+            <strong style="color:${x.a.color};">${x.a.ratio}</strong>
+          </div>`).join('')}
+      </div>`;
+  };
+
+  el.innerHTML = `
+    <div class="tiles" style="grid-template-columns:repeat(3,1fr);">
+      <div class="tile">
+        <div class="tile-lbl">Media squadra</div>
+        <div class="tile-big">${media !== null ? Math.round(media*100)/100 : '—'}</div>
+        <div class="tile-sub">zona ottimale 0.8 - 1.3</div>
+      </div>
+      <div class="tile">
+        <div class="tile-accent" style="background:${conDati.filter(x=>x.a.zone==='high').length ? 'var(--clay)' : 'var(--ok)'};"></div>
+        <div class="tile-lbl">Oltre 1.5</div>
+        <div class="tile-big" style="color:${conDati.filter(x=>x.a.zone==='high').length ? 'var(--clay)' : 'var(--ok)'};">${conDati.filter(x=>x.a.zone==='high').length}</div>
+        <div class="tile-sub">carico cresciuto troppo</div>
+      </div>
+      <div class="tile">
+        <div class="tile-lbl">Monitorati</div>
+        <div class="tile-big">${conDati.length}<small>/${STATE.players.length}</small></div>
+        <div class="tile-sub">servono 3 settimane di RPE</div>
+      </div>
+    </div>
+
+    ${gruppo('Zona rischio, oltre 1.5', ['high'], 'var(--clay)')}
+    ${gruppo('In salita, 1.3 - 1.5', ['warn'], 'var(--amber-dark)')}
+    ${gruppo('Zona ottimale', ['ok'], 'var(--ok)')}
+    ${gruppo('Scarico o fermi', ['low','none'], 'var(--amber-dark)')}
+
+    ${senzaDati.length ? `
+      <div class="card">
+        <h3>Dati insufficienti (${senzaDati.length})</h3>
+        <div style="font-size:12px;color:var(--ink-soft);">${senzaDati.map(x=>esc(x.p.name)).join(', ')}</div>
+      </div>` : ''}
+  `;
+
+  el.querySelectorAll('.perf-row').forEach(row=>{
+    row.addEventListener('click', ()=> showPlayerReport(row.dataset.playerId));
+  });
+}
+
+/* --- Stagione: minuti, gol, assist --- */
+function renderPerfStagione(el){
+  const righe = STATE.players.map(p=>({p, s: getSeasonStats(p.id), att: getTrainingAttendance(p.id)}))
+    .sort((a,b)=> b.s.minutes - a.s.minutes);
+
+  const totMin = righe.reduce((a,x)=>a+x.s.minutes,0);
+  const totGol = righe.reduce((a,x)=>a+x.s.goals,0);
+  const totAss = righe.reduce((a,x)=>a+x.s.assists,0);
+  const partite = STATE.events.filter(e=>e.type==='Partita' && Array.isArray(e.lineup) && e.lineup.length).length;
+
+  el.innerHTML = `
+    <div class="tiles" style="grid-template-columns:repeat(4,1fr);">
+      <div class="tile"><div class="tile-lbl">Partite</div><div class="tile-big">${partite}</div><div class="tile-sub">con formazione inserita</div></div>
+      <div class="tile"><div class="tile-lbl">Minuti totali</div><div class="tile-big">${totMin}</div><div class="tile-sub">distribuiti nella rosa</div></div>
+      <div class="tile"><div class="tile-lbl">Gol</div><div class="tile-big" style="color:var(--amber-dark);">${totGol}</div><div class="tile-sub">di squadra</div></div>
+      <div class="tile"><div class="tile-lbl">Assist</div><div class="tile-big" style="color:var(--amber-dark);">${totAss}</div><div class="tile-sub">di squadra</div></div>
+    </div>
+
+    <div class="card">
+      <h3>Rendimento individuale</h3>
+      ${partite === 0 ? '<div class="empty">Nessuna formazione inserita. I minuti si calcolano dai titolari e dai cambi registrati nelle partite.</div>' : `
+      <table>
+        <thead><tr><th>Giocatore</th><th>Min.</th><th>Part.</th><th>Tit.</th><th>Gol</th><th>Ass.</th><th>Allen.</th></tr></thead>
+        <tbody>
+          ${righe.map(x=>`
+            <tr class="perf-row" data-player-id="${x.p.id}" style="cursor:pointer;">
+              <td><strong>${esc(x.p.name)}</strong><div style="font-size:10px;color:var(--ink-soft);">${esc(x.p.role||'—')}</div></td>
+              <td><strong>${x.s.minutes || '—'}</strong></td>
+              <td>${x.s.matches || '—'}</td>
+              <td>${x.s.starts || '—'}</td>
+              <td style="color:${x.s.goals?'var(--amber-dark)':'inherit'};font-weight:${x.s.goals?'700':'400'};">${x.s.goals || '—'}</td>
+              <td style="color:${x.s.assists?'var(--amber-dark)':'inherit'};font-weight:${x.s.assists?'700':'400'};">${x.s.assists || '—'}</td>
+              <td>${x.att.percent !== null ? x.att.percent + '%' : '—'}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`}
+    </div>
+  `;
+
+  el.querySelectorAll('.perf-row').forEach(row=>{
+    row.addEventListener('click', ()=> showPlayerReport(row.dataset.playerId));
+  });
+}
+
 function renderTest(el){
   const selectedTestId = el.dataset.selectedTestId || null;
   const selectedTest = selectedTestId ? STATE.tests.find(t=>t.id===selectedTestId) : null;
