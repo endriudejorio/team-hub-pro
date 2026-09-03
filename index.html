@@ -939,7 +939,9 @@ function render(){
         <div class="brand">
           <div>
             <div class="brand-name" style="font-size:20px;letter-spacing:0.05em;">TEAM HUB PRO</div>
-            <div class="brand-sub">${STATE.role==='staff'?'Staff':STATE.role==='admin'?'Amministratore':'Atleta'}</div>
+            ${STATE.role==='player'
+              ? `<div class="brand-sub" style="color:var(--amber);font-weight:700;font-size:12px;text-transform:none;letter-spacing:0;">${esc(STATE.currentPlayerName || 'Atleta')}</div>`
+              : `<div class="brand-sub">${STATE.role==='staff'?'Staff':'Amministratore'}</div>`}
           </div>
         </div>
         <div class="nav">
@@ -3409,7 +3411,9 @@ function renderAllenamenti(el){
   const categorySelect = document.getElementById('workoutCategory');
   const typeSelect = document.getElementById('workoutType');
   const paramsDiv = document.getElementById('workoutParamsDiv');
-  
+
+  // Il form di creazione non e' sempre presente: se manca, non collego nulla
+  if(categorySelect && typeSelect && paramsDiv){
   const updateTypeOptions = ()=>{
     const category = categorySelect.value;
     const types = WORKOUT_CATEGORIES[category] || [];
@@ -3738,7 +3742,8 @@ function renderAllenamenti(el){
     showToast('Esercitazione creata');
     render();
   });
-  
+  } // fine guardia: form presente solo quando serve
+
   el.querySelectorAll('[data-edit-workout]').forEach(b=>{
     b.addEventListener('click', ()=>{
       const workoutId = b.dataset.editWorkout;
@@ -3966,6 +3971,30 @@ async function setPlayerPresence(eventId, playerId, present){
   event.presentCount = event.presentPlayers.length;
   await saveKey('events', STATE.events);
   return true;
+}
+
+/* ---------- CONVOCAZIONI ---------- */
+function isConvocato(event, playerId){
+  return !!(event && Array.isArray(event.convocati) && event.convocati.includes(String(playerId)));
+}
+
+/* La prossima partita per cui il giocatore risulta convocato o escluso */
+function getNextMatchForPlayer(playerId){
+  const today = todayStr();
+  const future = STATE.events
+    .filter(e => e.type === 'Partita' && e.date && e.date >= today && Array.isArray(e.convocati))
+    .sort((a,b) => String(a.date).localeCompare(String(b.date)));
+  return future[0] || null;
+}
+
+async function toggleConvocato(eventId, playerId){
+  const event = STATE.events.find(e => e.id === eventId);
+  if(!event) return;
+  if(!Array.isArray(event.convocati)) event.convocati = [];
+  const id = String(playerId);
+  const i = event.convocati.indexOf(id);
+  if(i === -1) event.convocati.push(id); else event.convocati.splice(i, 1);
+  await saveKey('events', STATE.events);
 }
 
 function renderCalendario(el){
@@ -4785,6 +4814,34 @@ function renderMatchDetails(match){
         </div>
       ` : ''}
       
+      <!-- CONVOCAZIONI -->
+      <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <h4 style="margin:0;color:var(--pitch);font-size:13px;">Convocati</h4>
+          <span id="convocatiCount" style="font-size:12px;font-weight:700;color:var(--ink-soft);"></span>
+        </div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Spunta chi convochi. Ogni giocatore vedra' nella sua pagina se e' stato convocato o meno.</div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <button type="button" id="convocaTuttiBtn" class="btn secondary" style="font-size:11px;padding:5px 10px;">Convoca disponibili</button>
+          <button type="button" id="svuotaConvocatiBtn" class="btn secondary" style="font-size:11px;padding:5px 10px;">Azzera</button>
+        </div>
+        <div style="max-height:280px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;">
+          ${STATE.players.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name))).map(p=>{
+            const conv = isConvocato(match, p.id);
+            const meta = statusMeta(p.status);
+            const unav = p.status !== 'Disponibile';
+            return `
+              <label class="convoca-row" style="padding:8px 10px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;cursor:pointer;">
+                <input type="checkbox" class="convoca-check" data-player-id="${p.id}" ${conv ? 'checked' : ''} style="width:18px;height:18px;margin:0;">
+                <div>
+                  <div style="font-size:12.5px;font-weight:600;">${esc(p.name)}</div>
+                  <div style="font-size:10px;color:var(--ink-soft);">${esc(p.role||'—')}${unav ? ' · <span style="color:'+meta.color+';font-weight:600;">'+meta.label+'</span>' : ''}</div>
+                </div>
+              </label>`;
+          }).join('')}
+        </div>
+      </div>
+
       <!-- MODULO (SEMPRE) -->
       <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:20px;">
         <h4 style="margin:0 0 12px 0;color:var(--pitch);font-size:13px;">📐 Modulo</h4>
@@ -4898,6 +4955,39 @@ function renderMatchDetails(match){
   
   // --- Formazione ed eventi partita ---
   const refreshMatch = ()=>{ modal.remove(); renderMatchDetails(match); };
+
+  // --- Convocazioni ---
+  const updateConvocatiCount = ()=>{
+    const n = (match.convocati || []).length;
+    const out = document.getElementById('convocatiCount');
+    if(out) out.textContent = n + (n === 1 ? ' convocato' : ' convocati');
+  };
+  updateConvocatiCount();
+
+  modal.querySelectorAll('.convoca-check').forEach(chk=>{
+    chk.addEventListener('change', async ()=>{
+      await toggleConvocato(match.id, chk.dataset.playerId);
+      updateConvocatiCount();
+    });
+  });
+
+  const convocaTuttiBtn = document.getElementById('convocaTuttiBtn');
+  if(convocaTuttiBtn){
+    convocaTuttiBtn.addEventListener('click', async ()=>{
+      match.convocati = STATE.players.filter(p=>p.status === 'Disponibile').map(p=>String(p.id));
+      await saveKey('events', STATE.events);
+      refreshMatch();
+    });
+  }
+
+  const svuotaConvocatiBtn = document.getElementById('svuotaConvocatiBtn');
+  if(svuotaConvocatiBtn){
+    svuotaConvocatiBtn.addEventListener('click', async ()=>{
+      match.convocati = [];
+      await saveKey('events', STATE.events);
+      refreshMatch();
+    });
+  }
 
   const updateStarterCount = ()=>{
     const n = (match.starters || []).length;
@@ -5082,28 +5172,39 @@ function renderWellness(el){
     const iAmPresent = todayEvent && Array.isArray(todayEvent.presentPlayers) && todayEvent.presentPlayers.includes(STATE.currentPlayerId);
     const canMark = canMarkPresence(me);
 
-    el.innerHTML = `
-    <div class="page-head"><h1>Wellness</h1><p>Il tuo stato di salute e prestazione</p></div>
+    const nextMatch = getNextMatchForPlayer(STATE.currentPlayerId);
+    const sonoConvocato = nextMatch ? isConvocato(nextMatch, STATE.currentPlayerId) : null;
 
-    <div class="card">
-      <h3>Presenza di oggi</h3>
-      ${!todayEvent ? `
-        <div style="font-size:13px;color:var(--ink-soft);">Nessuna sessione in programma oggi.</div>
-      ` : !canMark ? `
-        <div style="padding:12px;background:var(--clay-soft);border-radius:6px;font-size:13px;color:#8B3429;">
-          Il tuo stato e' <strong>${esc(me ? me.status : '-')}</strong>: la presenza la gestisce lo staff.
-        </div>
-      ` : `
-        <div style="font-size:13px;color:var(--ink-soft);margin-bottom:10px;">${esc(todayEvent.title)} &middot; ${todayEvent.time || 'orario da definire'}</div>
-        <div style="padding:12px;border-radius:6px;background:${iAmPresent ? '#E3EFE7' : 'var(--chalk)'};margin-bottom:12px;font-size:14px;font-weight:600;color:${iAmPresent ? 'var(--ok)' : 'var(--ink-soft)'};">
-          ${iAmPresent ? 'Sei segnato PRESENTE' : 'Non sei ancora segnato presente'}
-        </div>
-        <div class="btn-row" style="margin-top:0;">
-          <button class="btn" id="markPresentBtn" ${iAmPresent ? 'disabled style="opacity:0.5;"' : ''}>Sono presente</button>
-          <button class="btn secondary" id="markAbsentBtn" ${!iAmPresent ? 'disabled style="opacity:0.5;"' : ''}>Sono assente</button>
-        </div>
-      `}
+    el.innerHTML = `
+    <div class="card" style="background:var(--pitch);color:var(--chalk);border:none;">
+      <div style="font-size:12px;opacity:0.8;text-transform:uppercase;letter-spacing:0.06em;">Bentornato</div>
+      <div style="font-size:24px;font-weight:700;font-family:'Oswald',sans-serif;">${esc(STATE.currentPlayerName || me && me.name || 'Atleta')}</div>
     </div>
+
+    ${nextMatch ? `
+      <div class="card" style="border-left:4px solid ${sonoConvocato ? 'var(--ok)' : 'var(--clay)'};">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft);font-weight:700;">Prossima partita</div>
+        <div style="font-size:15px;font-weight:600;color:var(--pitch);margin:4px 0;">${esc(nextMatch.title)}</div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-bottom:10px;">${fmtDate(nextMatch.date)}${nextMatch.time ? ' · ' + esc(nextMatch.time) : ''}${nextMatch.location ? ' · ' + esc(nextMatch.location) : ''}</div>
+        <div style="display:inline-block;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;background:${sonoConvocato ? '#E3EFE7' : 'var(--clay-soft)'};color:${sonoConvocato ? 'var(--ok)' : '#8B3429'};">
+          ${sonoConvocato ? 'SEI CONVOCATO' : 'Non convocato'}
+        </div>
+      </div>
+    ` : ''}
+
+    ${todayEvent ? `
+      <div class="card" style="border-left:4px solid ${iAmPresent ? 'var(--ok)' : 'var(--amber)'};">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft);font-weight:700;">Allenamento di oggi</div>
+            <div style="font-size:14px;font-weight:600;color:${iAmPresent ? 'var(--ok)' : 'var(--ink-soft)'};">
+              ${iAmPresent ? 'Sei segnato presente' : (canMark ? 'Non sei ancora segnato' : 'La presenza la gestisce lo staff')}
+            </div>
+          </div>
+          ${canMark ? `<button class="btn secondary" id="vaiCalendarioBtn" style="font-size:12px;padding:7px 12px;white-space:nowrap;">Vai al calendario</button>` : ''}
+        </div>
+      </div>
+    ` : ''}
 
     <div class="card">
       <h3>Hooper Index di oggi</h3>
@@ -5206,6 +5307,9 @@ function renderWellness(el){
     </div>
   `;
   
+  const vaiCal = document.getElementById('vaiCalendarioBtn');
+  if(vaiCal) vaiCal.addEventListener('click', ()=> setPage('calendario'));
+
   const presentBtn = document.getElementById('markPresentBtn');
   if(presentBtn){
     presentBtn.addEventListener('click', async ()=>{
@@ -5329,16 +5433,22 @@ function renderPlayerCalendario(el){
             ${todayWorkout.time || 'Orario TBD'} · MD: ${esc(todayWorkout.md || '-')} · Durata: ${getSessionDuration(todayWorkout)}min
           </div>
         </div>
-        <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:12px;text-align:center;">
-          ${isPresent === null ? `
-            <div style="font-size:12px;opacity:0.9;">Stato registrazione non ancora disponibile</div>
-          ` : isPresent ? `
-            <div style="font-size:16px;font-weight:700;color:#A3E4B4;margin-bottom:4px;">✅ PRESENTE</div>
-            <div style="font-size:12px;opacity:0.9;">Sei registrato per la sessione odierna</div>
-          ` : `
-            <div style="font-size:16px;font-weight:700;color:#F7A9A3;margin-bottom:4px;">❌ ASSENTE</div>
-            <div style="font-size:12px;opacity:0.9;">Non sei registrato per la sessione odierna</div>
-          `}
+        <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:14px;text-align:center;">
+          ${(()=>{
+            const me = STATE.players.find(x=>String(x.id)===String(playerId));
+            if(!canMarkPresence(me)){
+              return '<div style="font-size:13px;opacity:0.95;">Il tuo stato e <strong>' + esc(me ? me.status : '-') + '</strong>: la presenza la gestisce lo staff.</div>';
+            }
+            const pres = todayWorkout.presentPlayers && todayWorkout.presentPlayers.includes(playerId);
+            return `
+              <div style="font-size:17px;font-weight:700;color:${pres ? '#A3E4B4' : '#F7A9A3'};margin-bottom:12px;">
+                ${pres ? 'SEI PRESENTE' : 'NON SEI ANCORA SEGNATO'}
+              </div>
+              <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                <button id="calMarkPresent" ${pres ? 'disabled' : ''} style="padding:11px 20px;border:none;border-radius:6px;font-weight:700;font-size:14px;cursor:pointer;background:${pres ? 'rgba(255,255,255,0.15)' : 'var(--amber)'};color:${pres ? 'rgba(255,255,255,0.5)' : 'var(--pitch)'};">Ci sono</button>
+                <button id="calMarkAbsent" ${!pres ? 'disabled' : ''} style="padding:11px 20px;border:1px solid rgba(255,255,255,0.35);border-radius:6px;font-weight:600;font-size:14px;cursor:pointer;background:transparent;color:${!pres ? 'rgba(255,255,255,0.4)' : 'white'};">Non ci sono</button>
+              </div>`;
+          })()}
         </div>
       </div>
     ` : ''}
@@ -5372,6 +5482,10 @@ function renderPlayerCalendario(el){
               <div style="font-size:12px;color:var(--ink-soft);">
                 📅 ${fmtDate(e.date)} ${e.time ? '🕐 ' + e.time : ''} ${e.md ? '· ' + esc(e.md) : ''} ${!isMatch ? '· Durata: ' + getSessionDuration(e) + 'min' : ''}
               </div>
+              ${isMatch && Array.isArray(e.convocati) ? `
+                <div style="margin-top:8px;display:inline-block;padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:700;background:${isConvocato(e, playerId) ? '#E3EFE7' : 'var(--clay-soft)'};color:${isConvocato(e, playerId) ? 'var(--ok)' : '#8B3429'};">
+                  ${isConvocato(e, playerId) ? 'CONVOCATO' : 'Non convocato'}
+                </div>` : ''}
               ${isMatch ? `<div style="font-size:11px;color:var(--amber);margin-top:4px;">${esc(e.matchType || 'Partita')}</div>` : ''}
             </div>
           `;
