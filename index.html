@@ -224,6 +224,38 @@
 <body>
 
 <div id="root"></div>
+<script>
+// Rete di sicurezza: invece della schermata bianca, mostra l'errore.
+(function(){
+  function mostraErrore(testo){
+    var r = document.getElementById('root');
+    if(!r) return;
+    if(r.getAttribute('data-errore')) return;   // solo il primo
+    r.setAttribute('data-errore','1');
+    r.innerHTML =
+      '<div style="font-family:-apple-system,sans-serif;max-width:640px;margin:40px auto;padding:24px;">' +
+      '<h2 style="color:#B5473A;margin:0 0 8px 0;">L\'applicazione non e partita</h2>' +
+      '<p style="color:#333;font-size:14px;">Mostra questo messaggio a chi ti assiste.</p>' +
+      '<pre style="background:#F4F1E8;border:1px solid #DCD6C4;border-radius:6px;padding:12px;' +
+      'font-size:12px;white-space:pre-wrap;word-break:break-word;">' + testo + '</pre>' +
+      '<button onclick="location.reload()" style="padding:10px 16px;background:#1A1A1A;color:#fff;' +
+      'border:none;border-radius:6px;font-weight:600;">Riprova</button></div>';
+  }
+  window.addEventListener('error', function(e){
+    mostraErrore((e.message||'errore') + '\n' + (e.filename||'') + ' riga ' + (e.lineno||'?'));
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    mostraErrore('Promessa non gestita: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+  });
+  // Se dopo 12 secondi non c'e' ancora nulla a schermo, qualcosa e' bloccato
+  setTimeout(function(){
+    var r = document.getElementById('root');
+    if(r && r.innerHTML.trim().length < 40){
+      mostraErrore('Nessuna risposta dopo 12 secondi.\nPossibile blocco nella connessione a Firestore.');
+    }
+  }, 12000);
+})();
+</script>
 
 <script>
 // ========== FIREBASE CONFIG (inizializzazione differita) ==========
@@ -6067,9 +6099,10 @@ initFirebase();
 
 // Timeout di 5 secondi - se non carica, mostra comunque la login
 const loadTimeout = setTimeout(()=>{
-  console.warn('⏱️ Timeout caricamento, mostro login comunque');
+  console.warn('Timeout caricamento: mostro comunque la schermata di accesso');
+  STATE.loading = false;          // altrimenti render() resta su "Caricamento..."
   if(!STATE.loggedIn) render();
-}, 5000);
+}, 6000);
 
 loadAll().then(()=>{
   clearTimeout(loadTimeout);
@@ -6111,8 +6144,9 @@ loadAll().then(()=>{
   setupFirestoreSync();
 }).catch(err=>{
   clearTimeout(loadTimeout);
-  console.error('❌ Errore caricamento:', err);
-  if(!STATE.loggedIn) render(); // Mostra login anche se caricamento fallisce
+  console.error('Errore caricamento:', err);
+  STATE.loading = false;
+  if(!STATE.loggedIn) render();
 });
 </script>
 </body>
