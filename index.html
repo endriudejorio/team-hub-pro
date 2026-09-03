@@ -713,8 +713,12 @@ async function loadAll(){
   STATE.rpeLog          = dati['rpe-log'] || [];
   STATE.hooperLog       = dati['hooper-log'] || [];
   STATE.painLog         = dati['pain-log'] || [];
-  STATE.staffPassword   = dati['staff-password'];
-  STATE.adminPassword   = dati['admin-password'];
+  // Se il valore salvato e' vuoto, nullo o non testuale, torno al predefinito:
+  // altrimenti nessuna password funzionerebbe piu' e si resta chiusi fuori.
+  const pwdValida = v => (typeof v === 'string' && v.trim().length > 0);
+  STATE.staffPassword   = pwdValida(dati['staff-password']) ? dati['staff-password'] : 'staff';
+  STATE.adminPassword   = pwdValida(dati['admin-password']) ? dati['admin-password'] : 'admin2024';
+  console.log('Password caricate — staff:', STATE.staffPassword.length, 'caratteri | admin:', STATE.adminPassword.length, 'caratteri');
   STATE.accessCodes     = dati['accessCodes'] || {};
   STATE.customPasswords = dati['customPasswords'] || {};
 
