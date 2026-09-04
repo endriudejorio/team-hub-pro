@@ -47,7 +47,10 @@
   .brand-sub{font-size:10.5px;color:#B9C6BC;text-transform:uppercase;letter-spacing:0.08em;}
 
   .nav{display:flex;flex-direction:column;gap:2px;padding:0 10px;flex:1;}
-  .nav-btn{display:flex;align-items:center;gap:10px;padding:10px 12px;border:none;background:transparent;color:#CFD8CC;border-radius:var(--radius-sm);text-align:left;font-size:14px;font-weight:500;}
+  .nav-btn{display:flex;align-items:center;gap:11px;padding:10px 12px;border:none;background:transparent;color:#CFD8CC;border-radius:var(--radius-sm);text-align:left;font-size:14px;font-weight:500;transition:background 0.15s;}
+  .nav-dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:0.35;flex-shrink:0;transition:all 0.15s;}
+  .nav-btn.active .nav-dot{opacity:1;width:7px;height:7px;background:var(--pitch);}
+  .nav-btn:hover .nav-dot{opacity:0.7;}
   .nav-btn:hover{background:rgba(244,241,232,0.08);}
   .nav-btn.active{background:var(--amber);color:var(--pitch-dark);font-weight:600;}
 
@@ -183,7 +186,7 @@
     .brand-sub{font-size:9px;}
     .nav{flex-direction:row;flex:1;gap:5px;padding:0 5px;overflow-x:auto;}
     .nav-btn{padding:8px 10px;font-size:12px;gap:5px;}
-    .nav-btn span{display:none;}
+    .nav-btn .nav-dot{width:5px;height:5px;}
     .sidebar-foot{padding:0;margin:0;border:none;font-size:0;}
     .sidebar-foot .role-label{display:none;}
     .logout-btn{width:auto;margin:0;padding:6px 10px;font-size:11px;white-space:nowrap;}
@@ -278,41 +281,81 @@ function initFirebase(){
     if(window.firebase){
       firebase.initializeApp(firebaseConfig);
       db = firebase.firestore();
-      console.log('✅ Firebase inizializzato (compat)');
+      console.log('Firebase inizializzato (compat)');
     }else{
-      console.warn('⚠️ Firebase SDK non disponibile');
+      console.warn('Firebase SDK non disponibile');
     }
   }catch(err){
-    console.error('❌ Errore inizializzazione Firebase:', err.message);
+    console.error('Errore inizializzazione Firebase:', err.message);
   }
 }
 
 // ========== END FIREBASE CONFIG ==========
 
+/* ---------- MEMBRI DELLO STAFF E PERMESSI ----------
+   Ogni membro ha un codice come i giocatori e un elenco di sezioni accessibili.
+   I permessi sono dati modificabili dall'admin, non scolpiti nel codice. */
+
+/* Tutte le sezioni assegnabili, con etichetta */
+const SEZIONI = [
+  {id:'dashboard',   label:'Dashboard'},
+  {id:'giocatori',   label:'Rosa'},
+  {id:'calendario',  label:'Calendario'},
+  {id:'allenamenti', label:'Allenamenti'},
+  {id:'performance', label:'Area Performance'},
+  {id:'medica',      label:'Area Medica'}
+];
+
+/* Ruoli predefiniti: punto di partenza, poi l'admin li personalizza per persona */
+const RUOLI_STAFF = {
+  'Allenatore':   {label:'Allenatore',   sezioni:['dashboard','calendario','allenamenti']},
+  'Vice':         {label:'Vice allenatore', sezioni:['dashboard','calendario','allenamenti']},
+  'Preparatore':  {label:'Preparatore atletico', sezioni:['dashboard','calendario','allenamenti','performance']},
+  'Fisioterapista':{label:'Fisioterapista', sezioni:['dashboard','calendario','medica']},
+  'Personalizzato':{label:'Personalizzato', sezioni:['dashboard']}
+};
+
+/* Le sezioni visibili all'utente corrente */
+function sezioniConsentite(){
+  if(STATE.role === 'admin') return SEZIONI.map(s=>s.id).concat(['impostazioni','impostazioniAdmin']);
+  if(STATE.role === 'staff' && STATE.currentStaff){
+    return (STATE.currentStaff.sezioni || []).slice();
+  }
+  if(STATE.role === 'staff'){
+    // Staff generico (login con codice "staff"): accesso completo, come prima
+    return SEZIONI.map(s=>s.id).concat(['impostazioni']);
+  }
+  return [];
+}
+
+function puoAccedere(sezione){
+  return sezioniConsentite().indexOf(sezione) !== -1;
+}
+
 const NAV_STAFF = [
-  {id:'dashboard', label:'Dashboard', icon:'📊'},
-  {id:'giocatori', label:'Rosa', icon:'👥'},
-  {id:'performance', label:'Performance', icon:'📈'},
-  {id:'medica', label:'Area Medica', icon:'🩺'},
-  {id:'allenamenti', label:'Allenamenti', icon:'🎯'},
-  {id:'calendario', label:'Calendario', icon:'📅'},
-  {id:'impostazioni', label:'Impostazioni', icon:'⚙️'},
+  {id:'dashboard', label:'Dashboard', icon:''},
+  {id:'giocatori', label:'Rosa', icon:''},
+  {id:'performance', label:'Performance', icon:''},
+  {id:'medica', label:'Area Medica', icon:''},
+  {id:'allenamenti', label:'Allenamenti', icon:''},
+  {id:'calendario', label:'Calendario', icon:''},
+  {id:'impostazioni', label:'Impostazioni', icon:''},
 ];
 
 const NAV_PLAYER = [
-  {id:'wellness', label:'Wellness', icon:'📊'},
-  {id:'calendario', label:'Calendario', icon:'📅'},
+  {id:'wellness', label:'Wellness', icon:''},
+  {id:'calendario', label:'Calendario', icon:''},
 ];
 
 const NAV_ADMIN = [
-  {id:'dashboard', label:'Dashboard', icon:'📊'},
-  {id:'giocatori', label:'Rosa', icon:'👥'},
-  {id:'performance', label:'Performance', icon:'📈'},
-  {id:'medica', label:'Area Medica', icon:'🩺'},
-  {id:'allenamenti', label:'Allenamenti', icon:'🎯'},
-  {id:'calendario', label:'Calendario', icon:'📅'},
-  {id:'impostazioni', label:'Impostazioni Staff', icon:'⚙️'},
-  {id:'impostazioniAdmin', label:'Impostazioni Admin', icon:'🔐'},
+  {id:'dashboard', label:'Dashboard', icon:''},
+  {id:'giocatori', label:'Rosa', icon:''},
+  {id:'performance', label:'Performance', icon:''},
+  {id:'medica', label:'Area Medica', icon:''},
+  {id:'allenamenti', label:'Allenamenti', icon:''},
+  {id:'calendario', label:'Calendario', icon:''},
+  {id:'impostazioni', label:'Impostazioni Staff', icon:''},
+  {id:'impostazioniAdmin', label:'Impostazioni Admin', icon:''},
 ];
 
 const ALENSE_PLAYERS = [
@@ -551,6 +594,14 @@ function hooperBand(score){
   if(score <= 17) return {label:'Discreto',  color:'var(--amber-dark)', advice:'Da tenere d\'occhio'};
   if(score <= 22) return {label:'Attenzione',color:'var(--clay)',       advice:'Valutare il carico'};
   return {label:'Critico', color:'var(--clay)', advice:'Confronto diretto con il giocatore'};
+}
+
+/* Percentuale di freschezza: 100% = pienamente pronto (HI 4), 0% = scarico (HI 28).
+   Piu' intuitiva del punteggio grezzo: alta = sta bene, come una batteria. */
+function hooperPercent(score){
+  if(score === null || typeof score === 'undefined') return null;
+  const pct = Math.round((28 - score) / 24 * 100);
+  return Math.max(0, Math.min(100, pct));
 }
 
 /* Compatibilita': le voci vecchie usavano muscles/mood su scala 1-5 */
@@ -801,6 +852,8 @@ let STATE = {
   painLog: [],
   loading: true,
   injuries: [],
+  staffMembers: [],
+  currentStaff: null,
   staffPassword: 'staff',
   adminPassword: 'admin2024',
 };
@@ -931,7 +984,8 @@ async function loadAll(){
     ['admin-password',   'admin2024'],
     ['accessCodes',      {}],
     ['customPasswords',  {}],
-    ['injuries',         []]
+    ['injuries',         []],
+    ['staffMembers',     []]
   ];
 
   const t0 = Date.now();
@@ -961,6 +1015,7 @@ async function loadAll(){
   STATE.accessCodes     = dati['accessCodes'] || {};
   STATE.customPasswords = dati['customPasswords'] || {};
   STATE.injuries        = dati['injuries'] || [];
+  STATE.staffMembers    = dati['staffMembers'] || [];
 
   // La pagina si sblocca qui: i salvataggi qui sotto non devono farla aspettare
   STATE.loading = false;
@@ -991,6 +1046,25 @@ async function loadAll(){
 
   console.log('Dati pronti');
   return true;
+}
+
+/* Cerca un membro dello staff dal codice a 6 cifre */
+function findStaffByCode(code){
+  const target = normalizeCode(code);
+  if(!target) return null;
+  return (STATE.staffMembers || []).find(m => normalizeCode(m.code) === target) || null;
+}
+
+/* Fa entrare un membro dello staff con i suoi permessi */
+function loginStaffMember(staff){
+  STATE.loggedIn = true;
+  STATE.role = 'staff';
+  STATE.currentStaff = staff;
+  STATE.currentPlayerId = null;
+  STATE.currentPlayerName = staff.name;
+  // Prima pagina consentita
+  STATE.page = (staff.sezioni && staff.sezioni[0]) || 'dashboard';
+  render();
 }
 
 function login(role, identifier){
@@ -1037,6 +1111,7 @@ function logout(){
   STATE.role = null;
   STATE.currentPlayerId = null;
   STATE.currentPlayerName = null;
+  STATE.currentStaff = null;
   STATE.page = 'dashboard';
   render();
 }
@@ -1146,8 +1221,13 @@ function getHooperTrend(playerId, windowDays){
   return {
     direction, label, color,
     delta: Math.round(delta * 10) / 10,
+    // Variazione in punti di freschezza: piu' leggibile del punteggio grezzo.
+    // Un calo di punteggio (miglioramento) diventa un +% di freschezza.
+    deltaPercent: Math.round((hooperPercent(recentAvg) - hooperPercent(previousAvg))),
     recentAvg: Math.round(recentAvg * 10) / 10,
     previousAvg: Math.round(previousAvg * 10) / 10,
+    recentPercent: hooperPercent(recentAvg),
+    previousPercent: hooperPercent(previousAvg),
     recentCount: recent.length,
     previousCount: previous.length,
     windowDays: win
@@ -1181,7 +1261,14 @@ function render(){
     renderLogin(root);
     return;
   }
-  const navItems = STATE.role==='staff' ? NAV_STAFF : STATE.role==='admin' ? NAV_ADMIN : NAV_PLAYER;
+  let navItems;
+  if(STATE.role === 'admin') navItems = NAV_ADMIN;
+  else if(STATE.role === 'player') navItems = NAV_PLAYER;
+  else {
+    // Staff: mostro solo le sezioni consentite a questo membro
+    const consentite = sezioniConsentite();
+    navItems = NAV_STAFF.filter(n => consentite.indexOf(n.id) !== -1);
+  }
   root.innerHTML = `
     ${bannerErrore}
     <div class="app">
@@ -1195,7 +1282,7 @@ function render(){
           </div>
         </div>
         <div class="nav">
-          ${navItems.map(n=>`<button class="nav-btn ${STATE.page===n.id?'active':''}" data-nav="${n.id}"><span>${n.icon}</span>${n.label}</button>`).join('')}
+          ${navItems.map(n=>`<button class="nav-btn ${STATE.page===n.id?'active':''}" data-nav="${n.id}"><span class="nav-dot"></span>${n.label}</button>`).join('')}
         </div>
         <div class="sidebar-foot">
           <span class="role-label">${STATE.role==='staff'?'Staff':STATE.role==='admin'?'Admin':esc(STATE.currentPlayerName||'Atleta')}</span>
@@ -1241,7 +1328,13 @@ function render(){
     impostazioniAdmin: renderImpostazioniAdmin,
   };
   const renderers = STATE.role==='staff' ? staffRenderers : STATE.role==='admin' ? adminRenderers : playerRenderers;
-  console.log('Rendering page:', STATE.page, 'role:', STATE.role, 'renderer exists:', !!renderers[STATE.page], 'currentPlayerId:', STATE.currentPlayerId);
+
+  // Uno staff non puo' aprire una sezione non sua, nemmeno per via diretta
+  if(STATE.role === 'staff' && !puoAccedere(STATE.page)){
+    const primaConsentita = sezioniConsentite()[0] || 'dashboard';
+    STATE.page = primaConsentita;
+  }
+
   (renderers[STATE.page]||renderDashboard)(content);
 }
 
@@ -1466,8 +1559,11 @@ function renderLogin(el){
     if(!code){ showToast('Inserisci il tuo codice'); return false; }
     if(code.length !== CODE_LENGTH){ showToast('Il codice e di 6 cifre'); return false; }
 
+    // Il codice puo' appartenere a un giocatore o a un membro dello staff
     const playerId = findPlayerByCode(code);
-    if(!playerId){
+    const staff = !playerId ? findStaffByCode(code) : null;
+
+    if(!playerId && !staff){
       const attempts = registerFailedLogin();
       const left = MAX_LOGIN_ATTEMPTS - attempts;
       if(left > 0 && left <= 2){
@@ -1482,6 +1578,13 @@ function renderLogin(el){
 
     clearFailedLogins();
     try{ localStorage.setItem(DEVICE_CODE_KEY, code); }catch(e){}
+
+    if(staff){
+      const userField = document.getElementById('playerUserInput');
+      if(userField) userField.value = staff.name;
+      setTimeout(()=>loginStaffMember(staff), 120);
+      return true;
+    }
 
     // Riempio il campo nascosto col nome vero: il portachiavi salva una voce riconoscibile
     const player = STATE.players.find(p => String(p.id) === String(playerId));
@@ -1857,7 +1960,7 @@ function buildDailyReport(){
     <h2>Quadro squadra</h2>
     <table>
       <thead>
-        <tr><th>Giocatore</th><th>Ruolo</th><th>Stato</th><th>HI</th><th>ACWR</th><th>Dolori aperti</th><th>Pres.</th></tr>
+        <tr><th>Giocatore</th><th>Ruolo</th><th>Stato</th><th>Fresch.</th><th>ACWR</th><th>Dolori aperti</th><th>Pres.</th></tr>
       </thead>
       <tbody>
         ${righe.map(r=>`
@@ -1874,7 +1977,7 @@ function buildDailyReport(){
     </table>
 
     <div class="ps-foot">
-      HI = Hooper Index, da 4 (ottimo) a 28 (critico): punteggio basso significa giocatore fresco.
+      Fresch. = freschezza (Hooper Index in percentuale): 100% pienamente pronto, 0% scarico. Passa sopra il valore per il punteggio grezzo.
       L'asterisco indica una rilevazione non aggiornata a oggi.
       ACWR = carico ultima settimana diviso media delle ultime quattro; zona ottimale fra 0.8 e 1.3.
       <br>Generato il ${fmtDate(todayStr())} alle ${new Date().toTimeString().slice(0,5)} &middot; Team Hub Pro &middot; documento a uso interno dello staff.
@@ -1917,6 +2020,10 @@ function renderDashboard(el){
 
   // RPE che non appartengono a nessun giocatore in rosa: segnale di dati disallineati
   const rpeOrfani = STATE.rpeLog.filter(r => !STATE.players.find(p => String(p.id) === String(r.playerId))).length;
+
+  // Promemoria backup esterno: solo per staff/admin, se non fatto da oltre 7 giorni
+  const ggBackup = giorniDaUltimoBackupEsterno();
+  const mostraPromemoriaBackup = (STATE.role !== 'player') && (ggBackup === null || ggBackup >= 7);
   const w = getTeamWellness();
   const results = getRecentResults(6);
 
@@ -1957,9 +2064,9 @@ function renderDashboard(el){
       <div class="tile tap" id="tileWellness">
         <div class="tile-accent" style="background:${w.bandOggi ? w.bandOggi.color : 'var(--line)'};"></div>
         <div class="tile-lbl">Wellness squadra</div>
-        <div class="tile-big" style="color:${w.bandOggi ? w.bandOggi.color : 'var(--ink-soft)'};">${w.avgOggi !== null ? w.avgOggi : '—'}<small>/28</small></div>
+        <div class="tile-big" style="color:${w.bandOggi ? w.bandOggi.color : 'var(--ink-soft)'};">${w.avgOggi !== null ? hooperPercent(w.avgOggi) + '<small>%</small>' : '—'}</div>
         <div class="tile-sub">${w.bandOggi ? w.bandOggi.label + ' &middot; ' : ''}${w.compilatiOggi}/${w.attesiOggi} hanno compilato</div>
-        <div class="tile-sub" style="opacity:0.6;">Tocca per il dettaglio</div>
+        <div class="tile-sub" style="opacity:0.6;">Freschezza media &middot; tocca per il dettaglio</div>
       </div>
 
       <div class="tile tap" id="tileRosa">
@@ -1982,6 +2089,16 @@ function renderDashboard(el){
         `}
       </div>
     </div>
+
+    ${mostraPromemoriaBackup ? `
+      <div class="card" style="border-left:4px solid var(--amber-dark);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--pitch);">Backup di sicurezza consigliato</div>
+          <div style="font-size:12px;color:var(--ink-soft);">${ggBackup === null ? 'Non hai mai scaricato una copia esterna.' : 'Ultima copia esterna ' + ggBackup + ' giorni fa.'} Scaricala e tienila fuori dal browser.</div>
+        </div>
+        <button class="btn" id="dashBackupBtn" style="font-size:12px;padding:8px 14px;white-space:nowrap;">Scarica backup</button>
+      </div>
+    ` : ''}
 
     ${rpeOrfani > 0 ? `
       <div class="card" style="border-left:4px solid var(--clay);background:var(--clay-soft);">
@@ -2071,6 +2188,15 @@ function renderDashboard(el){
 
   const ta = document.getElementById('tileAcwr');
   if(ta) ta.addEventListener('click', showAcwrDetail);
+
+  const dashBackupBtn = document.getElementById('dashBackupBtn');
+  if(dashBackupBtn){
+    dashBackupBtn.addEventListener('click', ()=>{
+      scaricaBackupCompleto();
+      registraBackupEsterno();
+      render();
+    });
+  }
 
   el.querySelectorAll('.alert').forEach(row=>{
     row.addEventListener('click', ()=>{
@@ -2351,6 +2477,10 @@ function getTrainingAttendance(playerId){
    ACWR = carico dell'ultima settimana / media settimanale delle ultime 4.
    Sotto 0.8 scarico, 0.8-1.3 zona ottimale, sopra 1.5 rischio. */
 function sessionLoad(rpeEntry){
+  // Se il singolo RPE ha i suoi minuti, hanno la precedenza su tutto
+  if(typeof rpeEntry.minutes === 'number' && rpeEntry.minutes > 0){
+    return (rpeEntry.rpe || 0) * rpeEntry.minutes;
+  }
   const ev = STATE.events.find(e => e.id === rpeEntry.sessionId);
   let dur;
   if(ev && ev.importedDuration) dur = ev.importedDuration;      // RPE storici importati
@@ -2470,7 +2600,7 @@ function getTeamAlerts(){
       if(issue.status === 'active'){
         alerts.push({
           priority: issue.lastIntensity >= 6 ? 1 : 2,
-          icon: 'dolore',
+          icon:'',
           color: issue.lastIntensity >= 6 ? 'var(--clay)' : 'var(--amber-dark)',
           text: p.name + ' — ' + issue.zone + ' ' + issue.lastIntensity + '/10' + (issue.direction > 0 ? ', in aumento' : ''),
           sub: issue.days === 0 ? 'segnalato oggi' : 'segnalato ' + issue.days + ' giorni fa',
@@ -2478,7 +2608,7 @@ function getTeamAlerts(){
         });
       } else if(issue.status === 'silent' || issue.status === 'stale'){
         alerts.push({
-          priority: 3, icon: 'dolore', color: 'var(--amber-dark)',
+          priority: 3, icon:'', color: 'var(--amber-dark)',
           text: p.name + ' — ' + issue.zone + ' da verificare',
           sub: 'nessun aggiornamento da ' + issue.days + ' giorni',
           playerId: p.id
@@ -2492,7 +2622,7 @@ function getTeamAlerts(){
     const hi = getLatestHooperIndex(p.id);
     if(hi && hi.score >= 18 && daysSince(hi.date) <= 2){
       alerts.push({
-        priority: hi.score >= 23 ? 1 : 2, icon: 'wellness', color: hi.band.color,
+        priority: hi.score >= 23 ? 1 : 2, icon:'', color: hi.band.color,
         text: p.name + (p.status !== 'Disponibile' ? ' [' + statusMeta(p.status).label + ']' : '') + ' — Hooper ' + hi.score + '/28 (' + hi.band.label + ')',
         sub: hi.band.advice, playerId: p.id
       });
@@ -2500,7 +2630,7 @@ function getTeamAlerts(){
     const trend = getHooperTrend(p.id, 7);
     if(trend && trend.direction === 'worse' && Math.abs(trend.delta) >= 3){
       alerts.push({
-        priority: 2, icon: 'trend', color: 'var(--clay)',
+        priority: 2, icon:'', color: 'var(--clay)',
         text: p.name + (p.status !== 'Disponibile' ? ' [' + statusMeta(p.status).label + ']' : '') + ' — wellness in peggioramento',
         sub: 'media da ' + trend.previousAvg + ' a ' + trend.recentAvg + ' in una settimana',
         playerId: p.id
@@ -2509,7 +2639,7 @@ function getTeamAlerts(){
     const acwr = getACWR(p.id);
     if(acwr && !acwr.insufficient && (acwr.zone === 'high' || acwr.zone === 'warn')){
       alerts.push({
-        priority: acwr.zone === 'high' ? 1 : 3, icon: 'carico', color: acwr.color,
+        priority: acwr.zone === 'high' ? 1 : 3, icon:'', color: acwr.color,
         text: p.name + (p.status !== 'Disponibile' ? ' [' + statusMeta(p.status).label + ']' : '') + ' — ACWR ' + acwr.ratio,
         sub: acwr.zone === 'high' ? 'carico cresciuto troppo in fretta' : 'carico in aumento, tenere d\'occhio',
         playerId: p.id
@@ -2520,7 +2650,7 @@ function getTeamAlerts(){
   STATE.players.filter(p=>p.status === 'RTP' || p.status === 'In valutazione').forEach(p=>{
     if(p.returnDate && daysSince(p.returnDate) >= 0){
       alerts.push({
-        priority: 2, icon: 'rientro', color: 'var(--amber-dark)',
+        priority: 2, icon:'', color: 'var(--amber-dark)',
         text: p.name + ' — rientro previsto ' + (daysSince(p.returnDate) === 0 ? 'oggi' : 'scaduto da ' + daysSince(p.returnDate) + ' giorni'),
         sub: 'aggiorna lo stato se e rientrato', playerId: p.id
       });
@@ -2571,10 +2701,10 @@ function showPlayerReport(playerId){
 
       <div class="grid3" style="margin-bottom:18px;">
         <div style="background:var(--chalk);padding:12px;border-radius:8px;">
-          <div style="font-size:10px;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Hooper attuale</div>
+          <div style="font-size:10px;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Freschezza</div>
           ${latest ? `
-            <div style="font-size:26px;font-weight:700;color:${latest.band.color};">${latest.score}<span style="font-size:13px;color:var(--ink-soft);">/28</span></div>
-            <div style="font-size:11px;color:${latest.band.color};font-weight:600;">${latest.band.label}</div>
+            <div style="font-size:26px;font-weight:700;color:${latest.band.color};">${hooperPercent(latest.score)}<span style="font-size:13px;color:var(--ink-soft);">%</span></div>
+            <div style="font-size:11px;color:${latest.band.color};font-weight:600;">${latest.band.label} · HI ${latest.score}/28</div>
             <div style="font-size:10px;color:var(--ink-soft);">${fmtDate(latest.date)}</div>
           ` : '<div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">Nessun dato</div>'}
         </div>
@@ -2583,8 +2713,8 @@ function showPlayerReport(playerId){
           <div style="font-size:10px;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Andamento 7 giorni</div>
           ${trend ? `
             <div style="font-size:15px;font-weight:700;color:${trend.color};margin-top:4px;">${trend.label}</div>
-            <div style="font-size:11px;color:var(--ink-soft);">media ${trend.previousAvg} &rarr; ${trend.recentAvg}</div>
-            <div style="font-size:10px;color:var(--ink-soft);">${trend.recentCount} rilevazioni recenti su ${trend.previousCount} precedenti</div>
+            <div style="font-size:13px;font-weight:600;color:${trend.color};">${trend.deltaPercent > 0 ? '+' : ''}${trend.deltaPercent}% freschezza</div>
+            <div style="font-size:10px;color:var(--ink-soft);">${trend.previousPercent}% &rarr; ${trend.recentPercent}%</div>
           ` : '<div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">Servono almeno due settimane di dati</div>'}
         </div>
 
@@ -2833,6 +2963,10 @@ function rpeEntryForm(playerId, entry, onDone){
         ${sessioni.map(e=>`<option value="${e.id}" ${entry && entry.sessionId === e.id ? 'selected' : ''}>${esc(e.title)} — ${fmtDate(e.date)}</option>`).join('')}
       </select>
 
+      <label>Minuti (facoltativo)</label>
+      <input id="reMinutes" type="number" min="0" max="240" value="${entry && entry.minutes ? entry.minutes : ''}" placeholder="Lascia vuoto per usare i minuti della sessione">
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">Se indichi i minuti, il carico di questa seduta usa questo valore invece di quello della sessione.</div>
+
       <div style="margin-top:14px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
           <label style="margin:0;">Sforzo percepito</label>
@@ -2873,23 +3007,28 @@ function rpeEntryForm(playerId, entry, onDone){
     if(date > todayStr()){ showToast('La data non puo essere futura'); return; }
     const rpe = parseInt(slider.value, 10);
     const sessionId = document.getElementById('reSession').value;
+    const minInput = document.getElementById('reMinutes').value;
+    const minutes = minInput === '' ? null : Math.max(0, Math.min(240, parseInt(minInput, 10) || 0));
 
     if(nuovo){
       const gia = STATE.rpeLog.some(x => String(x.playerId)===String(playerId) && x.date===date);
       if(gia && !confirm('Esiste gia un RPE di ' + (player?player.name:'') + ' per il ' + fmtDate(date) + '.\n\nAggiungerne un altro? Quel giorno contera carico doppio.')) return;
       if(!confirm('Registrare RPE ' + rpe + '/10 per ' + (player?player.name:'') + ' in data ' + fmtDate(date) + '?')) return;
-      STATE.rpeLog.push({
+      const nuovaVoce = {
         id: uid(), playerId: playerId, date: date,
         sessionId: sessionId, rpe: rpe, addedBy: 'staff',
         statusAtEntry: currentStatusOf(playerId)
-      });
+      };
+      if(minutes !== null) nuovaVoce.minutes = minutes;
+      STATE.rpeLog.push(nuovaVoce);
     } else {
-      const cambiato = (entry.rpe !== rpe) || (entry.date !== date) || (entry.sessionId !== sessionId);
+      const cambiato = (entry.rpe !== rpe) || (entry.date !== date) || (entry.sessionId !== sessionId) || ((entry.minutes||null) !== minutes);
       if(!cambiato){ modal.remove(); return; }
       if(!confirm('Salvare le modifiche?\n\nIl dato inserito dal giocatore verra sostituito.')) return;
       entry.rpe = rpe;
       entry.date = date;
       entry.sessionId = sessionId;
+      if(minutes !== null) entry.minutes = minutes; else delete entry.minutes;
       entry.editedBy = 'staff';
       entry.editedAt = todayStr();
     }
@@ -3181,10 +3320,10 @@ function renderGiocatori(el){
           <button class="btn" id="addPlayerBtn" style="padding:6px 12px;font-size:12px;">+ Aggiungi</button>
         </div>
         <table>
-          <thead><tr><th>Nome</th><th>Eta</th><th>Ruolo</th><th>Min.</th><th>HI</th><th>Stato</th></tr></thead>
+          <thead><tr><th>Nome</th><th>Eta</th><th>Ruolo</th><th>Min.</th><th>Fresch.</th><th>Stato</th></tr></thead>
           <tbody id="playersTableBody"></tbody>
         </table>
-        <div style="font-size:11px;color:var(--ink-soft);margin-top:10px;">HI = Hooper Index piu' recente, da 4 (ottimo) a 28 (critico): basso significa fresco. Min. = minuti giocati in stagione. Il pallino rosso segnala un dolore aperto. Tocca un giocatore per la scheda completa.</div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-top:10px;">Fresch. = freschezza (Hooper in %): 100% pronto, 0% scarico. Min. = minuti in stagione. Il pallino rosso segnala un dolore aperto. Tocca un giocatore per la scheda.</div>
       </div>
       <div id="detailsPanel">
         ${isAddingNew ? `
@@ -3260,7 +3399,7 @@ function renderGiocatori(el){
 
     const hooper = getLatestHooperIndex(p.id);
     const hiDisplay = hooper
-      ? `<span style="font-weight:700;color:${hooper.band.color};" title="${hooper.band.label} — rilevato il ${fmtDate(hooper.date)}">${hooper.score}</span>`
+      ? `<span style="font-weight:700;color:${hooper.band.color};" title="Hooper ${hooper.score}/28 · ${hooper.band.label} — rilevato il ${fmtDate(hooper.date)}">${hooperPercent(hooper.score)}%</span>`
       : '<span style="color:var(--ink-soft);">—</span>';
 
     const meta = statusMeta(p.status);
@@ -4189,7 +4328,7 @@ function renderTest(el){
               </div>
               <div style="display:flex;gap:6px;">
                 <button style="background:none;border:none;color:${selectedTestId===t.id?'var(--amber)':'var(--ink-soft)'};cursor:pointer;font-size:14px;" data-select-test="${t.id}">→</button>
-                <button style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;" data-del-test="${t.id}">✕</button>
+                <button style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;" data-del-test="${t.id}">×</button>
               </div>
             </div>
             ${selectedTestId===t.id ? `
@@ -4214,7 +4353,7 @@ function renderTest(el){
                           </td>
                           <td style="padding:10px;text-align:center;">
                             ${result ? 
-                              `<button class="test-remove-btn" data-player-id="${p.id}" style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:13px;font-weight:600;">✕</button>` 
+                              `<button class="test-remove-btn" data-player-id="${p.id}" style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:13px;font-weight:600;">×</button>` 
                               : `<button class="test-add-btn" data-player-id="${p.id}" style="background:none;border:none;color:var(--ok);cursor:pointer;font-size:13px;font-weight:600;">+</button>`
                             }
                           </td>
@@ -4223,7 +4362,7 @@ function renderTest(el){
                     }).join('')}
                   </tbody>
                 </table>
-                <button class="btn" id="saveTestResultsBtn" style="margin-top:12px;">💾 Salva Risultati</button>
+                <button class="btn" id="saveTestResultsBtn" style="margin-top:12px;">Salva Risultati</button>
               </div>
             ` : ''}
           </div>
@@ -4299,7 +4438,7 @@ function renderTest(el){
       }
       
       await saveKey('tests', STATE.tests);
-      showToast(`✅ ${count} risultati salvati`);
+      showToast(`${count} risultati salvati`);
       renderTest(el);
     });
 
@@ -4528,7 +4667,7 @@ function renderAllenamenti(el){
                 <option value="">-- Oppure: scegli test per auto-grouping --</option>
               </select>
               <button id="wAutoGroupBtn" type="button" style="padding:8px 12px;background:#3B82F6;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:600;">
-                🔄 Auto-group (Rosso/Giallo/Blu)
+                Auto-group (Rosso/Giallo/Blu)
               </button>
               <div id="wAutoGroupsDisplay" style="margin-top:12px;"></div>
             </div>
@@ -4612,7 +4751,7 @@ function renderAllenamenti(el){
 
               // Calculate Bucheit ranges (simplified)
               const bucketSize = 5; // meters
-              const colors = {red: '🔴 ROSSO (Veloce)', yellow: '🟡 GIALLO (Medio)', blue: '🔵 BLU (Lento)'};
+              const colors = {red: 'ROSSO (Veloce)', yellow: 'GIALLO (Medio)', blue: 'BLU (Lento)'};
               const colorBg = {red: '#FEE2E2', yellow: '#FEF3C7', blue: '#DBEAFE'};
               
               let html = '';
@@ -4752,7 +4891,7 @@ function renderEditWorkoutModal(workout){
     <div style="background:white;border-radius:12px;max-width:600px;width:100%;padding:24px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
         <h2 style="margin:0;color:var(--pitch);">Modifica Esercitazione</h2>
-        <button id="closeEditModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">✕</button>
+        <button id="closeEditModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">×</button>
       </div>
       
       <div style="margin-bottom:16px;">
@@ -4796,7 +4935,7 @@ function renderEditWorkoutModal(workout){
     if(idx >= 0){
       STATE.workouts[idx] = workout;
       await saveKey('workouts', STATE.workouts);
-      showToast('✅ Esercitazione aggiornata');
+      showToast('Esercitazione aggiornata');
       render();
       modal.remove();
     }
@@ -4992,7 +5131,7 @@ function renderCalendario(el){
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;">
       ${todayMatch ? `
         <div style="background:linear-gradient(135deg, #3F7A5C 0%, #2D5C43 100%);color:white;padding:20px;border-radius:10px;">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;opacity:0.9;">🎯 Oggi</div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;opacity:0.9;">Oggi</div>
           <div style="font-size:16px;font-weight:700;margin-top:8px;">${esc(todayMatch.title)}</div>
           <div style="font-size:13px;margin-top:6px;opacity:0.9;">${todayMatch.time || 'Orario TBD'}</div>
           ${todayMatch.result ? `
@@ -5003,7 +5142,7 @@ function renderCalendario(el){
       
       ${nextMatch ? `
         <div style="background:linear-gradient(135deg, #C9922B 0%, #9C6E1C 100%);color:white;padding:20px;border-radius:10px;">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;opacity:0.9;">⏭️ Prossima</div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;opacity:0.9;">⏭Prossima</div>
           <div style="font-size:16px;font-weight:700;margin-top:8px;">${esc(nextMatch.title)}</div>
           <div style="font-size:13px;margin-top:6px;opacity:0.9;">${fmtDate(nextMatch.date)} ${nextMatch.time || ''}</div>
           <div style="margin-top:12px;font-size:12px;opacity:0.8;"></div>
@@ -5028,10 +5167,10 @@ function renderCalendario(el){
         <h3>Nuovo evento</h3>
         <div style="margin-bottom:16px;">
           <label style="margin-right:20px;">
-            <input type="radio" name="eventType" value="partita" id="typePartita" checked> ⚽ Partita
+            <input type="radio" name="eventType" value="partita" id="typePartita" checked> Partita
           </label>
           <label>
-            <input type="radio" name="eventType" value="allenamento" id="typeAllenamento"> 🏋️ Allenamento
+            <input type="radio" name="eventType" value="allenamento" id="typeAllenamento">Allenamento
           </label>
         </div>
         
@@ -5049,8 +5188,8 @@ function renderCalendario(el){
             <div>
               <label>Posizione</label>
               <div style="display:flex;gap:16px;margin-top:8px;">
-                <label><input type="radio" name="homeAway" value="home" checked> 🏠 In casa</label>
-                <label><input type="radio" name="homeAway" value="away"> ✈️ Trasferta</label>
+                <label><input type="radio" name="homeAway" value="home" checked> In casa</label>
+                <label><input type="radio" name="homeAway" value="away">Trasferta</label>
               </div>
             </div>
           </div>
@@ -5089,16 +5228,16 @@ function renderCalendario(el){
               `).join('')}
           </div>
           <div style="font-size:11px;color:var(--ink-soft);margin-top:8px;padding:8px;background:var(--chalk);border-radius:4px;border-left:3px solid var(--amber);">
-            💡 Puoi aggiungere esercitazioni anche dopo, cliccando su "Dettagli" dalla lista
+            Puoi aggiungere esercitazioni anche dopo, cliccando su "Dettagli" dalla lista
           </div>
         </div>
         
-        <div class="btn-row"><button class="btn" id="createEventBtn">Crea evento</button>${window.clipboardEvent && window.clipboardEvent.type === 'allenamento' ? `<button class="btn secondary" id="pasteEventBtn" style="background:var(--ok);">📥 Incolla Sessione</button>` : ''}</div>
+        <div class="btn-row"><button class="btn" id="createEventBtn">Crea evento</button>${window.clipboardEvent && window.clipboardEvent.type === 'allenamento' ? `<button class="btn secondary" id="pasteEventBtn" style="background:var(--ok);">Incolla Sessione</button>` : ''}</div>
       </div>
     `:''}
     
     <div class="card">
-      <h3>📊 Timeline Evento (5 giorni)</h3>
+      <h3>Timeline Evento (5 giorni)</h3>
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:16px;">
         ${(() => {
           const today = todayStr();
@@ -5120,7 +5259,7 @@ function renderCalendario(el){
             let dayLabel = defaultLabel;
             if(dayEvents.length > 0){
               const firstEvent = dayEvents[0];
-              dayLabel = firstEvent.type === 'Partita' ? '⚽ Partita' : '🏋️ Allenamento';
+              dayLabel = firstEvent.type === 'Partita' ? 'Partita' : 'Allenamento';
             }
             
             let html = `<div style="border:2px solid ${isToday ? 'var(--ok)' : 'var(--line)'};border-radius:8px;padding:12px;background:${isToday ? '#E3EFE7' : 'var(--chalk)'};min-height:140px;">`;
@@ -5133,7 +5272,7 @@ function renderCalendario(el){
               dayEvents.forEach(e=>{
                 const isMatch = e.type === 'Partita';
                 html += `<div style="background:white;padding:8px;border-radius:4px;margin-bottom:8px;border-left:3px solid ${isMatch ? 'var(--amber)' : 'var(--pitch)'};font-size:10px;cursor:pointer;" class="timelineEvent" data-event-id="${e.id}">`;
-                html += `<div style="font-weight:600;color:var(--pitch);margin-bottom:2px;">${isMatch ? '⚽' : '🏋️'} ${esc(e.title.substring(0,14))}</div>`;
+                html += `<div style="font-weight:600;color:var(--pitch);margin-bottom:2px;">${isMatch ? '' : ''} ${esc(e.title.substring(0,14))}</div>`;
                 html += `<div style="color:var(--ink-soft);font-size:9px;">${e.time ? e.time : ''}</div>`;
                 if(e.md) html += `<div style="color:var(--amber);font-size:8px;font-weight:600;">${esc(e.md)}</div>`;
                 if(isMatch && e.result) html += `<div style="color:var(--amber);font-weight:600;font-size:10px;margin-top:3px;">${e.result.goalsFor}-${e.result.goalsAgainst}</div>`;
@@ -5150,7 +5289,7 @@ function renderCalendario(el){
     </div>
     
     <div class="card">
-      <h3>📋 Tutti gli Eventi (${upcoming.length})</h3>
+      <h3>Tutti gli Eventi (${upcoming.length})</h3>
       ${upcoming.length===0 ? '<div class="empty">Nessun evento</div>' :
         upcoming.map(e=>{
           const isMatch = e.type === 'Partita';
@@ -5158,9 +5297,9 @@ function renderCalendario(el){
             <div style="padding:14px;border:1px solid var(--line);border-radius:8px;margin-bottom:12px;">
               <div style="display:flex;justify-content:space-between;align-items:start;">
                 <div style="flex:1;">
-                  <h4 style="margin:0 0 6px 0;color:var(--pitch);">${isMatch ? '⚽' : '🏋️'} ${esc(e.title)}</h4>
+                  <h4 style="margin:0 0 6px 0;color:var(--pitch);">${isMatch ? '' : ''} ${esc(e.title)}</h4>
                   <div style="font-size:12px;color:var(--ink-soft);">
-                    📅 ${fmtDate(e.date)} ${e.time ? '🕐 '+e.time : ''}
+                    ${fmtDate(e.date)} ${e.time ? ''+e.time : ''}
                     ${isMatch ? `<div style="margin-top:4px;">${esc(e.matchType||'Partita')} ${e.result ? `| <strong style="color:var(--pitch);">${e.result.goalsFor}-${e.result.goalsAgainst}</strong>` : ''}</div>` : ''}
                     ${!isMatch ? `<div style="margin-top:4px;font-size:11px;color:var(--amber);font-weight:600;">${e.md ? e.md + ' · ' : ''}Durata: ${getSessionDuration(e)}min</div>` : ''}
                   </div>
@@ -5181,7 +5320,7 @@ function renderCalendario(el){
               })() : ''}
               ${isMatch && e.events && e.events.length > 0 ? `
                 <div style="margin-top:8px;font-size:11px;color:var(--amber);padding:6px;background:var(--chalk);border-radius:4px;">
-                  📊 ${e.events.filter(ev=>ev.type==='goal').length} gol | ${e.events.filter(ev=>ev.type==='assist').length} assist
+                  ${e.events.filter(ev=>ev.type==='goal').length} gol | ${e.events.filter(ev=>ev.type==='assist').length} assist
                 </div>
               ` : ''}
             </div>
@@ -5282,7 +5421,7 @@ function renderCalendario(el){
           
           STATE.events.push({id:uid(), date, time, title, type:'Allenamento', workoutIds, md});
           await saveKey('events', STATE.events);
-          showToast('✅ Sessione creata' + (md ? ` (${md})` : '') + (workoutIds.length > 0 ? ` con ${workoutIds.length} esercitazione(i)` : ' (senza esercitazioni)'));
+          showToast('Sessione creata' + (md ? ` (${md})` : '') + (workoutIds.length > 0 ? ` con ${workoutIds.length} esercitazione(i)` : ' (senza esercitazioni)'));
           render();
         }
       });
@@ -5292,7 +5431,7 @@ function renderCalendario(el){
     if(document.getElementById('pasteEventBtn')){
       document.getElementById('pasteEventBtn').addEventListener('click', async ()=>{
         if(!window.clipboardEvent || window.clipboardEvent.type !== 'allenamento'){
-          showToast('❌ Nessuna sessione copiata');
+          showToast('Nessuna sessione copiata');
           return;
         }
         
@@ -5306,7 +5445,7 @@ function renderCalendario(el){
         
         STATE.events.push({id:uid(), date, time, title: md, type:'Allenamento', workoutIds, md});
         await saveKey('events', STATE.events);
-        showToast('✅ Sessione incollata per ' + fmtDate(date) + (workoutIds.length > 0 ? ` con ${workoutIds.length} esercitazione(i)` : ''));
+        showToast('Sessione incollata per ' + fmtDate(date) + (workoutIds.length > 0 ? ` con ${workoutIds.length} esercitazione(i)` : ''));
         render();
       });
     }
@@ -5336,7 +5475,7 @@ function renderCalendario(el){
         const eventId = b.dataset.eventId;
         STATE.events = STATE.events.filter(evt=>evt.id!==eventId);
         await saveKey('events', STATE.events);
-        showToast('✅ Evento eliminato');
+        showToast('Evento eliminato');
         render();
       });
     });
@@ -5369,10 +5508,10 @@ function renderAllenamentoDetails(event){
     <div style="background:white;border-radius:12px;max-width:600px;width:100%;padding:24px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
         <div>
-          <h2 style="margin:0;color:var(--pitch);">🏋️ ${esc(event.title)}</h2>
-          <div style="font-size:12px;color:var(--ink-soft);">📅 ${fmtDate(event.date)} 🕐 ${event.time || '-'} ${event.md ? '| ' + esc(event.md) : ''}</div>
+          <h2 style="margin:0;color:var(--pitch);">${esc(event.title)}</h2>
+          <div style="font-size:12px;color:var(--ink-soft);">${fmtDate(event.date)} ${event.time || '-'} ${event.md ? '| ' + esc(event.md) : ''}</div>
         </div>
-        <button id="closeAllenamentoModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">✕</button>
+        <button id="closeAllenamentoModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">×</button>
       </div>
       
       <div style="border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:20px;">
@@ -5387,7 +5526,7 @@ function renderAllenamentoDetails(event){
                   <div style="font-size:12px;">
                     <strong>${esc(workout.name)}</strong> (${calcWorkoutDuration(workout)}min)
                   </div>
-                  <button class="del-workout-btn" data-workout-id="${wid}" style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;">✕</button>
+                  <button class="del-workout-btn" data-workout-id="${wid}" style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;">×</button>
                 </div>
               ` : '';
             }).join('')}
@@ -5407,7 +5546,7 @@ function renderAllenamentoDetails(event){
       </div>
       
       <div style="text-align:right;display:flex;gap:12px;justify-content:flex-end;">
-        <button id="copyAllenamentoBtn" class="btn secondary" style="padding:8px 20px;">📋 Copia</button>
+        <button id="copyAllenamentoBtn" class="btn secondary" style="padding:8px 20px;">Copia</button>
         <button id="saveAllenamentoBtn" class="btn" style="padding:8px 20px;">Salva</button>
       </div>
     </div>
@@ -5454,7 +5593,7 @@ function renderAllenamentoDetails(event){
   document.getElementById('copyAllenamentoBtn').addEventListener('click', ()=>{
     // Salva temporaneamente in clipboard interno
     window.clipboardEvent = {type: 'allenamento', data: JSON.parse(JSON.stringify(event))};
-    showToast('📋 Sessione copiata! Seleziona una data e premi "Incolla"');
+    showToast('Sessione copiata! Seleziona una data e premi "Incolla"');
     modal.remove();
   });
   
@@ -5464,7 +5603,7 @@ function renderAllenamentoDetails(event){
     if(idx >= 0){
       STATE.events[idx] = event;
       await saveKey('events', STATE.events);
-      showToast('✅ Allenamento aggiornato');
+      showToast('Allenamento aggiornato');
       render();
       modal.remove();
     }
@@ -5516,10 +5655,10 @@ function showWorkoutDetailsModal(workout){
     <div style="background:white;border-radius:12px;max-width:500px;width:100%;padding:24px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
         <div>
-          <h2 style="margin:0 0 4px 0;color:var(--pitch);">🏋️ ${esc(workout.name)}</h2>
+          <h2 style="margin:0 0 4px 0;color:var(--pitch);">${esc(workout.name)}</h2>
           <div style="font-size:12px;color:var(--ink-soft);">${esc(workout.category)} · ${esc(workout.type)}</div>
         </div>
-        <button id="closeDetailsModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">✕</button>
+        <button id="closeDetailsModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">×</button>
       </div>
       
       <div style="background:var(--chalk);padding:16px;border-radius:8px;margin-bottom:16px;border-left:4px solid var(--amber);">
@@ -5714,9 +5853,9 @@ function renderMatchDetails(match){
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
         <div>
           <h2 style="margin:0;color:var(--pitch);">${esc(match.title)}</h2>
-          <div style="font-size:12px;color:var(--ink-soft);">📅 ${fmtDate(match.date)} 🕐 ${match.time || '-'} | ${esc(match.matchType)}</div>
+          <div style="font-size:12px;color:var(--ink-soft);">${fmtDate(match.date)} ${match.time || '-'} | ${esc(match.matchType)}</div>
         </div>
-        <button id="closeMatchModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">✕</button>
+        <button id="closeMatchModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">×</button>
       </div>
       
       ${isPast ? `
@@ -5725,14 +5864,14 @@ function renderMatchDetails(match){
           <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;">
             ${isHome ? `
               <div style="text-align:center;">
-                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">🏠 ${esc(teamName)}</div>
+                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">${esc(teamName)}</div>
                 <select id="homeGoals" style="padding:10px;font-size:18px;font-weight:700;border:1px solid var(--line);border-radius:6px;text-align:center;">
                   ${Array.from({length:11}, (_,i)=>`<option value="${i}" ${match.result?.goalsFor===i?'selected':''}>${i}</option>`).join('')}
                 </select>
               </div>
             ` : `
               <div style="text-align:center;">
-                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">✈️ ${esc(match.opponent)}</div>
+                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">${esc(match.opponent)}</div>
                 <select id="homeGoals" style="padding:10px;font-size:18px;font-weight:700;border:1px solid var(--line);border-radius:6px;text-align:center;">
                   ${Array.from({length:11}, (_,i)=>`<option value="${i}" ${match.result?.goalsAgainst===i?'selected':''}>${i}</option>`).join('')}
                 </select>
@@ -5741,14 +5880,14 @@ function renderMatchDetails(match){
             <div style="font-size:16px;font-weight:700;color:var(--ink-soft);">-</div>
             ${isHome ? `
               <div style="text-align:center;">
-                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">✈️ ${esc(match.opponent)}</div>
+                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">${esc(match.opponent)}</div>
                 <select id="awayGoals" style="padding:10px;font-size:18px;font-weight:700;border:1px solid var(--line);border-radius:6px;text-align:center;">
                   ${Array.from({length:11}, (_,i)=>`<option value="${i}" ${match.result?.goalsAgainst===i?'selected':''}>${i}</option>`).join('')}
                 </select>
               </div>
             ` : `
               <div style="text-align:center;">
-                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">🏠 ${esc(teamName)}</div>
+                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">${esc(teamName)}</div>
                 <select id="awayGoals" style="padding:10px;font-size:18px;font-weight:700;border:1px solid var(--line);border-radius:6px;text-align:center;">
                   ${Array.from({length:11}, (_,i)=>`<option value="${i}" ${match.result?.goalsFor===i?'selected':''}>${i}</option>`).join('')}
                 </select>
@@ -5759,7 +5898,7 @@ function renderMatchDetails(match){
         
         <!-- TIMELINE EVENTI -->
         <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:20px;">
-          <h4 style="margin:0 0 12px 0;color:var(--pitch);font-size:13px;">📊 Timeline (${match.events?.length || 0} eventi)</h4>
+          <h4 style="margin:0 0 12px 0;color:var(--pitch);font-size:13px;">Timeline (${match.events?.length || 0} eventi)</h4>
           
           ${match.events && match.events.length > 0 ? `
             <div style="margin-bottom:12px;max-height:200px;overflow-y:auto;">
@@ -5767,10 +5906,10 @@ function renderMatchDetails(match){
                 <div style="padding:8px;background:var(--chalk);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:12px;">
                   <div>
                     <span style="font-weight:600;">${evt.minute}'</span>
-                    <span style="margin-left:8px;">${evt.type==='goal'?'⚽':'🎯'} ${esc(STATE.players.find(p=>p.id==evt.playerId)?.name||'?')}</span>
+                    <span style="margin-left:8px;">${evt.type==='goal'?'':''} ${esc(STATE.players.find(p=>p.id==evt.playerId)?.name||'?')}</span>
                     ${evt.type==='goal'?`<span style="color:var(--ok);font-weight:600;margin-left:4px;"> GOL</span>`:`<span style="color:var(--amber);margin-left:4px;"> ASSIST</span>`}
                   </div>
-                  <button class="del-evt-btn" data-evt-idx="${idx}" style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;">✕</button>
+                  <button class="del-evt-btn" data-evt-idx="${idx}" style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;">×</button>
                 </div>
               `).join('')}
             </div>
@@ -5779,8 +5918,8 @@ function renderMatchDetails(match){
           <div style="border-top:1px solid var(--line);padding-top:12px;">
             <div class="grid2" style="gap:8px;margin-bottom:8px;">
               <select id="eventType" style="padding:8px;border:1px solid var(--line);border-radius:4px;font-size:12px;">
-                <option value="goal">⚽ Goal</option>
-                <option value="assist">🎯 Assist</option>
+                <option value="goal">Goal</option>
+                <option value="assist">Assist</option>
               </select>
               <input id="eventMinute" type="number" min="0" max="120" placeholder="Min." style="padding:8px;border:1px solid var(--line);border-radius:4px;font-size:12px;text-align:center;">
             </div>
@@ -5825,7 +5964,7 @@ function renderMatchDetails(match){
 
       <!-- MODULO (SEMPRE) -->
       <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:20px;">
-        <h4 style="margin:0 0 12px 0;color:var(--pitch);font-size:13px;">📐 Modulo</h4>
+        <h4 style="margin:0 0 12px 0;color:var(--pitch);font-size:13px;">Modulo</h4>
         <input id="modulo" type="text" placeholder="Es. 4-3-3" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;" value="${match.modulo || ''}">
       </div>
       
@@ -5923,7 +6062,7 @@ function renderMatchDetails(match){
       </div>
 
       <div style="display:flex;gap:8px;">
-        <button id="saveMatchBtn" class="btn" style="flex:1;">💾 Salva Partita</button>
+        <button id="saveMatchBtn" class="btn" style="flex:1;">Salva Partita</button>
         <button id="closeMatchModal2" class="btn secondary" style="flex:0.3;">Chiudi</button>
       </div>
     </div>
@@ -6124,7 +6263,7 @@ function renderMatchDetails(match){
       syncMatchLineup(match);
 
       await saveKey('events', STATE.events);
-      showToast('✅ Partita salvata');
+      showToast('Partita salvata');
       modal.remove();
       render();
     });
@@ -6137,7 +6276,7 @@ function renderWellness(el){
   try {
     console.log('renderWellness called, currentPlayerId:', STATE.currentPlayerId);
     if(!STATE.currentPlayerId){
-      el.innerHTML = `<div class="page-head"><h1>Wellness</h1></div><div class="card" style="background:#F0DAD6;border:1px solid #B5473A;color:#8B3429;"><p>❌ Errore: ID giocatore non valido. currentPlayerId=${STATE.currentPlayerId}. Accedi di nuovo.</p></div>`;
+      el.innerHTML = `<div class="page-head"><h1>Wellness</h1></div><div class="card" style="background:#F0DAD6;border:1px solid #B5473A;color:#8B3429;"><p>Errore: ID giocatore non valido. currentPlayerId=${STATE.currentPlayerId}. Accedi di nuovo.</p></div>`;
       return;
     }
     
@@ -6383,8 +6522,73 @@ function renderWellness(el){
   });
   } catch(err) {
     console.error('Errore in renderWellness:', err);
-    el.innerHTML = `<div class="page-head"><h1>Wellness</h1></div><div class="card" style="background:#F0DAD6;border:1px solid #B5473A;color:#8B3429;"><p>❌ Errore interno: ${esc(err.message)}</p></div>`;
+    el.innerHTML = `<div class="page-head"><h1>Wellness</h1></div><div class="card" style="background:#F0DAD6;border:1px solid #B5473A;color:#8B3429;"><p>Errore interno: ${esc(err.message)}</p></div>`;
   }
+}
+
+/* Modulo RPE semplificato per il giocatore, legato a una sessione */
+function formRpeGiocatore(playerId, evento, onDone){
+  const old = document.getElementById('playerRpeModal');
+  if(old) old.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'playerRpeModal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:10002;padding:20px;box-sizing:border-box;overflow-y:auto;';
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:12px;max-width:420px;width:100%;padding:24px;margin:auto;">
+      <h3 style="margin:0 0 4px 0;color:var(--pitch);">Quanto e stato faticoso?</h3>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:18px;">${esc(evento.title)} · ${fmtDate(evento.date)}</div>
+
+      <div style="text-align:center;margin-bottom:8px;">
+        <span id="prVal" style="font-size:40px;font-weight:700;color:var(--amber);font-family:'Oswald',sans-serif;">5</span>
+        <span style="font-size:18px;color:var(--ink-soft);">/10</span>
+      </div>
+      <input id="prRpe" type="range" min="0" max="10" step="1" value="5">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--ink-soft);margin-top:4px;">
+        <span>0 · nessuno sforzo</span><span>10 · sforzo massimale</span>
+      </div>
+      <div id="prDesc" style="font-size:13px;color:var(--pitch);margin-top:12px;text-align:center;font-weight:600;"></div>
+
+      <div class="btn-row" style="justify-content:flex-end;margin-top:20px;">
+        <button id="prCancel" class="btn secondary">Annulla</button>
+        <button id="prSave" class="btn">Invia</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+
+  const SCALA = ['Riposo assoluto','Molto leggero','Leggero','Moderato','Piuttosto pesante','Pesante',
+                 'Piu che pesante','Molto pesante','Molto molto pesante','Estremamente pesante','Massimale'];
+  const slider = document.getElementById('prRpe');
+  const refresh = ()=>{
+    const v = parseInt(slider.value, 10);
+    document.getElementById('prVal').textContent = v;
+    document.getElementById('prDesc').textContent = SCALA[v] || '';
+  };
+  slider.addEventListener('input', refresh);
+  refresh();
+
+  document.getElementById('prCancel').addEventListener('click', ()=> modal.remove());
+  modal.addEventListener('click', e=>{ if(e.target === modal) modal.remove(); });
+
+  document.getElementById('prSave').addEventListener('click', async ()=>{
+    const rpe = parseInt(slider.value, 10);
+    // Evito doppioni sullo stesso evento
+    const gia = STATE.rpeLog.find(r => String(r.playerId)===String(playerId) && r.sessionId===evento.id);
+    if(gia){ gia.rpe = rpe; gia.editedBy = 'giocatore'; }
+    else {
+      STATE.rpeLog.push({
+        id: uid(), playerId: playerId, date: evento.date,
+        sessionId: evento.id, rpe: rpe,
+        statusAtEntry: currentStatusOf(playerId)
+      });
+    }
+    await saveKey('rpe-log', STATE.rpeLog);
+    showToast('Grazie, RPE registrato');
+    modal.remove();
+    if(onDone) onDone();
+  });
 }
 
 function renderPlayerCalendario(el){
@@ -6407,7 +6611,7 @@ function renderPlayerCalendario(el){
     
     ${todayWorkout ? `
       <div class="card" style="background:linear-gradient(135deg, var(--pitch) 0%, var(--pitch-dark) 100%);color:white;border:none;margin-bottom:24px;">
-        <h3 style="margin-top:0;color:white;">🏋️ Allenamento Odierno</h3>
+        <h3 style="margin-top:0;color:white;">Allenamento Odierno</h3>
         <div style="margin-bottom:16px;">
           <div style="font-size:14px;font-weight:600;margin-bottom:4px;">${esc(todayWorkout.title)}</div>
           <div style="font-size:12px;opacity:0.9;">
@@ -6441,7 +6645,7 @@ function renderPlayerCalendario(el){
           const isMatch = e.type === 'Partita';
           return `
             <div style="padding:12px;background:var(--chalk);border-radius:6px;margin-bottom:8px;">
-              <div style="font-weight:600;color:var(--pitch);margin-bottom:4px;">${isMatch ? '⚽' : '🏋️'} ${esc(e.title)}</div>
+              <div style="font-weight:600;color:var(--pitch);margin-bottom:4px;">${isMatch ? '' : ''} ${esc(e.title)}</div>
               <div style="font-size:12px;color:var(--ink-soft);">
                 ${e.time || ''} ${e.md ? '· ' + esc(e.md) : ''} ${!isMatch ? '· Durata: ' + getSessionDuration(e) + 'min' : ''}
               </div>
@@ -6459,9 +6663,9 @@ function renderPlayerCalendario(el){
           const isMatch = e.type === 'Partita';
           return `
             <div style="padding:12px;border:1px solid var(--line);border-radius:6px;margin-bottom:8px;">
-              <div style="font-weight:600;color:var(--pitch);margin-bottom:4px;">${isMatch ? '⚽' : '🏋️'} ${esc(e.title)}</div>
+              <div style="font-weight:600;color:var(--pitch);margin-bottom:4px;">${isMatch ? '' : ''} ${esc(e.title)}</div>
               <div style="font-size:12px;color:var(--ink-soft);">
-                📅 ${fmtDate(e.date)} ${e.time ? '🕐 ' + e.time : ''} ${e.md ? '· ' + esc(e.md) : ''} ${!isMatch ? '· Durata: ' + getSessionDuration(e) + 'min' : ''}
+                ${fmtDate(e.date)} ${e.time ? '' + e.time : ''} ${e.md ? '· ' + esc(e.md) : ''} ${!isMatch ? '· Durata: ' + getSessionDuration(e) + 'min' : ''}
               </div>
               ${isMatch && Array.isArray(e.convocati) ? `
                 <div style="margin-top:8px;display:inline-block;padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:700;background:${isConvocato(e, playerId) ? '#E3EFE7' : 'var(--clay-soft)'};color:${isConvocato(e, playerId) ? 'var(--ok)' : '#8B3429'};">
@@ -6477,15 +6681,25 @@ function renderPlayerCalendario(el){
     ${pastEvents.length > 0 ? `
       <div class="card">
         <h3>Impegni passati</h3>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">Dopo un allenamento a cui eri presente, indica quanto e stato faticoso (RPE).</div>
         ${pastEvents.slice(-10).reverse().map(e => {
           const isMatch = e.type === 'Partita';
+          const eroPresente = Array.isArray(e.presentPlayers) && e.presentPlayers.includes(playerId);
+          const rpeGia = STATE.rpeLog.find(r => String(r.playerId)===String(playerId) && r.sessionId===e.id);
+          const puoRpe = !isMatch && eroPresente;
           return `
-            <div style="padding:12px;background:#F9F9F9;border-radius:6px;margin-bottom:8px;opacity:0.7;">
-              <div style="font-weight:600;color:var(--pitch);margin-bottom:4px;">${isMatch ? '⚽' : '🏋️'} ${esc(e.title)}</div>
-              <div style="font-size:12px;color:var(--ink-soft);">
-                📅 ${fmtDate(e.date)} ${e.time ? '🕐 ' + e.time : ''}
+            <div style="padding:12px;background:#F9F9F9;border-radius:6px;margin-bottom:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+                <div>
+                  <div style="font-weight:600;color:var(--pitch);">${esc(e.title)}</div>
+                  <div style="font-size:12px;color:var(--ink-soft);">${fmtDate(e.date)}${e.time ? ' · ' + e.time : ''}</div>
+                  ${isMatch && e.result ? `<div style="font-size:12px;color:var(--amber);font-weight:600;margin-top:4px;">${e.result.goalsFor}-${e.result.goalsAgainst}</div>` : ''}
+                </div>
+                ${puoRpe ? (rpeGia
+                  ? `<div style="text-align:right;"><div style="font-size:11px;color:var(--ink-soft);">RPE inserito</div><div style="font-size:18px;font-weight:700;color:var(--amber-dark);">${rpeGia.rpe}/10</div></div>`
+                  : `<button class="player-rpe-btn" data-event-id="${e.id}" style="padding:8px 14px;background:var(--amber);color:var(--pitch);border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap;">Inserisci RPE</button>`)
+                : ''}
               </div>
-              ${isMatch && e.result ? `<div style="font-size:12px;color:var(--amber);font-weight:600;margin-top:4px;">${e.result.goalsFor}-${e.result.goalsAgainst}</div>` : ''}
             </div>
           `;
         }).join('')}
@@ -6509,6 +6723,13 @@ function renderPlayerCalendario(el){
       render();
     });
   }
+
+  el.querySelectorAll('.player-rpe-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const ev = STATE.events.find(e => e.id === btn.dataset.eventId);
+      if(ev) formRpeGiocatore(playerId, ev, ()=>render());
+    });
+  });
  }catch(err){
   console.error('Errore calendario giocatore:', err);
   el.innerHTML = `<div class="page-head"><h1>Calendario</h1></div><div class="card" style="background:#F0DAD6;border:1px solid #B5473A;color:#8B3429;"><p style="margin:0;">Errore nel caricamento del calendario: ${esc(err.message)}</p></div>`;
@@ -6559,9 +6780,126 @@ function renderImpostazioni(el){
   });
 }
 
+/* Modulo per creare o modificare un membro dello staff */
+function formStaff(membro, onDone){
+  const nuovo = !membro;
+  const old = document.getElementById('staffModal');
+  if(old) old.remove();
+
+  const m = membro || {};
+  const ruoloCorrente = m.roleKey || 'Allenatore';
+  const sezioniCorrenti = m.sezioni || RUOLI_STAFF['Allenatore'].sezioni;
+
+  const modal = document.createElement('div');
+  modal.id = 'staffModal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:flex-start;justify-content:center;z-index:10001;padding:20px;box-sizing:border-box;overflow-y:auto;';
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:12px;max-width:520px;width:100%;padding:24px;margin:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 style="margin:0;color:var(--pitch);">${nuovo ? 'Nuovo membro dello staff' : 'Modifica membro'}</h2>
+        <button id="stClose" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">&times;</button>
+      </div>
+
+      <label>Nome e cognome</label>
+      <input id="stName" type="text" value="${esc(m.name || '')}" placeholder="Es. Mario Rossi">
+
+      <label>Ruolo</label>
+      <select id="stRole">
+        ${Object.keys(RUOLI_STAFF).map(k=>`<option value="${k}" ${ruoloCorrente===k?'selected':''}>${RUOLI_STAFF[k].label}</option>`).join('')}
+      </select>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">Scegliere un ruolo imposta le sezioni tipiche. Puoi comunque modificarle qui sotto.</div>
+
+      <label style="margin-top:16px;">Sezioni accessibili</label>
+      <div style="border:1px solid var(--line);border-radius:8px;padding:6px;">
+        ${SEZIONI.map(sec=>`
+          <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--line);">
+            <input type="checkbox" class="st-sez" value="${sec.id}" ${sezioniCorrenti.indexOf(sec.id)!==-1?'checked':''} style="width:18px;height:18px;margin:0;">
+            <span style="font-size:13px;">${sec.label}</span>
+          </label>`).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">Il membro potra vedere e modificare tutto cio che rientra nelle sezioni spuntate.</div>
+
+      <div class="btn-row" style="justify-content:flex-end;">
+        <button id="stCancel" class="btn secondary">Annulla</button>
+        <button id="stSave" class="btn">${nuovo ? 'Crea e genera codice' : 'Salva'}</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  const chiudi = ()=> modal.remove();
+  document.getElementById('stClose').addEventListener('click', chiudi);
+  document.getElementById('stCancel').addEventListener('click', chiudi);
+  modal.addEventListener('click', e=>{ if(e.target === modal) chiudi(); });
+
+  // Cambiando ruolo, aggiorno le spunte con quelle tipiche
+  document.getElementById('stRole').addEventListener('change', (e)=>{
+    const def = RUOLI_STAFF[e.target.value];
+    if(!def) return;
+    modal.querySelectorAll('.st-sez').forEach(chk=>{
+      chk.checked = def.sezioni.indexOf(chk.value) !== -1;
+    });
+  });
+
+  document.getElementById('stSave').addEventListener('click', async ()=>{
+    const name = document.getElementById('stName').value.trim();
+    if(!name){ showToast('Inserisci il nome'); return; }
+    const roleKey = document.getElementById('stRole').value;
+    const sezioni = Array.from(modal.querySelectorAll('.st-sez:checked')).map(c=>c.value);
+    if(sezioni.length === 0){ showToast('Spunta almeno una sezione'); return; }
+
+    if(!Array.isArray(STATE.staffMembers)) STATE.staffMembers = [];
+
+    if(nuovo){
+      // Codice univoco fra staff e giocatori
+      const presi = {};
+      Object.keys(STATE.accessCodes||{}).forEach(k=>{ presi[normalizeCode(STATE.accessCodes[k])] = true; });
+      (STATE.staffMembers||[]).forEach(x=>{ if(x.code) presi[normalizeCode(x.code)] = true; });
+      const code = generateAccessCode(presi);
+      if(!code){ showToast('Errore generazione codice'); return; }
+      STATE.staffMembers.push({
+        id: uid(), name, roleKey, roleLabel: RUOLI_STAFF[roleKey].label,
+        sezioni, code
+      });
+      showToast('Membro creato con codice ' + formatCode(code));
+    } else {
+      membro.name = name;
+      membro.roleKey = roleKey;
+      membro.roleLabel = RUOLI_STAFF[roleKey].label;
+      membro.sezioni = sezioni;
+      showToast('Modifiche salvate');
+    }
+
+    await saveKey('staffMembers', STATE.staffMembers);
+    chiudi();
+    if(onDone) onDone();
+  });
+}
+
 function renderImpostazioniAdmin(el){
   el.innerHTML = `
     <div class="page-head"><h1>Impostazioni Amministratore</h1><p>Solo per l'amministratore del sistema</p></div>
+
+    <details style="margin-bottom:20px;border:1px solid var(--line);border-radius:8px;padding:0;overflow:hidden;">
+      <summary style="padding:14px 16px;cursor:pointer;font-weight:600;color:var(--pitch);background:var(--chalk);list-style:none;display:flex;justify-content:space-between;align-items:center;">
+        <span>Guida rapida — backup e ripristino</span>
+        <span style="font-size:11px;color:var(--ink-soft);font-weight:400;">tocca per aprire</span>
+      </summary>
+      <div style="padding:16px;font-size:13px;line-height:1.6;color:var(--ink-soft);">
+        <p style="margin:0 0 12px 0;"><strong style="color:var(--pitch);">L'app si salva da sola.</strong> Ogni 15 minuti, quando chiudi la pagina e prima di ogni operazione delicata, viene creato un punto di ripristino su questo dispositivo. Non devi fare niente.</p>
+
+        <p style="margin:0 0 6px 0;font-weight:600;color:var(--pitch);">Se qualcosa va perso o inserito per sbaglio</p>
+        <p style="margin:0 0 12px 0;">Scendi al riquadro <strong>Backup automatico</strong>, scegli un punto <em>prima</em> del problema guardando data e ora, premi <strong>Ripristina</strong>. Lo stato di adesso viene comunque conservato, quindi puoi anche tornare indietro se sbagli punto.</p>
+
+        <p style="margin:0 0 6px 0;font-weight:600;color:var(--pitch);">La copia di sicurezza vera</p>
+        <p style="margin:0 0 12px 0;">I punti automatici vivono solo in questo browser. Una volta a settimana premi <strong>Scarica backup completo</strong>: ottieni un file da conservare (mail a te stesso, chiavetta, cloud). Se il computer si rompe o si cancella la cronologia, quel file e l'unico modo per recuperare tutto. L'app ti ricorda da sola quando e ora di scaricarlo.</p>
+
+        <p style="margin:0 0 6px 0;font-weight:600;color:var(--pitch);">Per ripristinare da un file</p>
+        <p style="margin:0 0 12px 0;">Riquadro <strong>Backup e ripristino</strong> → <strong>Ripristina da backup</strong> → scegli il file. Funziona anche da un altro computer.</p>
+
+        <p style="margin:0;padding:10px;background:var(--chalk);border-radius:6px;"><strong style="color:var(--pitch);">Consiglio:</strong> prova adesso a freddo. Premi <strong>Salva ora</strong> e poi <strong>Ripristina</strong> sullo stesso punto: non cambia niente, ma impari dove sono i pulsanti prima che serva davvero.</p>
+      </div>
+    </details>
 
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
@@ -6589,6 +6927,39 @@ function renderImpostazioniAdmin(el){
     </div>
 
     
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <h3 style="margin:0;">Staff tecnico</h3>
+        <button class="btn" id="nuovoStaffBtn" style="font-size:12px;padding:6px 12px;">+ Aggiungi</button>
+      </div>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 14px 0;">
+        Ogni membro entra con un codice di 6 cifre, come i giocatori, e vede solo le sezioni che gli assegni.
+      </p>
+      ${(STATE.staffMembers||[]).length === 0
+        ? '<div class="empty">Nessun membro dello staff. Aggiungi allenatore, preparatore, fisioterapista...</div>'
+        : (STATE.staffMembers||[]).map(m=>{
+          const sez = (m.sezioni||[]).map(id=>{ const s=SEZIONI.find(x=>x.id===id); return s?s.label:id; });
+          return `
+            <div style="border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:160px;">
+                  <div style="font-size:13.5px;font-weight:700;color:var(--pitch);">${esc(m.name)}</div>
+                  <div style="font-size:11px;color:var(--ink-soft);">${esc(m.roleLabel || 'Staff')}</div>
+                  <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">Accesso: ${sez.length ? sez.join(', ') : 'nessuna sezione'}</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-family:monospace;font-size:18px;letter-spacing:0.1em;font-weight:700;color:var(--pitch);">${m.code ? formatCode(m.code) : '—'}</div>
+                  <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;justify-content:flex-end;">
+                    <button class="staff-copy" data-id="${m.id}" style="background:none;border:1px solid var(--line);border-radius:4px;padding:4px 9px;font-size:11px;cursor:pointer;">Copia</button>
+                    <button class="staff-edit" data-id="${m.id}" style="background:none;border:1px solid var(--line);border-radius:4px;padding:4px 9px;font-size:11px;cursor:pointer;">Modifica</button>
+                    <button class="staff-del" data-id="${m.id}" style="background:none;border:1px solid var(--line);border-radius:4px;padding:4px 9px;font-size:11px;cursor:pointer;color:var(--clay);">Elimina</button>
+                  </div>
+                </div>
+              </div>
+            </div>`;
+        }).join('')}
+    </div>
+
     <div class="card">
       <h3>Password Amministratore</h3>
       <label style="margin-top:0;">Cambia la tua password di accesso</label>
@@ -6666,6 +7037,35 @@ function renderImpostazioniAdmin(el){
             </div>`).join('')}
         </div>`;
     })()}
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <h3 style="margin:0;">Backup automatico</h3>
+        <button class="btn secondary" id="backupOraBtn" style="font-size:11px;padding:6px 10px;">Salva ora</button>
+      </div>
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 12px 0;">
+        Ogni 30 minuti l app conserva una copia sul dispositivo. Restano gli ultimi ${AUTO_BACKUP_MAX} punti. Ripristina qui sotto se qualcosa e andato perso.
+      </p>
+      <div id="autoBackupList">
+        ${(()=>{
+          const lista = leggiAutoBackup();
+          if(lista.length === 0) return '<div style="font-size:12px;color:var(--ink-soft);">Nessun backup ancora. Il primo viene creato pochi minuti dopo l apertura.</div>';
+          return lista.map((b,i)=>{
+            const voci = contaVoci(b);
+            const q = b.quando ? new Date(b.quando) : null;
+            const quando = q ? fmtDate(b.quando.slice(0,10)) + ' alle ' + b.quando.slice(11,16) : '—';
+            return `
+              <div style="border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin-bottom:6px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;">
+                <div>
+                  <div style="font-size:12.5px;font-weight:600;">${quando}${i===0?' <span style="color:var(--ok);font-size:10px;">piu recente</span>':''}</div>
+                  <div style="font-size:10.5px;color:var(--ink-soft);">${(b.players||[]).length} giocatori · ${(b.events||[]).length} eventi · ${(b.rpeLog||[]).length} RPE · ${(b.injuries||[]).length} infortuni</div>
+                </div>
+                <button class="ripristina-auto btn secondary" data-idx="${i}" style="font-size:11px;padding:6px 12px;white-space:nowrap;">Ripristina</button>
+              </div>`;
+          }).join('');
+        })()}
+      </div>
+    </div>
 
     <div class="card">
       <h3>Backup e ripristino</h3>
@@ -6853,6 +7253,46 @@ function renderImpostazioniAdmin(el){
     });
   });
 
+  // --- Staff tecnico ---
+  const nuovoStaffBtn = document.getElementById('nuovoStaffBtn');
+  if(nuovoStaffBtn){
+    nuovoStaffBtn.addEventListener('click', ()=> formStaff(null, ()=>renderImpostazioniAdmin(el)));
+  }
+
+  el.querySelectorAll('.staff-edit').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const m = (STATE.staffMembers||[]).find(x=>x.id===b.dataset.id);
+      if(m) formStaff(m, ()=>renderImpostazioniAdmin(el));
+    });
+  });
+
+  el.querySelectorAll('.staff-del').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const m = (STATE.staffMembers||[]).find(x=>x.id===b.dataset.id);
+      if(!m) return;
+      if(!confirm('Eliminare l accesso di ' + m.name + '?\\n\\nIl suo codice smettera di funzionare.')) return;
+      STATE.staffMembers = (STATE.staffMembers||[]).filter(x=>x.id!==b.dataset.id);
+      await saveKey('staffMembers', STATE.staffMembers);
+      showToast('Membro rimosso');
+      renderImpostazioniAdmin(el);
+    });
+  });
+
+  el.querySelectorAll('.staff-copy').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const m = (STATE.staffMembers||[]).find(x=>x.id===b.dataset.id);
+      if(!m || !m.code) return;
+      const link = location.origin + location.pathname + '#c=' + m.code;
+      const msg = 'Ciao ' + String(m.name).split(' ')[0] + '!\\n\\n'
+        + 'Accedi a TEAM HUB PRO con un tocco:\\n' + link + '\\n\\n'
+        + 'Se il link non funziona, apri ' + location.origin + ' e inserisci il codice:\\n'
+        + formatCode(m.code) + '\\n\\n'
+        + 'Non condividere questo messaggio.';
+      try{ await navigator.clipboard.writeText(msg); showToast('Messaggio per ' + String(m.name).split(' ')[0] + ' copiato'); }
+      catch(err){ prompt('Copia questo messaggio:', msg); }
+    });
+  });
+
   const genAllBtn = document.getElementById('genAllCodesBtn');
   if(genAllBtn){
     genAllBtn.addEventListener('click', async ()=>{
@@ -6877,7 +7317,7 @@ function renderImpostazioniAdmin(el){
     if(!pwd){ showToast('Inserisci una password'); return; }
     STATE.adminPassword = pwd;
     await saveKey('admin-password', STATE.adminPassword);
-    showToast('✅ Password admin aggiornata');
+    showToast('Password admin aggiornata');
   });
   
   document.getElementById('saveStaffPasswordBtn').addEventListener('click', async ()=>{
@@ -6885,7 +7325,7 @@ function renderImpostazioniAdmin(el){
     if(!pwd){ showToast('Inserisci una password'); return; }
     STATE.staffPassword = pwd;
     await saveKey('staff-password', STATE.staffPassword);
-    showToast('✅ Password staff aggiornata');
+    showToast('Password staff aggiornata');
   });
   
   // --- Caricamento dati iniziali ---
@@ -6934,35 +7374,37 @@ function renderImpostazioniAdmin(el){
     });
   });
 
+  const backupOraBtn = document.getElementById('backupOraBtn');
+  if(backupOraBtn){
+    backupOraBtn.addEventListener('click', ()=>{
+      const ok = eseguiAutoBackup(true);
+      showToast(ok ? 'Backup salvato sul dispositivo' : 'Backup non eseguito');
+      renderImpostazioniAdmin(el);
+    });
+  }
+
+  el.querySelectorAll('.ripristina-auto').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const idx = parseInt(btn.dataset.idx, 10);
+      const lista = leggiAutoBackup();
+      const b = lista[idx];
+      if(!b) return;
+      const voci = contaVoci(b);
+      if(!confirm('Ripristinare il backup del ' + (b.quando ? b.quando.slice(0,10) : '') + '?\n\n' +
+                  voci + ' voci in totale. I dati attuali verranno sostituiti.')) return;
+      // Rete di sicurezza: salvo lo stato attuale prima di sovrascriverlo,
+      // cosi' se hai scelto il punto sbagliato puoi tornare indietro
+      backupPrimaDiOperazioneRischiosa();
+      const ok = await ripristinaAutoBackup(idx);
+      if(ok){ showToast('Backup ripristinato. Lo stato precedente e comunque recuperabile.'); render(); }
+    });
+  });
+
   // --- Backup completo ---
   document.getElementById('fullBackupBtn').addEventListener('click', ()=>{
-    const backup = {
-      formato: 'team-hub-pro-1',
-      esportatoIl: new Date().toISOString(),
-      teamConfig: STATE.teamConfig,
-      players: STATE.players,
-      accessCodes: STATE.accessCodes || {},
-      customPasswords: STATE.customPasswords || {},
-      staffPassword: STATE.staffPassword,
-      adminPassword: STATE.adminPassword,
-      events: STATE.events,
-      workouts: STATE.workouts,
-      tests: STATE.tests,
-      rpeLog: STATE.rpeLog,
-      hooperLog: STATE.hooperLog,
-      painLog: STATE.painLog,
-      injuries: STATE.injuries || []
-    };
-    const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'team-hub-pro-backup-' + todayStr() + '.json';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    showToast('Backup scaricato');
+    scaricaBackupCompleto();
+    registraBackupEsterno();
+    renderImpostazioniAdmin(el);
   });
 
   // --- Ripristino ---
@@ -6995,6 +7437,9 @@ function renderImpostazioniAdmin(el){
       if(!confirm('Ripristinare questo backup?\n\n' + (data.esportatoIl ? 'Del ' + data.esportatoIl.slice(0,10) + '\n' : '') + riepilogo + '\n\nTUTTI i dati attuali verranno sostituiti.')) return;
       if(!confirm('Conferma definitiva: i dati di adesso andranno persi.')) return;
 
+      // Salvo lo stato attuale come punto di ripristino, prima di sovrascriverlo
+      backupPrimaDiOperazioneRischiosa();
+
       STATE.teamConfig = data.teamConfig || STATE.teamConfig;
       STATE.players = data.players;
       STATE.accessCodes = data.accessCodes || {};
@@ -7006,6 +7451,7 @@ function renderImpostazioniAdmin(el){
       STATE.hooperLog = data.hooperLog || data.hooper || [];
       STATE.painLog = data.painLog || data.pain || [];
       STATE.injuries = data.injuries || [];
+      STATE.staffMembers = data.staffMembers || [];
       if(data.staffPassword) STATE.staffPassword = data.staffPassword;
 
       await saveKey('team-config', STATE.teamConfig);
@@ -7019,6 +7465,7 @@ function renderImpostazioniAdmin(el){
       await saveKey('hooper-log', STATE.hooperLog);
       await saveKey('pain-log', STATE.painLog);
       await saveKey('injuries', STATE.injuries);
+      await saveKey('staffMembers', STATE.staffMembers);
 
       showToast('Backup ripristinato');
       render();
@@ -7039,6 +7486,8 @@ function renderImpostazioniAdmin(el){
       STATE.painLog.length + ' segnalazioni di dolore\n\n' +
       'Restano rosa, codici di accesso ed esercitazioni.')) return;
     if(!confirm('Hai scaricato un backup?\n\nQuesta operazione non si puo annullare.')) return;
+
+    backupPrimaDiOperazioneRischiosa();   // punto di ripristino automatico
 
     STATE.events = [];
     STATE.rpeLog = [];
@@ -7062,6 +7511,7 @@ function renderImpostazioniAdmin(el){
     const partite = STATE.events.filter(e=>e.type==='Partita');
     if(partite.length === 0){ showToast('Nessuna partita da eliminare'); return; }
     if(!confirm('Eliminare tutte le ' + partite.length + ' partite?\n\nSi perdono risultati, formazioni, gol e minutaggi.')) return;
+    backupPrimaDiOperazioneRischiosa();
     STATE.events = STATE.events.filter(e=>e.type!=='Partita');
     await saveKey('events', STATE.events);
     showToast(partite.length + ' partite eliminate');
@@ -7073,6 +7523,8 @@ function renderImpostazioniAdmin(el){
     if(!confirm('Cancellare TUTTI i dati, rosa e codici di accesso compresi?')) return;
     const conferma = prompt('Per confermare scrivi: CANCELLA');
     if(conferma !== 'CANCELLA'){ showToast('Operazione annullata'); return; }
+
+    backupPrimaDiOperazioneRischiosa();   // ultima copia prima di azzerare
 
     STATE.players = [];
     STATE.accessCodes = {};
@@ -7132,6 +7584,176 @@ function salvaguarda(key, nuovo){
 
 const PERDITE_RILEVATE = {};
 
+/* ---------- BACKUP AUTOMATICO LOCALE ----------
+   Ogni 30 minuti conserva una copia completa sul dispositivo. Restano gli ultimi
+   10 punti di ripristino. Sul dispositivo e non sul cloud: un dispositivo con la
+   rete guasta corromperebbe anche il backup se stesse in Firestore. */
+const AUTO_BACKUP_KEY = 'thp-auto-backup';
+const AUTO_BACKUP_MAX = 20;
+const AUTO_BACKUP_MINUTI = 15;
+
+function raccogliDati(){
+  return {
+    quando: new Date().toISOString(),
+    teamConfig: STATE.teamConfig,
+    players: STATE.players || [],
+    events: STATE.events || [],
+    workouts: STATE.workouts || [],
+    tests: STATE.tests || [],
+    rpeLog: STATE.rpeLog || [],
+    hooperLog: STATE.hooperLog || [],
+    painLog: STATE.painLog || [],
+    injuries: STATE.injuries || [],
+    accessCodes: STATE.accessCodes || {},
+    customPasswords: STATE.customPasswords || {}
+  };
+}
+
+function contaVoci(b){
+  return (b.players||[]).length + (b.events||[]).length + (b.rpeLog||[]).length +
+         (b.hooperLog||[]).length + (b.painLog||[]).length + (b.injuries||[]).length +
+         (b.tests||[]).length + (b.workouts||[]).length;
+}
+
+function leggiAutoBackup(){
+  try{ const raw = localStorage.getItem(AUTO_BACKUP_KEY); return raw ? JSON.parse(raw) : []; }
+  catch(e){ return []; }
+}
+
+function eseguiAutoBackup(forzato){
+  // Non salvo se il caricamento e' fallito: sarebbe un backup di dati incompleti
+  if(LOAD_FAILED){ return false; }
+
+  const dati = raccogliDati();
+  const voci = contaVoci(dati);
+
+  // Non salvo un backup quasi vuoto sopra a uno pieno: sarebbe come perdere i dati
+  const lista = leggiAutoBackup();
+  const ultimo = lista[0];
+  if(!forzato && ultimo){
+    const vociUltimo = contaVoci(ultimo);
+    if(voci === 0 && vociUltimo > 0) return false;
+    if(voci < vociUltimo / 2 && vociUltimo > 5) return false;
+    // Se nulla e' cambiato dall'ultima volta, evito una copia inutile
+    if(voci === vociUltimo && Date.now() - new Date(ultimo.quando).getTime() < AUTO_BACKUP_MINUTI*60000*0.9) return false;
+  }
+
+  lista.unshift(dati);
+  while(lista.length > AUTO_BACKUP_MAX) lista.pop();
+
+  try{
+    localStorage.setItem(AUTO_BACKUP_KEY, JSON.stringify(lista));
+    console.log('Backup automatico: ' + voci + ' voci conservate (' + lista.length + ' punti disponibili)');
+    return true;
+  }catch(e){
+    // localStorage pieno: tolgo i piu' vecchi e riprovo
+    try{
+      while(lista.length > 3){ lista.pop(); }
+      localStorage.setItem(AUTO_BACKUP_KEY, JSON.stringify(lista));
+      return true;
+    }catch(e2){ console.error('Backup automatico non riuscito:', e2.message); return false; }
+  }
+}
+
+async function ripristinaAutoBackup(indice){
+  const lista = leggiAutoBackup();
+  const b = lista[indice];
+  if(!b) return false;
+  if(LOAD_FAILED){ showToast('Ricarica la pagina prima di ripristinare'); return false; }
+
+  STATE.teamConfig = b.teamConfig || STATE.teamConfig;
+  STATE.players = b.players || [];
+  STATE.events = b.events || [];
+  STATE.workouts = b.workouts || [];
+  STATE.tests = b.tests || [];
+  STATE.rpeLog = b.rpeLog || [];
+  STATE.hooperLog = b.hooperLog || [];
+  STATE.painLog = b.painLog || [];
+  STATE.injuries = b.injuries || [];
+  STATE.accessCodes = b.accessCodes || {};
+  STATE.customPasswords = b.customPasswords || {};
+
+  await saveKey('team-config', STATE.teamConfig);
+  await saveKey('players', STATE.players);
+  await saveKey('events', STATE.events);
+  await saveKey('workouts', STATE.workouts);
+  await saveKey('tests', STATE.tests);
+  await saveKey('rpe-log', STATE.rpeLog);
+  await saveKey('hooper-log', STATE.hooperLog);
+  await saveKey('pain-log', STATE.painLog);
+  await saveKey('injuries', STATE.injuries);
+  await saveKey('accessCodes', STATE.accessCodes);
+  await saveKey('customPasswords', STATE.customPasswords);
+  return true;
+}
+
+/* Scarica il file di backup completo. Riutilizzabile da piu' punti. */
+function scaricaBackupCompleto(){
+  const backup = {
+    formato: 'team-hub-pro-1',
+    esportatoIl: new Date().toISOString(),
+    teamConfig: STATE.teamConfig,
+    players: STATE.players || [],
+    accessCodes: STATE.accessCodes || {},
+    customPasswords: STATE.customPasswords || {},
+    staffPassword: STATE.staffPassword,
+    adminPassword: STATE.adminPassword,
+    events: STATE.events || [],
+    workouts: STATE.workouts || [],
+    tests: STATE.tests || [],
+    rpeLog: STATE.rpeLog || [],
+    hooperLog: STATE.hooperLog || [],
+    painLog: STATE.painLog || [],
+    injuries: STATE.injuries || [],
+    staffMembers: STATE.staffMembers || []
+  };
+  try{
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'team-hub-pro-backup-' + todayStr() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Backup scaricato');
+    return true;
+  }catch(e){ showToast('Download non riuscito'); return false; }
+}
+
+/* Registra quando e' stato fatto l'ultimo backup esterno (file scaricato) */
+const BACKUP_ESTERNO_KEY = 'thp-ultimo-backup-esterno';
+function registraBackupEsterno(){
+  try{ localStorage.setItem(BACKUP_ESTERNO_KEY, new Date().toISOString()); }catch(e){}
+}
+function giorniDaUltimoBackupEsterno(){
+  try{
+    const raw = localStorage.getItem(BACKUP_ESTERNO_KEY);
+    if(!raw) return null;
+    return Math.floor((Date.now() - new Date(raw).getTime()) / 86400000);
+  }catch(e){ return null; }
+}
+
+/* Backup automatico prima di un'operazione rischiosa (reset, cancellazioni) */
+function backupPrimaDiOperazioneRischiosa(){
+  eseguiAutoBackup(true);
+}
+
+let autoBackupTimer = null;
+function avviaAutoBackup(){
+  if(autoBackupTimer) return;
+  // Primo backup 90 secondi dopo l'apertura, poi a intervalli regolari
+  setTimeout(()=>{ eseguiAutoBackup(false); }, 90000);
+  autoBackupTimer = setInterval(()=>{ eseguiAutoBackup(false); }, AUTO_BACKUP_MINUTI*60000);
+
+  // Un backup anche quando si chiude o si nasconde la pagina: cattura le ultime modifiche
+  window.addEventListener('visibilitychange', ()=>{
+    if(document.visibilityState === 'hidden') eseguiAutoBackup(false);
+  });
+  window.addEventListener('pagehide', ()=>{ eseguiAutoBackup(false); });
+}
+
 async function setupFirestoreSync(){
   if(!db || !TEAM_ID) return;
 
@@ -7163,6 +7785,7 @@ async function setupFirestoreSync(){
         if(key === 'accessCodes') STATE.accessCodes = data || {};
         if(key === 'customPasswords') STATE.customPasswords = data || {};
         if(key === 'injuries') STATE.injuries = data || [];
+        if(key === 'staffMembers') STATE.staffMembers = data || [];
 
         try{ localStorage.setItem(key, JSON.stringify(data)); }catch(e){}
       });
@@ -7224,7 +7847,7 @@ const loadTimeout = setTimeout(()=>{
 
 loadAll().then(()=>{
   clearTimeout(loadTimeout);
-  console.log('✅ Dati caricati');
+  console.log('Dati caricati');
 
   // Accesso tramite link diretto: .../#c=CODICE
   try{
@@ -7237,6 +7860,7 @@ loadAll().then(()=>{
         try{ localStorage.setItem(DEVICE_CODE_KEY, normalizeCode(m[1])); }catch(e){}
         login('player', pid);
         setupFirestoreSync();
+        avviaAutoBackup();
         return;
       }
       showToast('Il link non e valido: chiedi allo staff di rigenerarlo');
@@ -7251,15 +7875,24 @@ loadAll().then(()=>{
       if(pid){
         login('player', pid);
         setupFirestoreSync();
+        avviaAutoBackup();
         return;
       }
-      // Codice non piu' valido (rigenerato dallo staff): dimenticalo
+      const staff = findStaffByCode(savedCode);
+      if(staff){
+        loginStaffMember(staff);
+        setupFirestoreSync();
+        avviaAutoBackup();
+        return;
+      }
+      // Codice non piu' valido (rigenerato): dimenticalo
       localStorage.removeItem(DEVICE_CODE_KEY);
     }
   }catch(e){ console.warn('Auto-login non riuscito:', e.message); }
 
   render();
   setupFirestoreSync();
+  avviaAutoBackup();
 }).catch(err=>{
   clearTimeout(loadTimeout);
   console.error('Errore caricamento:', err);
