@@ -596,14 +596,6 @@ function hooperBand(score){
   return {label:'Critico', color:'var(--clay)', advice:'Confronto diretto con il giocatore'};
 }
 
-/* Percentuale di freschezza: 100% = pienamente pronto (HI 4), 0% = scarico (HI 28).
-   Piu' intuitiva del punteggio grezzo: alta = sta bene, come una batteria. */
-function hooperPercent(score){
-  if(score === null || typeof score === 'undefined') return null;
-  const pct = Math.round((28 - score) / 24 * 100);
-  return Math.max(0, Math.min(100, pct));
-}
-
 /* Compatibilita': le voci vecchie usavano muscles/mood su scala 1-5 */
 function hooperScore(entry){
   if(!entry) return null;
@@ -1221,13 +1213,8 @@ function getHooperTrend(playerId, windowDays){
   return {
     direction, label, color,
     delta: Math.round(delta * 10) / 10,
-    // Variazione in punti di freschezza: piu' leggibile del punteggio grezzo.
-    // Un calo di punteggio (miglioramento) diventa un +% di freschezza.
-    deltaPercent: Math.round((hooperPercent(recentAvg) - hooperPercent(previousAvg))),
     recentAvg: Math.round(recentAvg * 10) / 10,
     previousAvg: Math.round(previousAvg * 10) / 10,
-    recentPercent: hooperPercent(recentAvg),
-    previousPercent: hooperPercent(previousAvg),
     recentCount: recent.length,
     previousCount: previous.length,
     windowDays: win
@@ -1960,7 +1947,7 @@ function buildDailyReport(){
     <h2>Quadro squadra</h2>
     <table>
       <thead>
-        <tr><th>Giocatore</th><th>Ruolo</th><th>Stato</th><th>Fresch.</th><th>ACWR</th><th>Dolori aperti</th><th>Pres.</th></tr>
+        <tr><th>Giocatore</th><th>Ruolo</th><th>Stato</th><th>HI</th><th>ACWR</th><th>Dolori aperti</th><th>Pres.</th></tr>
       </thead>
       <tbody>
         ${righe.map(r=>`
@@ -1977,7 +1964,7 @@ function buildDailyReport(){
     </table>
 
     <div class="ps-foot">
-      Fresch. = freschezza (Hooper Index in percentuale): 100% pienamente pronto, 0% scarico. Passa sopra il valore per il punteggio grezzo.
+      HI = Hooper Index, da 4 (ottimo) a 28 (critico): punteggio basso significa giocatore fresco.
       L'asterisco indica una rilevazione non aggiornata a oggi.
       ACWR = carico ultima settimana diviso media delle ultime quattro; zona ottimale fra 0.8 e 1.3.
       <br>Generato il ${fmtDate(todayStr())} alle ${new Date().toTimeString().slice(0,5)} &middot; Team Hub Pro &middot; documento a uso interno dello staff.
@@ -2064,9 +2051,9 @@ function renderDashboard(el){
       <div class="tile tap" id="tileWellness">
         <div class="tile-accent" style="background:${w.bandOggi ? w.bandOggi.color : 'var(--line)'};"></div>
         <div class="tile-lbl">Wellness squadra</div>
-        <div class="tile-big" style="color:${w.bandOggi ? w.bandOggi.color : 'var(--ink-soft)'};">${w.avgOggi !== null ? hooperPercent(w.avgOggi) + '<small>%</small>' : '—'}</div>
+        <div class="tile-big" style="color:${w.bandOggi ? w.bandOggi.color : 'var(--ink-soft)'};">${w.avgOggi !== null ? w.avgOggi : '—'}<small>/28</small></div>
         <div class="tile-sub">${w.bandOggi ? w.bandOggi.label + ' &middot; ' : ''}${w.compilatiOggi}/${w.attesiOggi} hanno compilato</div>
-        <div class="tile-sub" style="opacity:0.6;">Freschezza media &middot; tocca per il dettaglio</div>
+        <div class="tile-sub" style="opacity:0.6;">Tocca per il dettaglio</div>
       </div>
 
       <div class="tile tap" id="tileRosa">
@@ -2477,10 +2464,6 @@ function getTrainingAttendance(playerId){
    ACWR = carico dell'ultima settimana / media settimanale delle ultime 4.
    Sotto 0.8 scarico, 0.8-1.3 zona ottimale, sopra 1.5 rischio. */
 function sessionLoad(rpeEntry){
-  // Se il singolo RPE ha i suoi minuti, hanno la precedenza su tutto
-  if(typeof rpeEntry.minutes === 'number' && rpeEntry.minutes > 0){
-    return (rpeEntry.rpe || 0) * rpeEntry.minutes;
-  }
   const ev = STATE.events.find(e => e.id === rpeEntry.sessionId);
   let dur;
   if(ev && ev.importedDuration) dur = ev.importedDuration;      // RPE storici importati
@@ -2701,10 +2684,10 @@ function showPlayerReport(playerId){
 
       <div class="grid3" style="margin-bottom:18px;">
         <div style="background:var(--chalk);padding:12px;border-radius:8px;">
-          <div style="font-size:10px;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Freschezza</div>
+          <div style="font-size:10px;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Hooper attuale</div>
           ${latest ? `
-            <div style="font-size:26px;font-weight:700;color:${latest.band.color};">${hooperPercent(latest.score)}<span style="font-size:13px;color:var(--ink-soft);">%</span></div>
-            <div style="font-size:11px;color:${latest.band.color};font-weight:600;">${latest.band.label} · HI ${latest.score}/28</div>
+            <div style="font-size:26px;font-weight:700;color:${latest.band.color};">${latest.score}<span style="font-size:13px;color:var(--ink-soft);">/28</span></div>
+            <div style="font-size:11px;color:${latest.band.color};font-weight:600;">${latest.band.label}</div>
             <div style="font-size:10px;color:var(--ink-soft);">${fmtDate(latest.date)}</div>
           ` : '<div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">Nessun dato</div>'}
         </div>
@@ -2713,8 +2696,8 @@ function showPlayerReport(playerId){
           <div style="font-size:10px;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Andamento 7 giorni</div>
           ${trend ? `
             <div style="font-size:15px;font-weight:700;color:${trend.color};margin-top:4px;">${trend.label}</div>
-            <div style="font-size:13px;font-weight:600;color:${trend.color};">${trend.deltaPercent > 0 ? '+' : ''}${trend.deltaPercent}% freschezza</div>
-            <div style="font-size:10px;color:var(--ink-soft);">${trend.previousPercent}% &rarr; ${trend.recentPercent}%</div>
+            <div style="font-size:11px;color:var(--ink-soft);">media ${trend.previousAvg} &rarr; ${trend.recentAvg}</div>
+            <div style="font-size:10px;color:var(--ink-soft);">${trend.recentCount} rilevazioni recenti su ${trend.previousCount} precedenti</div>
           ` : '<div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">Servono almeno due settimane di dati</div>'}
         </div>
 
@@ -2963,10 +2946,6 @@ function rpeEntryForm(playerId, entry, onDone){
         ${sessioni.map(e=>`<option value="${e.id}" ${entry && entry.sessionId === e.id ? 'selected' : ''}>${esc(e.title)} — ${fmtDate(e.date)}</option>`).join('')}
       </select>
 
-      <label>Minuti (facoltativo)</label>
-      <input id="reMinutes" type="number" min="0" max="240" value="${entry && entry.minutes ? entry.minutes : ''}" placeholder="Lascia vuoto per usare i minuti della sessione">
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">Se indichi i minuti, il carico di questa seduta usa questo valore invece di quello della sessione.</div>
-
       <div style="margin-top:14px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
           <label style="margin:0;">Sforzo percepito</label>
@@ -3007,28 +2986,23 @@ function rpeEntryForm(playerId, entry, onDone){
     if(date > todayStr()){ showToast('La data non puo essere futura'); return; }
     const rpe = parseInt(slider.value, 10);
     const sessionId = document.getElementById('reSession').value;
-    const minInput = document.getElementById('reMinutes').value;
-    const minutes = minInput === '' ? null : Math.max(0, Math.min(240, parseInt(minInput, 10) || 0));
 
     if(nuovo){
       const gia = STATE.rpeLog.some(x => String(x.playerId)===String(playerId) && x.date===date);
       if(gia && !confirm('Esiste gia un RPE di ' + (player?player.name:'') + ' per il ' + fmtDate(date) + '.\n\nAggiungerne un altro? Quel giorno contera carico doppio.')) return;
       if(!confirm('Registrare RPE ' + rpe + '/10 per ' + (player?player.name:'') + ' in data ' + fmtDate(date) + '?')) return;
-      const nuovaVoce = {
+      STATE.rpeLog.push({
         id: uid(), playerId: playerId, date: date,
         sessionId: sessionId, rpe: rpe, addedBy: 'staff',
         statusAtEntry: currentStatusOf(playerId)
-      };
-      if(minutes !== null) nuovaVoce.minutes = minutes;
-      STATE.rpeLog.push(nuovaVoce);
+      });
     } else {
-      const cambiato = (entry.rpe !== rpe) || (entry.date !== date) || (entry.sessionId !== sessionId) || ((entry.minutes||null) !== minutes);
+      const cambiato = (entry.rpe !== rpe) || (entry.date !== date) || (entry.sessionId !== sessionId);
       if(!cambiato){ modal.remove(); return; }
       if(!confirm('Salvare le modifiche?\n\nIl dato inserito dal giocatore verra sostituito.')) return;
       entry.rpe = rpe;
       entry.date = date;
       entry.sessionId = sessionId;
-      if(minutes !== null) entry.minutes = minutes; else delete entry.minutes;
       entry.editedBy = 'staff';
       entry.editedAt = todayStr();
     }
@@ -3320,10 +3294,10 @@ function renderGiocatori(el){
           <button class="btn" id="addPlayerBtn" style="padding:6px 12px;font-size:12px;">+ Aggiungi</button>
         </div>
         <table>
-          <thead><tr><th>Nome</th><th>Eta</th><th>Ruolo</th><th>Min.</th><th>Fresch.</th><th>Stato</th></tr></thead>
+          <thead><tr><th>Nome</th><th>Eta</th><th>Ruolo</th><th>Min.</th><th>HI</th><th>Stato</th></tr></thead>
           <tbody id="playersTableBody"></tbody>
         </table>
-        <div style="font-size:11px;color:var(--ink-soft);margin-top:10px;">Fresch. = freschezza (Hooper in %): 100% pronto, 0% scarico. Min. = minuti in stagione. Il pallino rosso segnala un dolore aperto. Tocca un giocatore per la scheda.</div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-top:10px;">HI = Hooper Index piu' recente, da 4 (ottimo) a 28 (critico): basso significa fresco. Min. = minuti giocati in stagione. Il pallino rosso segnala un dolore aperto. Tocca un giocatore per la scheda completa.</div>
       </div>
       <div id="detailsPanel">
         ${isAddingNew ? `
@@ -3399,7 +3373,7 @@ function renderGiocatori(el){
 
     const hooper = getLatestHooperIndex(p.id);
     const hiDisplay = hooper
-      ? `<span style="font-weight:700;color:${hooper.band.color};" title="Hooper ${hooper.score}/28 · ${hooper.band.label} — rilevato il ${fmtDate(hooper.date)}">${hooperPercent(hooper.score)}%</span>`
+      ? `<span style="font-weight:700;color:${hooper.band.color};" title="${hooper.band.label} — rilevato il ${fmtDate(hooper.date)}">${hooper.score}</span>`
       : '<span style="color:var(--ink-soft);">—</span>';
 
     const meta = statusMeta(p.status);
@@ -6526,71 +6500,6 @@ function renderWellness(el){
   }
 }
 
-/* Modulo RPE semplificato per il giocatore, legato a una sessione */
-function formRpeGiocatore(playerId, evento, onDone){
-  const old = document.getElementById('playerRpeModal');
-  if(old) old.remove();
-
-  const modal = document.createElement('div');
-  modal.id = 'playerRpeModal';
-  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:10002;padding:20px;box-sizing:border-box;overflow-y:auto;';
-
-  modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:420px;width:100%;padding:24px;margin:auto;">
-      <h3 style="margin:0 0 4px 0;color:var(--pitch);">Quanto e stato faticoso?</h3>
-      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:18px;">${esc(evento.title)} · ${fmtDate(evento.date)}</div>
-
-      <div style="text-align:center;margin-bottom:8px;">
-        <span id="prVal" style="font-size:40px;font-weight:700;color:var(--amber);font-family:'Oswald',sans-serif;">5</span>
-        <span style="font-size:18px;color:var(--ink-soft);">/10</span>
-      </div>
-      <input id="prRpe" type="range" min="0" max="10" step="1" value="5">
-      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--ink-soft);margin-top:4px;">
-        <span>0 · nessuno sforzo</span><span>10 · sforzo massimale</span>
-      </div>
-      <div id="prDesc" style="font-size:13px;color:var(--pitch);margin-top:12px;text-align:center;font-weight:600;"></div>
-
-      <div class="btn-row" style="justify-content:flex-end;margin-top:20px;">
-        <button id="prCancel" class="btn secondary">Annulla</button>
-        <button id="prSave" class="btn">Invia</button>
-      </div>
-    </div>`;
-
-  document.body.appendChild(modal);
-
-  const SCALA = ['Riposo assoluto','Molto leggero','Leggero','Moderato','Piuttosto pesante','Pesante',
-                 'Piu che pesante','Molto pesante','Molto molto pesante','Estremamente pesante','Massimale'];
-  const slider = document.getElementById('prRpe');
-  const refresh = ()=>{
-    const v = parseInt(slider.value, 10);
-    document.getElementById('prVal').textContent = v;
-    document.getElementById('prDesc').textContent = SCALA[v] || '';
-  };
-  slider.addEventListener('input', refresh);
-  refresh();
-
-  document.getElementById('prCancel').addEventListener('click', ()=> modal.remove());
-  modal.addEventListener('click', e=>{ if(e.target === modal) modal.remove(); });
-
-  document.getElementById('prSave').addEventListener('click', async ()=>{
-    const rpe = parseInt(slider.value, 10);
-    // Evito doppioni sullo stesso evento
-    const gia = STATE.rpeLog.find(r => String(r.playerId)===String(playerId) && r.sessionId===evento.id);
-    if(gia){ gia.rpe = rpe; gia.editedBy = 'giocatore'; }
-    else {
-      STATE.rpeLog.push({
-        id: uid(), playerId: playerId, date: evento.date,
-        sessionId: evento.id, rpe: rpe,
-        statusAtEntry: currentStatusOf(playerId)
-      });
-    }
-    await saveKey('rpe-log', STATE.rpeLog);
-    showToast('Grazie, RPE registrato');
-    modal.remove();
-    if(onDone) onDone();
-  });
-}
-
 function renderPlayerCalendario(el){
  try{
   const today = todayStr();
@@ -6681,25 +6590,15 @@ function renderPlayerCalendario(el){
     ${pastEvents.length > 0 ? `
       <div class="card">
         <h3>Impegni passati</h3>
-        <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">Dopo un allenamento a cui eri presente, indica quanto e stato faticoso (RPE).</div>
         ${pastEvents.slice(-10).reverse().map(e => {
           const isMatch = e.type === 'Partita';
-          const eroPresente = Array.isArray(e.presentPlayers) && e.presentPlayers.includes(playerId);
-          const rpeGia = STATE.rpeLog.find(r => String(r.playerId)===String(playerId) && r.sessionId===e.id);
-          const puoRpe = !isMatch && eroPresente;
           return `
-            <div style="padding:12px;background:#F9F9F9;border-radius:6px;margin-bottom:8px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-                <div>
-                  <div style="font-weight:600;color:var(--pitch);">${esc(e.title)}</div>
-                  <div style="font-size:12px;color:var(--ink-soft);">${fmtDate(e.date)}${e.time ? ' · ' + e.time : ''}</div>
-                  ${isMatch && e.result ? `<div style="font-size:12px;color:var(--amber);font-weight:600;margin-top:4px;">${e.result.goalsFor}-${e.result.goalsAgainst}</div>` : ''}
-                </div>
-                ${puoRpe ? (rpeGia
-                  ? `<div style="text-align:right;"><div style="font-size:11px;color:var(--ink-soft);">RPE inserito</div><div style="font-size:18px;font-weight:700;color:var(--amber-dark);">${rpeGia.rpe}/10</div></div>`
-                  : `<button class="player-rpe-btn" data-event-id="${e.id}" style="padding:8px 14px;background:var(--amber);color:var(--pitch);border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap;">Inserisci RPE</button>`)
-                : ''}
+            <div style="padding:12px;background:#F9F9F9;border-radius:6px;margin-bottom:8px;opacity:0.7;">
+              <div style="font-weight:600;color:var(--pitch);margin-bottom:4px;">${isMatch ? '' : ''} ${esc(e.title)}</div>
+              <div style="font-size:12px;color:var(--ink-soft);">
+                ${fmtDate(e.date)} ${e.time ? '' + e.time : ''}
               </div>
+              ${isMatch && e.result ? `<div style="font-size:12px;color:var(--amber);font-weight:600;margin-top:4px;">${e.result.goalsFor}-${e.result.goalsAgainst}</div>` : ''}
             </div>
           `;
         }).join('')}
@@ -6723,13 +6622,6 @@ function renderPlayerCalendario(el){
       render();
     });
   }
-
-  el.querySelectorAll('.player-rpe-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const ev = STATE.events.find(e => e.id === btn.dataset.eventId);
-      if(ev) formRpeGiocatore(playerId, ev, ()=>render());
-    });
-  });
  }catch(err){
   console.error('Errore calendario giocatore:', err);
   el.innerHTML = `<div class="page-head"><h1>Calendario</h1></div><div class="card" style="background:#F0DAD6;border:1px solid #B5473A;color:#8B3429;"><p style="margin:0;">Errore nel caricamento del calendario: ${esc(err.message)}</p></div>`;
