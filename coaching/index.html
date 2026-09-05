@@ -69,6 +69,23 @@ button{font-family:inherit; cursor:pointer;}
   letter-spacing:0.04em;
   margin-bottom:6px;
 }
+.login-top-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+}
+.admin-link{
+  background:none;
+  border:none;
+  color:var(--ink-soft);
+  font-size:11px;
+  padding:2px 4px;
+  opacity:0.55;
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
+.admin-link:hover{opacity:0.85;}
+.admin-link.active{color:var(--accent); opacity:1;}
 .login-card h1{
   font-size:40px;
   margin-bottom:28px;
@@ -271,22 +288,44 @@ textarea{
 <!-- ========================= LOGIN ========================= -->
 <div id="loginScreen">
   <div class="login-card">
-    <div class="login-brand">GIMTONIC</div>
-    <h1>Coaching</h1>
-    <div class="role-toggle">
-      <button id="roleCoachBtn" class="active" data-role="coach">Sono il coach</button>
-      <button id="roleClientBtn" data-role="client">Sono un cliente</button>
+    <div class="login-top-row">
+      <div class="login-brand">GIMTONIC</div>
+      <button id="adminSmallLink" class="admin-link">Admin</button>
     </div>
-    <div class="field">
+    <h1>Coaching</h1>
+    <div class="role-toggle" id="mainRoleToggle">
+      <button id="roleCoachBtn" class="active" data-role="coach">Coach</button>
+      <button id="roleClientBtn" data-role="client">Atleta</button>
+    </div>
+
+    <!-- Admin: solo password -->
+    <div class="field" id="adminPassField" style="display:none;">
+      <label>Password admin</label>
+      <input type="password" id="loginAdminPass" placeholder="Password">
+    </div>
+
+    <!-- Coach: username + codice dati dall'admin -->
+    <div class="field" id="coachUserField">
+      <label>Username</label>
+      <input type="text" id="loginCoachUser" placeholder="Il tuo username">
+    </div>
+    <div class="field" id="coachCodeField">
+      <label>Codice</label>
+      <input type="text" inputmode="numeric" maxlength="6" id="loginCoachCode" placeholder="Codice a 6 cifre">
+    </div>
+
+    <!-- Atleta: nome + codice -->
+    <div class="field" id="clientNameField" style="display:none;">
       <label>Nome</label>
       <input type="text" id="loginName" placeholder="Il tuo nome">
     </div>
     <div class="field" id="clientCodeField" style="display:none;">
-      <label>Codice cliente</label>
+      <label>Codice atleta</label>
       <input type="text" id="loginClientCode" placeholder="Ricevuto dal tuo coach">
     </div>
+
     <button class="btn" id="loginBtn">Entra</button>
-    <div class="login-note">
+    <div class="login-note" id="loginNote">
       Demo locale: i dati restano nel browser finché non colleghi Firebase (vedi Impostazioni una volta dentro).
     </div>
   </div>
@@ -334,26 +373,76 @@ try{
   firebaseReady = true;
 }catch(e){ console.warn('Firebase non configurato, uso solo localStorage', e); }
 
-const COACH_ID = 'demo-coach'; // in futuro: uid reale da Firebase Auth
+// ADMIN: password fissa, modificabile qui. È un cerotto, non sicurezza vera —
+// va bene solo perché l'admin sei tu, e per ora l'unico modo di entrare come admin.
+const ADMIN_PASSWORD = "gimtonic2026";
 
-/* ---------- persistenza: Firestore se configurato, altrimenti localStorage ---------- */
-async function saveKey(key, value){
-  localStorage.setItem('gtc_'+key, JSON.stringify(value));
+let COACH_ID = null; // impostato dopo il login coach, con l'id del suo record nel registro
+
+/* ---------- persistenza dati coach: Firestore se configurato, altrimenti localStorage ---------- */
+async function saveKey(key, value, coachId){
+  const cid = coachId || COACH_ID;
+  localStorage.setItem('gtc_'+cid+'_'+key, JSON.stringify(value));
   if(firebaseReady){
     try{
-      await db.collection('coaches').doc(COACH_ID).collection('data').doc(key).set({value});
+      await db.collection('coaches').doc(cid).collection('data').doc(key).set({value});
     }catch(e){ console.warn('Errore salvataggio Firestore', e); }
   }
 }
-async function loadKey(key, fallback){
+async function loadKey(key, fallback, coachId){
+  const cid = coachId || COACH_ID;
   if(firebaseReady){
     try{
-      const doc = await db.collection('coaches').doc(COACH_ID).collection('data').doc(key).get();
+      const doc = await db.collection('coaches').doc(cid).collection('data').doc(key).get();
       if(doc.exists) return doc.data().value;
     }catch(e){ console.warn('Errore lettura Firestore', e); }
   }
-  const local = localStorage.getItem('gtc_'+key);
+  const local = localStorage.getItem('gtc_'+cid+'_'+key);
   return local ? JSON.parse(local) : fallback;
+}
+
+/* ---------- registro coach: creato dall'admin, usato per il login coach ---------- */
+async function getCoachRegistry(){
+  if(firebaseReady){
+    try{
+      const snap = await db.collection('coaches').get();
+      return snap.docs.filter(d => d.data().username).map(d => ({id:d.id, ...d.data()}));
+    }catch(e){ console.warn('Errore lettura registro coach', e); }
+  }
+  return JSON.parse(localStorage.getItem('gtc_coach_registry') || '[]');
+}
+async function addCoachToRegistry(entry){
+  entry.id = uid('coach');
+  entry.createdAt = Date.now();
+  if(firebaseReady){
+    try{
+      await db.collection('coaches').doc(entry.id).set(
+        {nome:entry.nome, cognome:entry.cognome, username:entry.username, codice:entry.codice, createdAt:entry.createdAt},
+        {merge:true}
+      );
+    }catch(e){ console.warn('Errore scrittura registro coach', e); }
+  }else{
+    const list = JSON.parse(localStorage.getItem('gtc_coach_registry') || '[]');
+    list.push(entry);
+    localStorage.setItem('gtc_coach_registry', JSON.stringify(list));
+  }
+  return entry;
+}
+async function findCoachByCredentials(username, codice){
+  const list = await getCoachRegistry();
+  return list.find(c => c.username === username && c.codice === codice);
+}
+async function findClientAcrossCoaches(code){
+  const coaches = await getCoachRegistry();
+  for(const co of coaches){
+    const clients = await loadKey('clients', [], co.id);
+    const match = clients.find(c => c.id === code);
+    if(match) return {coachId: co.id, client: match};
+  }
+  return null;
+}
+function genSixDigitCode(){
+  return Math.floor(100000 + Math.random()*900000).toString();
 }
 
 /* ============================================================
@@ -460,49 +549,86 @@ async function persistClients(){ await saveKey('clients', STATE.clients); }
    LOGIN
    ============================================================ */
 let selectedRole = 'coach';
+document.getElementById('adminSmallLink').onclick = () => setRole(selectedRole === 'admin' ? 'coach' : 'admin');
 document.getElementById('roleCoachBtn').onclick = () => setRole('coach');
 document.getElementById('roleClientBtn').onclick = () => setRole('client');
 function setRole(r){
   selectedRole = r;
   document.getElementById('roleCoachBtn').classList.toggle('active', r==='coach');
   document.getElementById('roleClientBtn').classList.toggle('active', r==='client');
+  document.getElementById('adminSmallLink').classList.toggle('active', r==='admin');
+  document.getElementById('mainRoleToggle').style.display = r==='admin' ? 'none' : 'flex';
+  document.getElementById('adminPassField').style.display = r==='admin' ? 'block' : 'none';
+  document.getElementById('coachUserField').style.display = r==='coach' ? 'block' : 'none';
+  document.getElementById('coachCodeField').style.display = r==='coach' ? 'block' : 'none';
+  document.getElementById('clientNameField').style.display = r==='client' ? 'block' : 'none';
   document.getElementById('clientCodeField').style.display = r==='client' ? 'block' : 'none';
 }
 
 document.getElementById('loginBtn').onclick = async () => {
-  const name = document.getElementById('loginName').value.trim();
-  if(!name){ alert('Inserisci il tuo nome'); return; }
-  STATE.role = selectedRole;
-  STATE.userName = name;
-
-  await loadAll();
-
-  if(selectedRole === 'client'){
-    const code = document.getElementById('loginClientCode').value.trim();
-    let client = STATE.clients.find(c => c.id === code || c.nome.toLowerCase() === name.toLowerCase());
-    if(!client){
-      alert('Cliente non trovato. Chiedi al coach di crearti nella sezione Clienti, oppure fai login come coach.');
-      return;
-    }
-    STATE.activeClientId = client.id;
+  if(selectedRole === 'admin'){
+    const pass = document.getElementById('loginAdminPass').value;
+    if(pass !== ADMIN_PASSWORD){ alert('Password errata'); return; }
+    STATE.role = 'admin';
+    STATE.userName = 'Admin';
+    enterApp();
+    return;
   }
 
+  if(selectedRole === 'coach'){
+    const username = document.getElementById('loginCoachUser').value.trim();
+    const codice = document.getElementById('loginCoachCode').value.trim();
+    if(!username || !codice){ alert('Inserisci username e codice'); return; }
+    const coach = await findCoachByCredentials(username, codice);
+    if(!coach){ alert('Username o codice non validi. Chiedi il codice al tuo admin.'); return; }
+    COACH_ID = coach.id;
+    STATE.role = 'coach';
+    STATE.userName = coach.nome + ' ' + coach.cognome;
+    await loadAll();
+    enterApp();
+    return;
+  }
+
+  // cliente
+  const name = document.getElementById('loginName').value.trim();
+  const code = document.getElementById('loginClientCode').value.trim();
+  if(!name || !code){ alert('Inserisci nome e codice atleta'); return; }
+  const found = await findClientAcrossCoaches(code);
+  if(!found){
+    alert('Atleta non trovato. Controlla il codice ricevuto dal tuo coach.');
+    return;
+  }
+  COACH_ID = found.coachId;
+  STATE.role = 'client';
+  STATE.userName = name;
+  await loadAll();
+  STATE.activeClientId = found.client.id;
+  enterApp();
+};
+
+function enterApp(){
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appShell').classList.add('active');
-  document.getElementById('sidebarRole').textContent = STATE.role === 'coach' ? 'Coach' : 'Cliente';
+  const roleLabels = {admin:'Admin', coach:'Coach', client:'Atleta'};
+  document.getElementById('sidebarRole').textContent = roleLabels[STATE.role];
   document.getElementById('whoAmI').textContent = STATE.userName;
   buildNav();
-  goPage(STATE.role === 'coach' ? 'dashboard' : 'gym');
-};
+  const landing = {admin:'admin', coach:'dashboard', client:'gym'};
+  goPage(landing[STATE.role]);
+}
 
 document.getElementById('logoutBtn').onclick = () => location.reload();
 
 /* ============================================================
    NAVIGAZIONE
    ============================================================ */
+const NAV_ADMIN = [
+  {id:'admin', label:'Gestione coach', icon:'⚑'},
+  {id:'settings', label:'Impostazioni', icon:'⚙'}
+];
 const NAV_COACH = [
   {id:'dashboard', label:'Dashboard', icon:'◧'},
-  {id:'clients', label:'Clienti', icon:'◍'},
+  {id:'clients', label:'Atleti', icon:'◍'},
   {id:'templates', label:'Libreria template', icon:'▤'},
   {id:'assign', label:'Assegna programma', icon:'→'},
   {id:'gym', label:'Log allenamento', icon:'●'},
@@ -516,7 +642,7 @@ const NAV_CLIENT = [
 ];
 
 function buildNav(){
-  const items = STATE.role === 'coach' ? NAV_COACH : NAV_CLIENT;
+  const items = STATE.role === 'admin' ? NAV_ADMIN : (STATE.role === 'coach' ? NAV_COACH : NAV_CLIENT);
   const nav = document.getElementById('navList');
   nav.innerHTML = items.map(n => `<button class="nav-btn" data-nav="${n.id}"><span>${n.icon}</span>${n.label}</button>`).join('');
   nav.querySelectorAll('.nav-btn').forEach(b => b.onclick = () => goPage(b.dataset.nav));
@@ -540,7 +666,8 @@ function render(){
     gym: renderGym,
     wellness: renderWellness,
     progress: renderProgress,
-    settings: renderSettings
+    settings: renderSettings,
+    admin: renderAdmin
   };
   el.innerHTML = (renderers[STATE.page] || renderDashboard)();
   attachPageHandlers();
@@ -556,17 +683,17 @@ function renderDashboard(){
   return `
     <div class="page-head">
       <h1>Dashboard</h1>
-      <p>Panoramica rapida sui tuoi clienti</p>
+      <p>Panoramica rapida sui tuoi atleti</p>
     </div>
     <div class="grid-2">
-      <div class="card"><div class="stat-num">${totalClients}</div><div class="stat-label">Clienti totali</div></div>
+      <div class="card"><div class="stat-num">${totalClients}</div><div class="stat-label">Atleti totali</div></div>
       <div class="card"><div class="stat-num">${activePrograms}</div><div class="stat-label">Programmi attivi</div></div>
       <div class="card"><div class="stat-num">${totalSessions}</div><div class="stat-label">Sessioni loggate (tutte)</div></div>
       <div class="card"><div class="stat-num">${STATE.templates.length}</div><div class="stat-label">Template in libreria</div></div>
     </div>
     <div class="card" style="margin-top:20px;">
-      <h3 style="font-size:18px; margin-bottom:12px;">Clienti recenti</h3>
-      ${STATE.clients.length === 0 ? emptyState('Nessun cliente ancora', 'Vai su Clienti per aggiungere il primo.') :
+      <h3 style="font-size:18px; margin-bottom:12px;">Atleti recenti</h3>
+      ${STATE.clients.length === 0 ? emptyState('Nessun atleta ancora', 'Vai su Atleti per aggiungere il primo.') :
         STATE.clients.slice(0,5).map(c => `
           <div class="list-row">
             <div>
@@ -591,17 +718,17 @@ function emptyState(title, sub){
 function renderClients(){
   return `
     <div class="page-head">
-      <h1>Clienti</h1>
+      <h1>Atleti</h1>
       <p>Gestisci l'anagrafica dei tuoi atleti</p>
     </div>
-    <button class="btn small" id="newClientBtn" style="width:auto; margin-bottom:18px;">+ Nuovo cliente</button>
+    <button class="btn small" id="newClientBtn" style="width:auto; margin-bottom:18px;">+ Nuovo atleta</button>
     <div class="card">
-      ${STATE.clients.length === 0 ? emptyState('Nessun cliente', 'Aggiungi il primo cliente per iniziare.') :
+      ${STATE.clients.length === 0 ? emptyState('Nessun atleta', 'Aggiungi il primo atleta per iniziare.') :
         STATE.clients.map(c => `
           <div class="list-row">
             <div>
               <div class="list-row-title">${c.nome}</div>
-              <div class="list-row-sub">${c.obiettivo || '—'} · codice cliente: <span class="mono">${c.id}</span></div>
+              <div class="list-row-sub">${c.obiettivo || '—'} · codice atleta: <span class="mono">${c.id}</span></div>
             </div>
             <div style="display:flex; gap:8px;">
               <button class="btn secondary small" data-edit-client="${c.id}">Modifica</button>
@@ -617,12 +744,12 @@ function renderClients(){
 function openClientModal(existing){
   const c = existing || {id: uid('cl'), nome:'', obiettivo:'', note:'', maxes:{}, logs:[], wellness:{}, programma_attivo:null};
   document.getElementById('modalBody').innerHTML = `
-    <h2>${existing ? 'Modifica cliente' : 'Nuovo cliente'}</h2>
+    <h2>${existing ? 'Modifica atleta' : 'Nuovo atleta'}</h2>
     <div class="field"><label>Nome</label><input type="text" id="mClNome" value="${c.nome}"></div>
     <div class="field"><label>Obiettivo</label><input type="text" id="mClObiettivo" value="${c.obiettivo}" placeholder="es. Hyrox, ipertrofia, forza..."></div>
     <div class="field"><label>Note (infortuni, limitazioni)</label><textarea id="mClNote" rows="3">${c.note||''}</textarea></div>
     <div class="field">
-      <label>Codice cliente (per il login)</label>
+      <label>Codice atleta (per il login)</label>
       <input type="text" id="mClId" value="${c.id}" ${existing?'disabled':''}>
     </div>
     <div class="modal-actions">
@@ -652,7 +779,7 @@ function renderTemplates(){
   return `
     <div class="page-head">
       <h1>Libreria template</h1>
-      <p>Struttura riutilizzabile: modificarla non tocca i clienti già assegnati</p>
+      <p>Struttura riutilizzabile: modificarla non tocca gli atleti già assegnati</p>
     </div>
     <button class="btn small" id="newTemplateBtn" style="width:auto; margin-bottom:18px;">+ Nuovo template</button>
     <div class="card">
@@ -751,15 +878,15 @@ function renderTemplateModalBody(t, isNew){
    ASSEGNA PROGRAMMA (copia scollegata dal template)
    ============================================================ */
 function renderAssign(){
-  if(STATE.clients.length === 0) return `<div class="page-head"><h1>Assegna programma</h1></div><div class="card">${emptyState('Nessun cliente','Crea prima un cliente nella sezione Clienti.')}</div>`;
+  if(STATE.clients.length === 0) return `<div class="page-head"><h1>Assegna programma</h1></div><div class="card">${emptyState('Nessun atleta','Crea prima un atleta nella sezione Atleti.')}</div>`;
   if(STATE.templates.length === 0) return `<div class="page-head"><h1>Assegna programma</h1></div><div class="card">${emptyState('Nessun template','Crea prima un template nella Libreria.')}</div>`;
   return `
     <div class="page-head">
       <h1>Assegna programma</h1>
-      <p>Il template viene copiato: modificarlo dopo non tocca l'originale né altri clienti</p>
+      <p>Il template viene copiato: modificarlo dopo non tocca l'originale né altri atleti</p>
     </div>
     <div class="card">
-      <label class="field-label">Cliente</label>
+      <label class="field-label">Atleta</label>
       <select id="assignClientSel">
         ${STATE.clients.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('')}
       </select>
@@ -788,7 +915,7 @@ function renderGym(){
 
   const clientPicker = STATE.role === 'coach' ? `
     <div class="field" style="max-width:300px;">
-      <label class="field-label">Visualizza cliente</label>
+      <label class="field-label">Visualizza atleta</label>
       <select id="gymClientSel">
         ${STATE.clients.map(c=>`<option value="${c.id}" ${c.id===STATE.activeClientId?'selected':''}>${c.nome}</option>`).join('')}
       </select>
@@ -796,7 +923,7 @@ function renderGym(){
   ` : '';
 
   if(!client){
-    return `<div class="page-head"><h1>Log allenamento</h1></div>${clientPicker}<div class="card">${emptyState('Nessun cliente selezionato','Crea o scegli un cliente.')}</div>`;
+    return `<div class="page-head"><h1>Log allenamento</h1></div>${clientPicker}<div class="card">${emptyState('Nessun atleta selezionato','Crea o scegli un atleta.')}</div>`;
   }
   if(!client.programma_attivo){
     return `<div class="page-head"><h1>Log allenamento</h1><p>${client.nome}</p></div>${clientPicker}<div class="card">${emptyState('Nessun programma assegnato', STATE.role==='coach' ? 'Vai su "Assegna programma" per crearne uno.' : 'Il tuo coach non ti ha ancora assegnato un programma.')}</div>`;
@@ -859,13 +986,13 @@ function renderWellness(){
   }
   const clientPicker = STATE.role === 'coach' ? `
     <div class="field" style="max-width:300px;">
-      <label class="field-label">Cliente</label>
+      <label class="field-label">Atleta</label>
       <select id="wellClientSel">
         ${STATE.clients.map(c=>`<option value="${c.id}" ${c.id===STATE.activeClientId?'selected':''}>${c.nome}</option>`).join('')}
       </select>
     </div>
   ` : '';
-  if(!client) return `<div class="page-head"><h1>Wellness</h1></div>${clientPicker}<div class="card">${emptyState('Nessun cliente','Crea o scegli un cliente.')}</div>`;
+  if(!client) return `<div class="page-head"><h1>Wellness</h1></div>${clientPicker}<div class="card">${emptyState('Nessun atleta','Crea o scegli un atleta.')}</div>`;
 
   const today = new Date().toISOString().slice(0,10);
   const w = (client.wellness && client.wellness[today]) || {sonno:0, doms:0, stress:0, energia:0};
@@ -920,6 +1047,80 @@ function renderProgress(){
 }
 
 /* ============================================================
+   GESTIONE COACH (solo admin)
+   ============================================================ */
+let _coachRegistryCache = [];
+function renderAdmin(){
+  return `
+    <div class="page-head">
+      <h1>Gestione coach</h1>
+      <p>Crea gli account coach: username scelto da te, codice generato automaticamente</p>
+    </div>
+    <button class="btn small" id="newCoachBtn" style="width:auto; margin-bottom:18px;">+ Nuovo coach</button>
+    <div class="card" id="coachRegistryCard">Caricamento...</div>
+  `;
+}
+async function loadAndRenderCoachRegistry(){
+  _coachRegistryCache = await getCoachRegistry();
+  const card = document.getElementById('coachRegistryCard');
+  if(!card) return;
+  card.innerHTML = _coachRegistryCache.length === 0 ? emptyState('Nessun coach ancora', 'Crea il primo account coach.') :
+    _coachRegistryCache.map(c => `
+      <div class="list-row">
+        <div>
+          <div class="list-row-title">${c.nome} ${c.cognome}</div>
+          <div class="list-row-sub">username: <span class="mono">${c.username}</span></div>
+        </div>
+        <span class="tag mono" style="font-size:14px; padding:6px 10px;">${c.codice}</span>
+      </div>
+    `).join('');
+}
+function openNewCoachModal(){
+  document.getElementById('modalBody').innerHTML = `
+    <h2>Nuovo coach</h2>
+    <div class="field"><label>Nome</label><input type="text" id="mCoNome"></div>
+    <div class="field"><label>Cognome</label><input type="text" id="mCoCognome"></div>
+    <div class="field"><label>Username</label><input type="text" id="mCoUsername" placeholder="usato per il login"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="modalCancel">Annulla</button>
+      <button class="btn" id="modalSaveCoach">Crea e genera codice</button>
+    </div>
+  `;
+  document.getElementById('modalBackdrop').classList.add('active');
+  document.getElementById('modalCancel').onclick = closeModal;
+  document.getElementById('modalSaveCoach').onclick = async () => {
+    const nome = document.getElementById('mCoNome').value.trim();
+    const cognome = document.getElementById('mCoCognome').value.trim();
+    const username = document.getElementById('mCoUsername').value.trim();
+    if(!nome || !username){ alert('Nome e username sono obbligatori'); return; }
+    const existing = await getCoachRegistry();
+    if(existing.some(c => c.username === username)){ alert('Username già in uso, scegline un altro'); return; }
+    const codice = genSixDigitCode();
+    const entry = await addCoachToRegistry({nome, cognome, username, codice});
+    document.getElementById('modalBody').innerHTML = `
+      <h2>Coach creato</h2>
+      <p style="color:var(--ink-soft); font-size:14px; margin-bottom:16px;">
+        Comunica queste credenziali a ${entry.nome}. Il codice non verrà mostrato di nuovo qui — se lo perde, elimina il coach e ricrealo.
+      </p>
+      <div class="card" style="text-align:center; padding:24px;">
+        <div class="stat-label">Username</div>
+        <div class="stat-num" style="font-size:22px;">${entry.username}</div>
+        <div style="height:14px;"></div>
+        <div class="stat-label">Codice</div>
+        <div class="stat-num" style="font-size:36px; color:var(--accent);">${entry.codice}</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="modalCloseAfterCoach">Chiudi</button>
+      </div>
+    `;
+    document.getElementById('modalCloseAfterCoach').onclick = async () => {
+      closeModal();
+      await loadAndRenderCoachRegistry();
+    };
+  };
+}
+
+/* ============================================================
    IMPOSTAZIONI
    ============================================================ */
 function renderSettings(){
@@ -936,7 +1137,7 @@ function renderSettings(){
     <div class="card">
       <h3 style="font-size:16px; margin-bottom:10px;">Promemoria sicurezza</h3>
       <p style="color:var(--ink-soft); font-size:14px; line-height:1.6;">
-        Questo prototipo non ha ancora autenticazione reale né regole Firestore per-utente. Prima di usarlo con dati veri di più clienti, va aggiunta Firebase Authentication e regole che isolano i dati per coach/cliente.
+        Il login ad oggi è: password admin fissa nel codice, e username/codice coach verificati leggendo Firestore in chiaro (regole ancora aperte a tutti). Funziona, ma chiunque legga il file sorgente vede la password admin, e le regole Firestore permettono lettura/scrittura a chiunque abbia il link. Prima di avere molti atleti reali, va sostituito con Firebase Authentication vera e regole Firestore che verificano l'identità lato server.
       </p>
     </div>
   `;
@@ -946,6 +1147,11 @@ function renderSettings(){
    EVENT HANDLERS DI PAGINA (delegati dopo ogni render)
    ============================================================ */
 function attachPageHandlers(){
+  // Admin
+  const newCoachBtn = document.getElementById('newCoachBtn');
+  if(newCoachBtn) newCoachBtn.onclick = openNewCoachModal;
+  if(document.getElementById('coachRegistryCard')) loadAndRenderCoachRegistry();
+
   // Clienti
   const newClientBtn = document.getElementById('newClientBtn');
   if(newClientBtn) newClientBtn.onclick = () => openClientModal(null);
@@ -954,7 +1160,7 @@ function attachPageHandlers(){
     openClientModal(c);
   });
   document.querySelectorAll('[data-del-client]').forEach(b => b.onclick = async () => {
-    if(!confirm('Eliminare questo cliente e tutti i suoi dati?')) return;
+    if(!confirm('Eliminare questo atleta e tutti i suoi dati?')) return;
     STATE.clients = STATE.clients.filter(x=>x.id!==b.dataset.delClient);
     await persistClients();
     render();
