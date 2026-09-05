@@ -1,0 +1,1783 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>GIMTONIC Coaching</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<!-- ========================================================
+     FIREBASE (compat SDK, stesso pattern di Team Hub Pro)
+     Sostituisci firebaseConfig con quello del TUO progetto
+     Firebase per GIMTONIC Coaching (NON quello di Team Hub Pro).
+     ======================================================== -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+
+<style>
+:root{
+  --bg:#14161B;
+  --surface:#1D2027;
+  --surface-2:#262A32;
+  --line:#343943;
+  --ink:#F2F1ED;
+  --ink-soft:#A7ACB6;
+  --accent:#E0A458;
+  --accent-soft:#3A2F20;
+  --accent2:#7FA87F;
+  --accent2-soft:#20281F;
+  --danger:#D9694F;
+  --danger-soft:#2C1E1A;
+  --radius:6px;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.display{
+  font-family:'Big Shoulders Display',sans-serif;
+  font-weight:700;
+  letter-spacing:0.01em;
+  line-height:1.05;
+}
+.mono{font-family:'IBM Plex Mono',monospace;}
+a{color:inherit;}
+button{font-family:inherit; cursor:pointer;}
+
+/* ---------- LOGIN ---------- */
+#loginScreen{
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+}
+.login-card{
+  width:100%;
+  max-width:380px;
+}
+.login-brand{
+  font-size:15px;
+  color:var(--accent);
+  font-weight:600;
+  letter-spacing:0.04em;
+  margin-bottom:6px;
+}
+.login-top-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+}
+.admin-link{
+  background:none;
+  border:none;
+  color:var(--ink-soft);
+  font-size:11px;
+  padding:2px 4px;
+  opacity:0.55;
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
+.admin-link:hover{opacity:0.85;}
+.admin-link.active{color:var(--accent); opacity:1;}
+.login-card h1{
+  font-size:40px;
+  margin-bottom:28px;
+  color:var(--ink);
+}
+.role-toggle{
+  display:flex;
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  overflow:hidden;
+  margin-bottom:20px;
+}
+.role-toggle button{
+  flex:1;
+  background:var(--surface);
+  color:var(--ink-soft);
+  border:none;
+  padding:12px;
+  font-size:14px;
+  font-weight:600;
+  transition:background .15s, color .15s;
+}
+.role-toggle button.active{
+  background:var(--accent-soft);
+  color:var(--accent);
+}
+.field{margin-bottom:14px;}
+.field label{
+  display:block;
+  font-size:13px;
+  color:var(--ink-soft);
+  margin-bottom:6px;
+}
+.field input{
+  width:100%;
+  background:var(--surface);
+  border:1px solid var(--line);
+  color:var(--ink);
+  padding:12px;
+  border-radius:var(--radius);
+  font-size:15px;
+}
+.field input:focus{outline:2px solid var(--accent); outline-offset:-1px;}
+.btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  background:var(--accent);
+  color:#1A140A;
+  border:none;
+  padding:12px 20px;
+  border-radius:var(--radius);
+  font-size:15px;
+  font-weight:700;
+  width:100%;
+  margin-top:6px;
+}
+.btn:focus-visible, button:focus-visible, .nav-btn:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+.btn.secondary{background:var(--surface-2); color:var(--ink); border:1px solid var(--line);}
+.btn.danger{background:var(--danger-soft); color:var(--danger); border:1px solid var(--danger);}
+.btn.small{padding:8px 14px; font-size:13px; width:auto;}
+.login-note{
+  font-size:12px;
+  color:var(--ink-soft);
+  margin-top:16px;
+  line-height:1.5;
+}
+
+/* ---------- APP SHELL ---------- */
+#appShell{display:none; min-height:100vh;}
+#appShell.active{display:flex;}
+.sidebar{
+  width:230px;
+  flex-shrink:0;
+  background:var(--surface);
+  border-right:1px solid var(--line);
+  display:flex;
+  flex-direction:column;
+  padding:20px 0;
+  position:sticky;
+  top:0;
+  height:100vh;
+}
+.sidebar-head{padding:0 20px 20px; border-bottom:1px solid var(--line); margin-bottom:12px;}
+.sidebar-head .brand{font-size:22px; color:var(--ink);}
+.sidebar-head .role-tag{font-size:12px; color:var(--accent); margin-top:2px;}
+.nav{flex:1; display:flex; flex-direction:column; gap:2px; padding:0 10px;}
+.nav-btn{
+  display:flex; align-items:center; gap:10px;
+  background:none; border:none; color:var(--ink-soft);
+  padding:11px 12px; border-radius:var(--radius); font-size:14px; font-weight:500;
+  text-align:left; width:100%;
+}
+.nav-btn:hover{background:var(--surface-2); color:var(--ink);}
+.nav-btn.active{background:var(--accent-soft); color:var(--accent);}
+.sidebar-foot{padding:12px 20px 0; border-top:1px solid var(--line); margin-top:12px;}
+.sidebar-foot .who{font-size:13px; color:var(--ink-soft); margin-bottom:10px;}
+.logout-btn{background:none; border:1px solid var(--line); color:var(--ink-soft); padding:8px 12px; border-radius:var(--radius); font-size:13px; width:100%;}
+
+.main{flex:1; padding:32px 40px; max-width:1100px;}
+.page-head{margin-bottom:28px;}
+.page-head h1{font-size:32px;}
+.page-head p{color:var(--ink-soft); font-size:14px; margin-top:4px;}
+
+.card{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:20px;
+}
+.card + .card{margin-top:14px;}
+.grid-2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+.stat-num{font-family:'IBM Plex Mono',monospace; font-size:30px; font-weight:600; color:var(--ink);}
+.stat-label{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+
+.list-row{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 0; border-bottom:1px solid var(--line);
+}
+.list-row:last-child{border-bottom:none;}
+.list-row-title{font-size:15px; font-weight:600;}
+.list-row-sub{font-size:13px; color:var(--ink-soft); margin-top:2px;}
+.tag{
+  display:inline-block; font-size:11px; padding:3px 8px; border-radius:4px;
+  background:var(--surface-2); color:var(--ink-soft); border:1px solid var(--line);
+}
+.empty-state{
+  text-align:center; padding:50px 20px; color:var(--ink-soft);
+}
+.empty-state .display{font-size:22px; color:var(--ink); margin-bottom:8px;}
+
+.modal-backdrop{
+  display:none; position:fixed; inset:0; background:rgba(10,11,14,.7);
+  align-items:flex-start; justify-content:center; padding:40px 20px; overflow-y:auto; z-index:50;
+}
+.modal-backdrop.active{display:flex;}
+.modal{
+  background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+  width:100%; max-width:560px; padding:26px;
+}
+.modal h2{font-size:24px; margin-bottom:18px;}
+.modal-actions{display:flex; gap:10px; margin-top:20px;}
+
+.day-block{border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:12px;}
+.day-block-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+.day-block-head input{background:transparent; border:none; color:var(--ink); font-size:16px; font-weight:700; font-family:'Big Shoulders Display'; width:70%;}
+.ex-row{display:grid; grid-template-columns:2fr 1fr 1fr 1fr auto; gap:8px; align-items:center; margin-bottom:8px;}
+.ex-row input{background:var(--surface-2); border:1px solid var(--line); color:var(--ink); padding:8px; border-radius:4px; font-size:13px;}
+.ex-row input.mono-field{font-family:'IBM Plex Mono',monospace;}
+.icon-btn{background:none; border:none; color:var(--ink-soft); font-size:16px; padding:6px;}
+.icon-btn:hover{color:var(--danger);}
+
+/* Gym mode */
+.gym-set-row{
+  display:flex; flex-direction:column; gap:8px;
+  padding:12px; border:1px solid var(--line); border-radius:var(--radius); margin-bottom:8px;
+}
+.gym-set-row.done{border-color:var(--accent2); background:var(--accent2-soft);}
+.gym-set-top{display:grid; grid-template-columns:auto 1fr 1fr auto; gap:10px; align-items:center;}
+.gym-set-num{font-family:'IBM Plex Mono'; color:var(--ink-soft); font-size:13px;}
+.rest-timer-bar{
+  position:fixed; bottom:0; left:0; right:0; z-index:60;
+  background:var(--surface); border-top:1px solid var(--accent);
+  padding:14px 24px; display:flex; align-items:center; justify-content:center; gap:16px;
+}
+.gym-set-row input{background:var(--surface-2); border:1px solid var(--line); color:var(--ink); padding:9px; border-radius:4px; font-family:'IBM Plex Mono'; font-size:15px; text-align:center;}
+.check-btn{background:var(--surface-2); border:1px solid var(--line); color:var(--ink-soft); width:38px; height:38px; border-radius:4px; font-size:16px;}
+.check-btn.done{background:var(--accent2); color:#12200F; border-color:var(--accent2);}
+.gym-scale-row{display:flex; gap:5px; flex-wrap:wrap;}
+.scale-btn{
+  background:var(--surface-2); border:1px solid var(--line); color:var(--ink-soft);
+  padding:7px 0; border-radius:4px; font-family:'IBM Plex Mono'; font-size:13px; flex:1; min-width:38px;
+}
+.scale-btn.active{background:var(--accent); color:#1A140A; border-color:var(--accent); font-weight:600;}
+.ex-header{font-size:20px; margin:22px 0 10px;}
+.ex-header:first-child{margin-top:0;}
+.target-line{font-size:12px; color:var(--ink-soft); margin-bottom:10px;}
+
+select{
+  background:var(--surface-2); border:1px solid var(--line); color:var(--ink);
+  padding:10px 12px; border-radius:var(--radius); font-size:14px; width:100%;
+}
+label.field-label{display:block; font-size:13px; color:var(--ink-soft); margin-bottom:6px;}
+
+textarea{
+  width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--ink);
+  padding:10px; border-radius:var(--radius); font-size:14px; font-family:'Inter'; resize:vertical;
+}
+
+.wellness-scale{display:flex; gap:6px; margin-bottom:16px;}
+.wellness-scale button{
+  flex:1; padding:10px 0; background:var(--surface-2); border:1px solid var(--line); color:var(--ink-soft);
+  border-radius:4px; font-family:'IBM Plex Mono'; font-size:14px;
+}
+.wellness-scale button.active{background:var(--accent); color:#1A140A; border-color:var(--accent);}
+
+@media(max-width:820px){
+  #appShell.active{flex-direction:column;}
+  .sidebar{width:100%; height:auto; position:relative; flex-direction:row; align-items:center; padding:14px 16px; overflow-x:auto;}
+  .sidebar-head, .sidebar-foot{display:none;}
+  .nav{flex-direction:row; padding:0;}
+  .nav-btn{white-space:nowrap;}
+  .main{padding:20px 18px;}
+  .grid-2{grid-template-columns:1fr;}
+  .ex-row{grid-template-columns:1fr 1fr; grid-template-areas:"name name" "serie reps" "target del";}
+}
+</style>
+</head>
+<body>
+
+<!-- ========================= LOGIN ========================= -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-top-row">
+      <div class="login-brand">GIMTONIC</div>
+      <button id="adminSmallLink" class="admin-link">Admin</button>
+    </div>
+    <h1>Coaching</h1>
+    <div class="role-toggle" id="mainRoleToggle">
+      <button id="roleCoachBtn" class="active" data-role="coach">Coach</button>
+      <button id="roleClientBtn" data-role="client">Atleta</button>
+    </div>
+
+    <!-- Admin: solo password -->
+    <div class="field" id="adminPassField" style="display:none;">
+      <label>Password admin</label>
+      <input type="password" id="loginAdminPass" placeholder="Password">
+    </div>
+
+    <!-- Coach: username + codice dati dall'admin -->
+    <div class="field" id="coachUserField">
+      <label>Username</label>
+      <input type="text" id="loginCoachUser" placeholder="Il tuo username">
+    </div>
+    <div class="field" id="coachCodeField">
+      <label>Codice</label>
+      <input type="text" inputmode="numeric" maxlength="6" id="loginCoachCode" placeholder="Codice a 6 cifre">
+    </div>
+
+    <!-- Atleta: nome + codice -->
+    <div class="field" id="clientNameField" style="display:none;">
+      <label>Nome</label>
+      <input type="text" id="loginName" placeholder="Il tuo nome">
+    </div>
+    <div class="field" id="clientCodeField" style="display:none;">
+      <label>Codice atleta</label>
+      <input type="text" id="loginClientCode" placeholder="Ricevuto dal tuo coach">
+    </div>
+
+    <button class="btn" id="loginBtn">Entra</button>
+    <div class="login-note" id="loginNote">
+      Demo locale: i dati restano nel browser finché non colleghi Firebase (vedi Impostazioni una volta dentro).
+    </div>
+  </div>
+</div>
+
+<!-- ========================= APP ========================= -->
+<div id="appShell">
+  <div class="sidebar">
+    <div class="sidebar-head">
+      <div class="brand display">GIMTONIC</div>
+      <div class="role-tag" id="sidebarRole">Coach</div>
+    </div>
+    <div class="nav" id="navList"></div>
+    <div class="sidebar-foot">
+      <div class="who" id="whoAmI"></div>
+      <button class="logout-btn" id="logoutBtn">Esci</button>
+    </div>
+  </div>
+  <div class="main" id="pageContent"></div>
+</div>
+
+<div class="rest-timer-bar" id="restTimerBar" style="display:none;">
+  <span style="font-size:13px; color:var(--ink-soft);">Recupero</span>
+  <span class="mono" id="restTimerValue" style="font-size:22px; font-weight:600;">00:00</span>
+  <button class="btn secondary small" id="restTimerSkip">Salta</button>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modalBody"></div>
+</div>
+
+<script>
+/* ============================================================
+   FIRESTORE CONFIG — sostituisci con il progetto Firebase
+   creato per GIMTONIC Coaching (NON quello di Team Hub Pro)
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyAJaMEYyv_dUlwRzC4P1ae08o-qRgpXAhY",
+  authDomain: "gimtonic-coaching.firebaseapp.com",
+  projectId: "gimtonic-coaching",
+  storageBucket: "gimtonic-coaching.firebasestorage.app",
+  messagingSenderId: "429886763766",
+  appId: "1:429886763766:web:9230b784240e22abbaf2d7"
+};
+
+let db = null;
+let firebaseReady = false;
+try{
+  const fbApp = firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore(fbApp);
+  firebaseReady = true;
+}catch(e){ console.warn('Firebase non configurato, uso solo localStorage', e); }
+
+// ADMIN: password fissa, modificabile qui. È un cerotto, non sicurezza vera —
+// va bene solo perché l'admin sei tu, e per ora l'unico modo di entrare come admin.
+// ADMIN: password ora salvata su Firestore (o localStorage in demo locale),
+// modificabile dall'app in Impostazioni. Prima esecuzione = default sotto.
+const ADMIN_PASSWORD_DEFAULT = "gimtonic2026";
+async function getAdminPassword(){
+  if(firebaseReady){
+    try{
+      const doc = await db.collection('config').doc('admin').get();
+      if(doc.exists && doc.data().password) return doc.data().password;
+    }catch(e){ console.warn('Errore lettura password admin', e); }
+  }
+  return localStorage.getItem('gtc_admin_password') || ADMIN_PASSWORD_DEFAULT;
+}
+async function setAdminPassword(newPass){
+  localStorage.setItem('gtc_admin_password', newPass);
+  if(firebaseReady){
+    await db.collection('config').doc('admin').set({password:newPass}, {merge:true});
+  }
+}
+
+let COACH_ID = null; // impostato dopo il login coach, con l'id del suo record nel registro
+
+/* ---------- persistenza dati coach: Firestore se configurato, altrimenti localStorage ---------- */
+async function saveKey(key, value, coachId){
+  const cid = coachId || COACH_ID;
+  localStorage.setItem('gtc_'+cid+'_'+key, JSON.stringify(value));
+  if(firebaseReady){
+    try{
+      await db.collection('coaches').doc(cid).collection('data').doc(key).set({value});
+    }catch(e){ console.warn('Errore salvataggio Firestore', e); }
+  }
+}
+async function loadKey(key, fallback, coachId){
+  const cid = coachId || COACH_ID;
+  if(firebaseReady){
+    try{
+      const doc = await db.collection('coaches').doc(cid).collection('data').doc(key).get();
+      if(doc.exists) return doc.data().value;
+    }catch(e){ console.warn('Errore lettura Firestore', e); }
+  }
+  const local = localStorage.getItem('gtc_'+cid+'_'+key);
+  return local ? JSON.parse(local) : fallback;
+}
+
+/* ---------- registro coach: creato dall'admin, usato per il login coach ---------- */
+async function getCoachRegistry(){
+  if(firebaseReady){
+    try{
+      const snap = await db.collection('coaches').get();
+      return snap.docs.filter(d => d.data().username).map(d => ({id:d.id, ...d.data()}));
+    }catch(e){ console.warn('Errore lettura registro coach', e); }
+  }
+  return JSON.parse(localStorage.getItem('gtc_coach_registry') || '[]');
+}
+async function addCoachToRegistry(entry){
+  entry.id = uid('coach');
+  entry.createdAt = Date.now();
+  if(firebaseReady){
+    // Non ingoiare l'errore: se le regole Firestore negano la scrittura,
+    // l'admin deve saperlo subito, non vedere un falso "creato con successo"
+    await db.collection('coaches').doc(entry.id).set(
+      {nome:entry.nome, cognome:entry.cognome, username:entry.username, codice:entry.codice, createdAt:entry.createdAt},
+      {merge:true}
+    );
+  }else{
+    const list = JSON.parse(localStorage.getItem('gtc_coach_registry') || '[]');
+    list.push(entry);
+    localStorage.setItem('gtc_coach_registry', JSON.stringify(list));
+  }
+  return entry;
+}
+async function findCoachByCredentials(username, codice){
+  const list = await getCoachRegistry();
+  return list.find(c => c.username === username && c.codice === codice);
+}
+async function findClientAcrossCoaches(code){
+  const coaches = await getCoachRegistry();
+  for(const co of coaches){
+    const clients = await loadKey('clients', [], co.id);
+    const match = clients.find(c => c.id === code);
+    if(match) return {coachId: co.id, client: match};
+  }
+  return null;
+}
+function genSixDigitCode(){
+  return Math.floor(100000 + Math.random()*900000).toString();
+}
+
+/* ============================================================
+   TEMPLATE DI ESEMPIO — libreria di partenza, modificabile
+   ============================================================ */
+const DEFAULT_TEMPLATES = [
+  {
+    id: 'tpl_ipertrofia_4gg',
+    nome: 'Ipertrofia 4gg - Intermedio',
+    giorni: [
+      {nome:'Push A (Petto/Spalle/Tricipiti)', esercizi:[
+        {esercizio:'Panca piana', serie:4, reps:8, target:'75%1RM', riposo_sec:120},
+        {esercizio:'Military press manubri', serie:3, reps:10, target:'RIR2', riposo_sec:90},
+        {esercizio:'Croci ai cavi', serie:3, reps:12, target:'RIR1', riposo_sec:60},
+        {esercizio:'French press', serie:3, reps:12, target:'RIR1', riposo_sec:60}
+      ]},
+      {nome:'Pull A (Schiena/Bicipiti)', esercizi:[
+        {esercizio:'Trazioni zavorrate', serie:4, reps:6, target:'RIR2', riposo_sec:150},
+        {esercizio:'Rematore bilanciere', serie:4, reps:8, target:'75%1RM', riposo_sec:120},
+        {esercizio:'Pulley presa stretta', serie:3, reps:12, target:'RIR1', riposo_sec:60},
+        {esercizio:'Curl bilanciere', serie:3, reps:10, target:'RIR1', riposo_sec:60}
+      ]},
+      {nome:'Legs A (Quadricipiti dominante)', esercizi:[
+        {esercizio:'Back squat', serie:4, reps:6, target:'80%1RM', riposo_sec:180},
+        {esercizio:'Leg press', serie:3, reps:12, target:'RIR2', riposo_sec:120},
+        {esercizio:'Leg extension', serie:3, reps:15, target:'RIR1', riposo_sec:60},
+        {esercizio:'Polpacci in piedi', serie:4, reps:15, target:'RIR1', riposo_sec:45}
+      ]},
+      {nome:'Upper B (Full upper leggero)', esercizi:[
+        {esercizio:'Panca inclinata manubri', serie:3, reps:10, target:'RIR2', riposo_sec:90},
+        {esercizio:'Lat machine presa larga', serie:3, reps:10, target:'RIR2', riposo_sec:90},
+        {esercizio:'Alzate laterali', serie:3, reps:15, target:'RIR1', riposo_sec:45},
+        {esercizio:'Curl + French press superset', serie:3, reps:12, target:'RIR1', riposo_sec:60}
+      ]}
+    ]
+  },
+  {
+    id: 'tpl_forza_3gg',
+    nome: 'Forza 3gg',
+    giorni: [
+      {nome:'Squat Day', esercizi:[
+        {esercizio:'Back squat', serie:5, reps:5, target:'80%1RM', riposo_sec:180},
+        {esercizio:'Affondi bulgari', serie:3, reps:8, target:'RIR2', riposo_sec:90},
+        {esercizio:'Leg curl', serie:3, reps:10, target:'RIR1', riposo_sec:60}
+      ]},
+      {nome:'Bench Day', esercizi:[
+        {esercizio:'Panca piana', serie:5, reps:5, target:'80%1RM', riposo_sec:180},
+        {esercizio:'Panca stretta', serie:3, reps:8, target:'RIR2', riposo_sec:90},
+        {esercizio:'Trazioni', serie:3, reps:8, target:'RIR2', riposo_sec:90}
+      ]},
+      {nome:'Deadlift Day', esercizi:[
+        {esercizio:'Stacco da terra', serie:4, reps:4, target:'82%1RM', riposo_sec:210},
+        {esercizio:'Hip thrust', serie:3, reps:10, target:'RIR2', riposo_sec:90},
+        {esercizio:'Plank zavorrato', serie:3, reps:1, target:'45sec', riposo_sec:60}
+      ]}
+    ]
+  },
+  {
+    id: 'tpl_hyrox_prep',
+    nome: 'Hyrox Prep',
+    giorni: [
+      {nome:'Forza + Compromised Running A', esercizi:[
+        {esercizio:'Back squat', serie:4, reps:6, target:'78%1RM', riposo_sec:120},
+        {esercizio:'Sled push', serie:4, reps:1, target:'20m', riposo_sec:90},
+        {esercizio:'Corsa post-stazione', serie:4, reps:1, target:'400m', riposo_sec:60}
+      ]},
+      {nome:'Stazioni + Running B', esercizi:[
+        {esercizio:'Wall balls', serie:4, reps:20, target:'RIR1', riposo_sec:90},
+        {esercizio:'Rematore (erg)', serie:4, reps:1, target:'500m', riposo_sec:90},
+        {esercizio:'Corsa post-stazione', serie:4, reps:1, target:'400m', riposo_sec:60}
+      ]},
+      {nome:'Simulazione Parziale (test ricorrente)', esercizi:[
+        {esercizio:'Run 1km', serie:1, reps:1, target:'max_effort', riposo_sec:0},
+        {esercizio:'Sled pull 20m', serie:1, reps:1, target:'max_effort', riposo_sec:0},
+        {esercizio:'Run 1km', serie:1, reps:1, target:'max_effort', riposo_sec:0},
+        {esercizio:'Burpee broad jump', serie:1, reps:20, target:'max_effort', riposo_sec:0}
+      ]}
+    ]
+  }
+];
+
+/* ============================================================
+   LIBRERIA ESERCIZI DI DEFAULT — categorizzata, con tag tipo
+   (bilaterale / monolaterale / monopodalico / isometrico / cardio)
+   Modificabile liberamente da ogni coach: aggiungere/modificare/
+   eliminare qui non tocca gli altri coach, ognuno ha la sua copia.
+   ============================================================ */
+function ex(nome, categoria, tipo){ return {id: uid('ex'), nome, categoria, tipo}; }
+const DEFAULT_EXERCISES = [
+  // PETTO
+  ex('Panca piana bilanciere','Petto','bilaterale'),
+  ex('Panca inclinata bilanciere','Petto','bilaterale'),
+  ex('Panca declinata bilanciere','Petto','bilaterale'),
+  ex('Panca piana manubri','Petto','bilaterale'),
+  ex('Panca inclinata manubri','Petto','bilaterale'),
+  ex('Panca monobraccio manubrio','Petto','monolaterale'),
+  ex('Croci ai cavi','Petto','bilaterale'),
+  ex('Croci manubri panca piana','Petto','bilaterale'),
+  ex('Chest press machine','Petto','bilaterale'),
+  ex('Pectoral machine (Peck deck)','Petto','bilaterale'),
+  ex('Dip alle parallele','Petto','bilaterale'),
+  ex('Push-up','Petto','bilaterale'),
+  ex('Push-up monobraccio (elevato)','Petto','monolaterale'),
+  ex('Pullover manubrio','Petto','bilaterale'),
+  // DORSO
+  ex('Trazioni presa prona','Dorso','bilaterale'),
+  ex('Trazioni presa supina','Dorso','bilaterale'),
+  ex('Trazioni zavorrate','Dorso','bilaterale'),
+  ex('Lat machine presa larga','Dorso','bilaterale'),
+  ex('Lat machine presa stretta','Dorso','bilaterale'),
+  ex('Lat machine monobraccio','Dorso','monolaterale'),
+  ex('Rematore bilanciere','Dorso','bilaterale'),
+  ex('Rematore manubrio monobraccio','Dorso','monolaterale'),
+  ex('Rematore T-bar','Dorso','bilaterale'),
+  ex('Pulley basso presa stretta','Dorso','bilaterale'),
+  ex('Pulley basso monobraccio','Dorso','monolaterale'),
+  ex('Iperestensioni lombari','Dorso','bilaterale'),
+  ex('Good morning bilanciere','Dorso','bilaterale'),
+  ex('Face pull','Dorso','bilaterale'),
+  // SPALLE
+  ex('Military press bilanciere','Spalle','bilaterale'),
+  ex('Military press manubri','Spalle','bilaterale'),
+  ex('Shoulder press machine','Spalle','bilaterale'),
+  ex('Arnold press','Spalle','bilaterale'),
+  ex('Alzate laterali manubri','Spalle','bilaterale'),
+  ex('Alzate laterali monobraccio','Spalle','monolaterale'),
+  ex('Alzate laterali cavo','Spalle','monolaterale'),
+  ex('Alzate frontali manubri','Spalle','bilaterale'),
+  ex('Alzate posteriori (reverse fly)','Spalle','bilaterale'),
+  ex('Scrollate (shrugs) bilanciere','Spalle','bilaterale'),
+  ex('Scrollate manubri','Spalle','bilaterale'),
+  ex('Landmine press monobraccio','Spalle','monolaterale'),
+  // BICIPITI
+  ex('Curl bilanciere','Bicipiti','bilaterale'),
+  ex('Curl manubri alternato','Bicipiti','monolaterale'),
+  ex('Curl manubri simultaneo','Bicipiti','bilaterale'),
+  ex('Curl a martello','Bicipiti','bilaterale'),
+  ex('Curl a martello monobraccio','Bicipiti','monolaterale'),
+  ex('Curl panca Scott','Bicipiti','bilaterale'),
+  ex('Curl cavo basso','Bicipiti','bilaterale'),
+  ex('Curl cavo monobraccio','Bicipiti','monolaterale'),
+  ex('Curl 21','Bicipiti','bilaterale'),
+  // TRICIPITI
+  ex('French press bilanciere','Tricipiti','bilaterale'),
+  ex('French press manubrio monobraccio','Tricipiti','monolaterale'),
+  ex('Pushdown ai cavi','Tricipiti','bilaterale'),
+  ex('Pushdown monobraccio','Tricipiti','monolaterale'),
+  ex('Dip su panca','Tricipiti','bilaterale'),
+  ex('Estensioni sopra la testa manubrio','Tricipiti','bilaterale'),
+  ex('Kick-back monobraccio','Tricipiti','monolaterale'),
+  ex('Panca presa stretta','Tricipiti','bilaterale'),
+  // QUADRICIPITI / GAMBE ANTERIORE
+  ex('Back squat bilanciere','Gambe (quadricipiti)','bilaterale'),
+  ex('Front squat bilanciere','Gambe (quadricipiti)','bilaterale'),
+  ex('Squat goblet','Gambe (quadricipiti)','bilaterale'),
+  ex('Leg press','Gambe (quadricipiti)','bilaterale'),
+  ex('Leg press monopodalica','Gambe (quadricipiti)','monopodalico'),
+  ex('Leg extension','Gambe (quadricipiti)','bilaterale'),
+  ex('Leg extension monopodalica','Gambe (quadricipiti)','monopodalico'),
+  ex('Affondi camminati','Gambe (quadricipiti)','monopodalico'),
+  ex('Affondi in sede','Gambe (quadricipiti)','monopodalico'),
+  ex('Affondi bulgari (Bulgarian split squat)','Gambe (quadricipiti)','monopodalico'),
+  ex('Step-up su box','Gambe (quadricipiti)','monopodalico'),
+  ex('Squat bulgaro con manubri','Gambe (quadricipiti)','monopodalico'),
+  ex('Pistol squat (assistito o libero)','Gambe (quadricipiti)','monopodalico'),
+  ex('Hack squat machine','Gambe (quadricipiti)','bilaterale'),
+  // POSTERIORE COSCIA / GLUTEI
+  ex('Stacco da terra bilanciere','Gambe (posteriore/glutei)','bilaterale'),
+  ex('Stacco rumeno bilanciere','Gambe (posteriore/glutei)','bilaterale'),
+  ex('Stacco rumeno monopodalico','Gambe (posteriore/glutei)','monopodalico'),
+  ex('Stacco sumo','Gambe (posteriore/glutei)','bilaterale'),
+  ex('Hip thrust bilanciere','Gambe (posteriore/glutei)','bilaterale'),
+  ex('Hip thrust monopodalico','Gambe (posteriore/glutei)','monopodalico'),
+  ex('Leg curl sdraiato','Gambe (posteriore/glutei)','bilaterale'),
+  ex('Leg curl in piedi monopodalico','Gambe (posteriore/glutei)','monopodalico'),
+  ex('Nordic curl','Gambe (posteriore/glutei)','bilaterale'),
+  ex('Abduzioni ai cavi monolaterale','Gambe (posteriore/glutei)','monolaterale'),
+  ex('Glute bridge a terra','Gambe (posteriore/glutei)','bilaterale'),
+  // POLPACCI
+  ex('Calf raise in piedi','Polpacci','bilaterale'),
+  ex('Calf raise monopodalico','Polpacci','monopodalico'),
+  ex('Calf raise seduto','Polpacci','bilaterale'),
+  ex('Calf press su leg press','Polpacci','bilaterale'),
+  // CORE / ADDOME
+  ex('Plank','Core','isometrico'),
+  ex('Plank monobraccio/monopodalico','Core','isometrico'),
+  ex('Side plank','Core','isometrico'),
+  ex('Crunch a terra','Core','bilaterale'),
+  ex('Sit-up','Core','bilaterale'),
+  ex('Leg raise appesi','Core','bilaterale'),
+  ex('Ab wheel rollout','Core','bilaterale'),
+  ex('Russian twist','Core','bilaterale'),
+  ex('Pallof press (anti-rotazione)','Core','monolaterale'),
+  ex('Hollow hold','Core','isometrico'),
+  ex('Dead bug','Core','bilaterale'),
+  // OLIMPICO / ESPLOSIVITÀ
+  ex('Power clean','Olimpico/Esplosivo','bilaterale'),
+  ex('Hang clean','Olimpico/Esplosivo','bilaterale'),
+  ex('Push press','Olimpico/Esplosivo','bilaterale'),
+  ex('Box jump','Olimpico/Esplosivo','bilaterale'),
+  ex('Box jump monopodalico','Olimpico/Esplosivo','monopodalico'),
+  ex('Broad jump','Olimpico/Esplosivo','bilaterale'),
+  ex('Kettlebell swing','Olimpico/Esplosivo','bilaterale'),
+  ex('Medicine ball slam','Olimpico/Esplosivo','bilaterale'),
+  // HYROX / CONDIZIONAMENTO
+  ex('Sled push','Conditioning','cardio'),
+  ex('Sled pull','Conditioning','cardio'),
+  ex('Wall balls','Conditioning','cardio'),
+  ex('Rematore (erg)','Conditioning','cardio'),
+  ex('SkiErg','Conditioning','cardio'),
+  ex('Burpee broad jump','Conditioning','cardio'),
+  ex('Farmer carry','Conditioning','bilaterale'),
+  ex('Farmer carry monolaterale (suitcase carry)','Conditioning','monolaterale'),
+  ex('Sandbag lunges','Conditioning','monopodalico'),
+  ex('Corsa (run) — distanza','Conditioning','cardio'),
+  ex('Assault bike','Conditioning','cardio'),
+  ex('Battle ropes','Conditioning','cardio')
+];
+
+/* ============================================================
+   STATO GLOBALE
+   ============================================================ */
+const STATE = {
+  role: null,        // 'coach' | 'client'
+  userName: '',
+  page: 'dashboard',
+  templates: [],
+  exercises: [],
+  clients: [],        // {id, nome, obiettivo, note, eta, livello, assignedTemplateId, programma_attivo, maxes:{}, logs:[], wellness:{}}
+  activeClientId: null // per gym mode / wellness quando loggato come cliente, o selezionato dal coach
+};
+
+function uid(prefix){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
+
+async function loadAll(){
+  STATE.templates = await loadKey('templates', DEFAULT_TEMPLATES);
+  STATE.exercises = await loadKey('exercises', DEFAULT_EXERCISES);
+  STATE.clients = await loadKey('clients', []);
+}
+async function persistExercises(){ await saveKey('exercises', STATE.exercises); }
+async function persistTemplates(){ await saveKey('templates', STATE.templates); }
+async function persistClients(){ await saveKey('clients', STATE.clients); }
+
+/* ============================================================
+   LOGIN
+   ============================================================ */
+let selectedRole = 'coach';
+document.getElementById('adminSmallLink').onclick = () => setRole(selectedRole === 'admin' ? 'coach' : 'admin');
+document.getElementById('roleCoachBtn').onclick = () => setRole('coach');
+document.getElementById('roleClientBtn').onclick = () => setRole('client');
+function setRole(r){
+  selectedRole = r;
+  document.getElementById('roleCoachBtn').classList.toggle('active', r==='coach');
+  document.getElementById('roleClientBtn').classList.toggle('active', r==='client');
+  document.getElementById('adminSmallLink').classList.toggle('active', r==='admin');
+  document.getElementById('mainRoleToggle').style.display = r==='admin' ? 'none' : 'flex';
+  document.getElementById('adminPassField').style.display = r==='admin' ? 'block' : 'none';
+  document.getElementById('coachUserField').style.display = r==='coach' ? 'block' : 'none';
+  document.getElementById('coachCodeField').style.display = r==='coach' ? 'block' : 'none';
+  document.getElementById('clientNameField').style.display = r==='client' ? 'block' : 'none';
+  document.getElementById('clientCodeField').style.display = r==='client' ? 'block' : 'none';
+}
+
+document.getElementById('loginBtn').onclick = async () => {
+  if(selectedRole === 'admin'){
+    const pass = document.getElementById('loginAdminPass').value;
+    if(pass !== await getAdminPassword()){ alert('Password errata'); return; }
+    STATE.role = 'admin';
+    STATE.userName = 'Admin';
+    enterApp();
+    return;
+  }
+
+  if(selectedRole === 'coach'){
+    const username = document.getElementById('loginCoachUser').value.trim();
+    const codice = document.getElementById('loginCoachCode').value.trim();
+    if(!username || !codice){ alert('Inserisci username e codice'); return; }
+    const coach = await findCoachByCredentials(username, codice);
+    if(!coach){ alert('Username o codice non validi. Chiedi il codice al tuo admin.'); return; }
+    COACH_ID = coach.id;
+    STATE.role = 'coach';
+    STATE.userName = coach.nome + ' ' + coach.cognome;
+    await loadAll();
+    enterApp();
+    return;
+  }
+
+  // cliente
+  const name = document.getElementById('loginName').value.trim();
+  const code = document.getElementById('loginClientCode').value.trim();
+  if(!name || !code){ alert('Inserisci nome e codice atleta'); return; }
+  const found = await findClientAcrossCoaches(code);
+  if(!found){
+    alert('Atleta non trovato. Controlla il codice ricevuto dal tuo coach.');
+    return;
+  }
+  COACH_ID = found.coachId;
+  STATE.role = 'client';
+  STATE.userName = name;
+  await loadAll();
+  STATE.activeClientId = found.client.id;
+  enterApp();
+};
+
+function enterApp(){
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appShell').classList.add('active');
+  const roleLabels = {admin:'Admin', coach:'Coach', client:'Atleta'};
+  document.getElementById('sidebarRole').textContent = roleLabels[STATE.role];
+  document.getElementById('whoAmI').textContent = STATE.userName;
+  buildNav();
+  const landing = {admin:'admin', coach:'dashboard', client:'gym'};
+  goPage(landing[STATE.role]);
+}
+
+document.getElementById('logoutBtn').onclick = () => location.reload();
+
+/* ============================================================
+   NAVIGAZIONE
+   ============================================================ */
+const NAV_ADMIN = [
+  {id:'admin', label:'Gestione coach', icon:'⚑'},
+  {id:'settings', label:'Impostazioni', icon:'⚙'}
+];
+const NAV_COACH = [
+  {id:'dashboard', label:'Dashboard', icon:'◧'},
+  {id:'clients', label:'Atleti', icon:'◍'},
+  {id:'exercises', label:'Libreria esercizi', icon:'✚'},
+  {id:'templates', label:'Libreria template', icon:'▤'},
+  {id:'assign', label:'Assegna programma', icon:'→'},
+  {id:'gym', label:'Log allenamento', icon:'●'},
+  {id:'wellness', label:'Wellness', icon:'◔'},
+  {id:'progress', label:'Storico atleta', icon:'◧'},
+  {id:'settings', label:'Impostazioni', icon:'⚙'}
+];
+const NAV_CLIENT = [
+  {id:'gym', label:'Il mio allenamento', icon:'●'},
+  {id:'wellness', label:'Wellness', icon:'◔'},
+  {id:'progress', label:'I miei progressi', icon:'◧'}
+];
+
+function buildNav(){
+  const items = STATE.role === 'admin' ? NAV_ADMIN : (STATE.role === 'coach' ? NAV_COACH : NAV_CLIENT);
+  const nav = document.getElementById('navList');
+  nav.innerHTML = items.map(n => `<button class="nav-btn" data-nav="${n.id}"><span>${n.icon}</span>${n.label}</button>`).join('');
+  nav.querySelectorAll('.nav-btn').forEach(b => b.onclick = () => goPage(b.dataset.nav));
+}
+function goPage(page){
+  STATE.page = page;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.nav === page));
+  render();
+}
+
+/* ============================================================
+   RENDER ROUTER
+   ============================================================ */
+function render(){
+  const el = document.getElementById('pageContent');
+  const renderers = {
+    dashboard: renderDashboard,
+    clients: renderClients,
+    exercises: renderExercises,
+    templates: renderTemplates,
+    assign: renderAssign,
+    gym: renderGym,
+    wellness: renderWellness,
+    progress: renderProgress,
+    settings: renderSettings,
+    admin: renderAdmin
+  };
+  el.innerHTML = (renderers[STATE.page] || renderDashboard)();
+  attachPageHandlers();
+}
+
+/* ============================================================
+   DASHBOARD (coach)
+   ============================================================ */
+function renderDashboard(){
+  const totalClients = STATE.clients.length;
+  const totalSessions = STATE.clients.reduce((s,c)=>s+(c.logs||[]).length,0);
+  const activePrograms = STATE.clients.filter(c=>c.programma_attivo).length;
+  return `
+    <div class="page-head">
+      <h1>Dashboard</h1>
+      <p>Panoramica rapida sui tuoi atleti</p>
+    </div>
+    <div class="grid-2">
+      <div class="card"><div class="stat-num">${totalClients}</div><div class="stat-label">Atleti totali</div></div>
+      <div class="card"><div class="stat-num">${activePrograms}</div><div class="stat-label">Programmi attivi</div></div>
+      <div class="card"><div class="stat-num">${totalSessions}</div><div class="stat-label">Sessioni loggate (tutte)</div></div>
+      <div class="card"><div class="stat-num">${STATE.templates.length}</div><div class="stat-label">Template in libreria</div></div>
+    </div>
+    <div class="card" style="margin-top:20px;">
+      <h3 style="font-size:18px; margin-bottom:12px;">Atleti recenti</h3>
+      ${STATE.clients.length === 0 ? emptyState('Nessun atleta ancora', 'Vai su Atleti per aggiungere il primo.') :
+        STATE.clients.slice(0,5).map(c => `
+          <div class="list-row">
+            <div>
+              <div class="list-row-title">${c.nome}</div>
+              <div class="list-row-sub">${c.obiettivo || 'Obiettivo non impostato'}</div>
+            </div>
+            <span class="tag">${c.programma_attivo ? c.programma_attivo.nome : 'Nessun programma'}</span>
+          </div>
+        `).join('')
+      }
+    </div>
+  `;
+}
+
+function emptyState(title, sub){
+  return `<div class="empty-state"><div class="display">${title}</div><div>${sub}</div></div>`;
+}
+
+/* ============================================================
+   CLIENTI
+   ============================================================ */
+function renderClients(){
+  return `
+    <div class="page-head">
+      <h1>Atleti</h1>
+      <p>Gestisci l'anagrafica dei tuoi atleti</p>
+    </div>
+    <button class="btn small" id="newClientBtn" style="width:auto; margin-bottom:18px;">+ Nuovo atleta</button>
+    <div class="card">
+      ${STATE.clients.length === 0 ? emptyState('Nessun atleta', 'Aggiungi il primo atleta per iniziare.') :
+        STATE.clients.map(c => `
+          <div class="list-row">
+            <div>
+              <div class="list-row-title">${c.nome}</div>
+              <div class="list-row-sub">${c.obiettivo || '—'} ${c.eta?'· '+c.eta+' anni':''} ${c.livello?'· '+c.livello:''} · codice atleta: <span class="mono">${c.id}</span></div>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn secondary small" data-edit-client="${c.id}">Modifica</button>
+              <button class="btn danger small" data-del-client="${c.id}">Elimina</button>
+            </div>
+          </div>
+        `).join('')
+      }
+    </div>
+  `;
+}
+
+function openClientModal(existing){
+  const c = existing || {id: uid('cl'), nome:'', obiettivo:'', note:'', eta:'', livello:'intermedio', maxes:{}, logs:[], wellness:{}, programma_attivo:null};
+  document.getElementById('modalBody').innerHTML = `
+    <h2>${existing ? 'Modifica atleta' : 'Nuovo atleta'}</h2>
+    <div class="field"><label>Nome</label><input type="text" id="mClNome" value="${c.nome}"></div>
+    <div class="grid-2">
+      <div class="field"><label>Età</label><input type="number" id="mClEta" value="${c.eta||''}" placeholder="es. 32"></div>
+      <div class="field">
+        <label>Livello</label>
+        <select id="mClLivello">
+          <option value="principiante" ${c.livello==='principiante'?'selected':''}>Principiante</option>
+          <option value="intermedio" ${(!c.livello||c.livello==='intermedio')?'selected':''}>Intermedio</option>
+          <option value="avanzato" ${c.livello==='avanzato'?'selected':''}>Avanzato</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Obiettivo</label><input type="text" id="mClObiettivo" value="${c.obiettivo}" placeholder="es. Hyrox, ipertrofia, forza..."></div>
+    <div class="field"><label>Note (infortuni, limitazioni)</label><textarea id="mClNote" rows="3">${c.note||''}</textarea></div>
+    <div class="field">
+      <label>Codice atleta (per il login)</label>
+      <input type="text" id="mClId" value="${c.id}" ${existing?'disabled':''}>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="modalCancel">Annulla</button>
+      <button class="btn" id="modalSaveClient">Salva</button>
+    </div>
+  `;
+  document.getElementById('modalBackdrop').classList.add('active');
+  document.getElementById('modalCancel').onclick = closeModal;
+  document.getElementById('modalSaveClient').onclick = async () => {
+    c.nome = document.getElementById('mClNome').value.trim();
+    c.eta = document.getElementById('mClEta').value.trim();
+    c.livello = document.getElementById('mClLivello').value;
+    c.obiettivo = document.getElementById('mClObiettivo').value.trim();
+    c.note = document.getElementById('mClNote').value.trim();
+    if(!c.nome){ alert('Il nome è obbligatorio'); return; }
+    if(!existing) STATE.clients.push(c);
+    await persistClients();
+    closeModal();
+    render();
+  };
+}
+function closeModal(){ document.getElementById('modalBackdrop').classList.remove('active'); }
+
+/* ============================================================
+   LIBRERIA ESERCIZI
+   ============================================================ */
+function renderExercises(){
+  const categorie = [...new Set(STATE.exercises.map(e=>e.categoria))];
+  return `
+    <div class="page-head">
+      <h1>Libreria esercizi</h1>
+      <p>Base condivisa modificabile: aggiungi, modifica o elimina liberamente</p>
+    </div>
+    <div style="display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap;">
+      <button class="btn small" id="newExerciseBtn" style="width:auto;">+ Nuovo esercizio</button>
+      <input type="text" id="exSearchInput" placeholder="Cerca esercizio..." style="flex:1; min-width:180px; background:var(--surface-2); border:1px solid var(--line); color:var(--ink); padding:9px 12px; border-radius:6px; font-size:14px;">
+      <select id="exCategoriaFilter" style="width:auto; max-width:220px;">
+        <option value="">Tutte le categorie</option>
+        ${categorie.map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>
+    </div>
+    <div id="exerciseListCard" class="card">${renderExerciseListInner('', '')}</div>
+  `;
+}
+function renderExerciseListInner(search, categoriaFilter){
+  let list = STATE.exercises;
+  if(categoriaFilter) list = list.filter(e=>e.categoria===categoriaFilter);
+  if(search) list = list.filter(e=>e.nome.toLowerCase().includes(search.toLowerCase()));
+  if(list.length===0) return emptyState('Nessun esercizio trovato','Prova un altro filtro o crea un nuovo esercizio.');
+
+  const grouped = {};
+  list.forEach(e => { (grouped[e.categoria] = grouped[e.categoria]||[]).push(e); });
+
+  const tipoLabel = {bilaterale:'Bilaterale', monolaterale:'Monolaterale', monopodalico:'Monopodalico', isometrico:'Isometrico', cardio:'Cardio/Cond.'};
+
+  return Object.keys(grouped).map(cat => `
+    <h3 style="font-size:16px; margin:18px 0 8px; color:var(--accent);">${cat}</h3>
+    ${grouped[cat].map(e => `
+      <div class="list-row">
+        <div>
+          <div class="list-row-title">${e.nome}</div>
+          <div class="list-row-sub">${tipoLabel[e.tipo]||e.tipo}</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn secondary small" data-edit-exercise="${e.id}">Modifica</button>
+          <button class="btn danger small" data-del-exercise="${e.id}">Elimina</button>
+        </div>
+      </div>
+    `).join('')}
+  `).join('');
+}
+function openExerciseModal(existing){
+  const e = existing || {id: uid('ex'), nome:'', categoria:'', tipo:'bilaterale'};
+  document.getElementById('modalBody').innerHTML = `
+    <h2>${existing ? 'Modifica esercizio' : 'Nuovo esercizio'}</h2>
+    <div class="field"><label>Nome</label><input type="text" id="mExNome" value="${e.nome}"></div>
+    <div class="field"><label>Categoria / gruppo</label><input type="text" id="mExCategoria" value="${e.categoria}" placeholder="es. Petto, Dorso, Hyrox/Conditioning..."></div>
+    <div class="field">
+      <label>Tipo</label>
+      <select id="mExTipo">
+        <option value="bilaterale" ${e.tipo==='bilaterale'?'selected':''}>Bilaterale</option>
+        <option value="monolaterale" ${e.tipo==='monolaterale'?'selected':''}>Monolaterale</option>
+        <option value="monopodalico" ${e.tipo==='monopodalico'?'selected':''}>Monopodalico</option>
+        <option value="isometrico" ${e.tipo==='isometrico'?'selected':''}>Isometrico</option>
+        <option value="cardio" ${e.tipo==='cardio'?'selected':''}>Cardio/Conditioning</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="modalCancel">Annulla</button>
+      <button class="btn" id="modalSaveExercise">Salva</button>
+    </div>
+  `;
+  document.getElementById('modalBackdrop').classList.add('active');
+  document.getElementById('modalCancel').onclick = closeModal;
+  document.getElementById('modalSaveExercise').onclick = async () => {
+    e.nome = document.getElementById('mExNome').value.trim();
+    e.categoria = document.getElementById('mExCategoria').value.trim() || 'Senza categoria';
+    e.tipo = document.getElementById('mExTipo').value;
+    if(!e.nome){ alert('Il nome è obbligatorio'); return; }
+    const idx = STATE.exercises.findIndex(x=>x.id===e.id);
+    if(idx>=0) STATE.exercises[idx] = e; else STATE.exercises.push(e);
+    await persistExercises();
+    closeModal();
+    render();
+  };
+}
+
+/* ============================================================
+   LIBRERIA TEMPLATE
+   ============================================================ */
+function renderTemplates(){
+  return `
+    <div class="page-head">
+      <h1>Libreria template</h1>
+      <p>Struttura riutilizzabile: modificarla non tocca gli atleti già assegnati</p>
+    </div>
+    <button class="btn small" id="newTemplateBtn" style="width:auto; margin-bottom:18px;">+ Nuovo template</button>
+    <div class="card">
+      ${STATE.templates.map(t => `
+        <div class="list-row">
+          <div>
+            <div class="list-row-title">${t.nome}</div>
+            <div class="list-row-sub">${t.giorni.length} giorni · ${t.giorni.reduce((s,g)=>s+g.esercizi.length,0)} esercizi totali</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn secondary small" data-edit-template="${t.id}">Modifica</button>
+            <button class="btn danger small" data-del-template="${t.id}">Elimina</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function openTemplateModal(existing){
+  const t = existing ? JSON.parse(JSON.stringify(existing)) : {id: uid('tpl'), nome:'Nuovo template', giorni:[]};
+  renderTemplateModalBody(t, !existing);
+}
+function renderTemplateModalBody(t, isNew){
+  document.getElementById('modalBody').innerHTML = `
+    <h2>${isNew ? 'Nuovo template' : 'Modifica template'}</h2>
+    <div class="field"><label>Nome template</label><input type="text" id="mTplNome" value="${t.nome}"></div>
+    <div id="tplGiorni"></div>
+    <datalist id="exerciseNamesList">
+      ${STATE.exercises.map(e=>`<option value="${e.nome}">`).join('')}
+    </datalist>
+    <button class="btn secondary small" id="addGiornoBtn" style="width:auto; margin-bottom:10px;">+ Aggiungi giorno</button>
+    <div class="modal-actions">
+      <button class="btn secondary" id="modalCancel">Annulla</button>
+      <button class="btn" id="modalSaveTemplate">Salva template</button>
+    </div>
+  `;
+  document.getElementById('modalBackdrop').classList.add('active');
+
+  function renderGiorni(){
+    document.getElementById('tplGiorni').innerHTML = t.giorni.map((g,gi) => `
+      <div class="day-block">
+        <div class="day-block-head">
+          <input type="text" value="${g.nome}" data-giorno-nome="${gi}">
+          <button class="icon-btn" data-del-giorno="${gi}">✕</button>
+        </div>
+        ${g.esercizi.map((e,ei) => `
+          <div class="ex-row">
+            <input type="text" placeholder="Esercizio" value="${e.esercizio}" list="exerciseNamesList" data-ex-field="${gi}.${ei}.esercizio">
+            <input type="number" placeholder="Serie" value="${e.serie}" data-ex-field="${gi}.${ei}.serie">
+            <input type="number" placeholder="Reps" value="${e.reps}" data-ex-field="${gi}.${ei}.reps">
+            <input type="text" class="mono-field" placeholder="Target (75%1RM / RIR2)" value="${e.target}" data-ex-field="${gi}.${ei}.target">
+            <button class="icon-btn" data-del-ex="${gi}.${ei}">✕</button>
+          </div>
+        `).join('')}
+        <button class="btn secondary small" data-add-ex="${gi}" style="width:auto;">+ Esercizio</button>
+      </div>
+    `).join('');
+
+    document.querySelectorAll('[data-giorno-nome]').forEach(inp => inp.onchange = e => {
+      t.giorni[+inp.dataset.giornoNome].nome = e.target.value;
+    });
+    document.querySelectorAll('[data-ex-field]').forEach(inp => inp.onchange = e => {
+      const [gi,ei,field] = inp.dataset.exField.split('.');
+      let v = e.target.value;
+      if(field==='serie'||field==='reps') v = parseInt(v)||0;
+      t.giorni[+gi].esercizi[+ei][field] = v;
+    });
+    document.querySelectorAll('[data-del-giorno]').forEach(b => b.onclick = () => {
+      t.giorni.splice(+b.dataset.delGiorno,1); renderGiorni();
+    });
+    document.querySelectorAll('[data-del-ex]').forEach(b => b.onclick = () => {
+      const [gi,ei] = b.dataset.delEx.split('.');
+      t.giorni[+gi].esercizi.splice(+ei,1); renderGiorni();
+    });
+    document.querySelectorAll('[data-add-ex]').forEach(b => b.onclick = () => {
+      t.giorni[+b.dataset.addEx].esercizi.push({esercizio:'', serie:3, reps:10, target:'RIR2', riposo_sec:90});
+      renderGiorni();
+    });
+  }
+  renderGiorni();
+
+  document.getElementById('addGiornoBtn').onclick = () => {
+    t.giorni.push({nome:'Nuovo giorno', esercizi:[]});
+    renderGiorni();
+  };
+  document.getElementById('modalCancel').onclick = closeModal;
+  document.getElementById('modalSaveTemplate').onclick = async () => {
+    t.nome = document.getElementById('mTplNome').value.trim() || t.nome;
+    const idx = STATE.templates.findIndex(x=>x.id===t.id);
+    if(idx>=0) STATE.templates[idx] = t; else STATE.templates.push(t);
+    await persistTemplates();
+    closeModal();
+    render();
+  };
+}
+
+/* ============================================================
+   ASSEGNA PROGRAMMA (copia scollegata dal template)
+   ============================================================ */
+function renderAssign(){
+  if(STATE.clients.length === 0) return `<div class="page-head"><h1>Assegna programma</h1></div><div class="card">${emptyState('Nessun atleta','Crea prima un atleta nella sezione Atleti.')}</div>`;
+  if(STATE.templates.length === 0) return `<div class="page-head"><h1>Assegna programma</h1></div><div class="card">${emptyState('Nessun template','Crea prima un template nella Libreria.')}</div>`;
+  return `
+    <div class="page-head">
+      <h1>Assegna programma</h1>
+      <p>Il template viene copiato: modificarlo dopo non tocca l'originale né altri atleti</p>
+    </div>
+    <div class="card">
+      <label class="field-label">Atleta</label>
+      <select id="assignClientSel">
+        ${STATE.clients.map(c=>`<option value="${c.id}">${c.nome}</option>`).join('')}
+      </select>
+      <div style="height:14px;"></div>
+      <label class="field-label">Template</label>
+      <select id="assignTplSel">
+        ${STATE.templates.map(t=>`<option value="${t.id}">${t.nome}</option>`).join('')}
+      </select>
+      <div style="height:18px;"></div>
+      <button class="btn" id="doAssignBtn">Assegna (crea copia)</button>
+    </div>
+  `;
+}
+
+/* ============================================================
+   LOG ALLENAMENTO (Gym Mode)
+   ============================================================ */
+function renderGym(){
+  let client;
+  if(STATE.role === 'client'){
+    client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+  }else{
+    if(!STATE.activeClientId && STATE.clients.length) STATE.activeClientId = STATE.clients[0].id;
+    client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+  }
+
+  const clientPicker = STATE.role === 'coach' ? `
+    <div class="field" style="max-width:300px;">
+      <label class="field-label">Visualizza atleta</label>
+      <select id="gymClientSel">
+        ${STATE.clients.map(c=>`<option value="${c.id}" ${c.id===STATE.activeClientId?'selected':''}>${c.nome}</option>`).join('')}
+      </select>
+    </div>
+  ` : '';
+
+  if(!client){
+    return `<div class="page-head"><h1>Log allenamento</h1></div>${clientPicker}<div class="card">${emptyState('Nessun atleta selezionato','Crea o scegli un atleta.')}</div>`;
+  }
+  if(!client.programma_attivo){
+    return `<div class="page-head"><h1>Log allenamento</h1><p>${client.nome}</p></div>${clientPicker}<div class="card">${emptyState('Nessun programma assegnato', STATE.role==='coach' ? 'Vai su "Assegna programma" per crearne uno.' : 'Il tuo coach non ti ha ancora assegnato un programma.')}</div>`;
+  }
+
+  const prog = client.programma_attivo;
+  const dayOptions = prog.giorni.map((g,i)=>`<option value="${i}">${g.nome}</option>`).join('');
+  const dayIdx = client._gymDayIdx || 0;
+  const day = prog.giorni[dayIdx];
+
+  return `
+    <div class="page-head">
+      <h1>${prog.nome}</h1>
+      <p>${client.nome}</p>
+    </div>
+    ${clientPicker}
+    <div class="field" style="max-width:320px;">
+      <label class="field-label">Giorno</label>
+      <select id="gymDaySel">${dayOptions}</select>
+    </div>
+    <div id="gymDayBody">${renderGymDayBody(client, day)}</div>
+    <div class="card" style="margin-top:18px;">
+      <button class="btn" id="finishSessionBtn">Chiudi sessione e salva</button>
+    </div>
+  `;
+}
+
+const SFORZO_SCALE = [
+  {code:'L', label:'L'},
+  {code:'M', label:'M'},
+  {code:'MP', label:'M/P'},
+  {code:'P', label:'P'},
+  {code:'C', label:'C'},
+  {code:'RM', label:'RM'},
+  {code:'X', label:'🚫'}
+];
+
+/* ---------- timer di recupero (widget fisso, indipendente dal render della pagina) ---------- */
+let _restTimerInterval = null;
+function startRestTimer(seconds){
+  const bar = document.getElementById('restTimerBar');
+  const valueEl = document.getElementById('restTimerValue');
+  if(!bar || !seconds || seconds <= 0) return;
+  clearInterval(_restTimerInterval);
+  let remaining = seconds;
+  bar.style.display = 'flex';
+  function tick(){
+    const m = Math.floor(remaining/60).toString().padStart(2,'0');
+    const s = (remaining%60).toString().padStart(2,'0');
+    valueEl.textContent = m+':'+s;
+    if(remaining <= 0){
+      clearInterval(_restTimerInterval);
+      bar.style.display = 'none';
+      try{ if(navigator.vibrate) navigator.vibrate([200,100,200]); }catch(e){}
+      try{
+        const ctx = new (window.AudioContext||window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        osc.frequency.value = 880;
+        osc.connect(ctx.destination);
+        osc.start();
+        setTimeout(()=>osc.stop(), 350);
+      }catch(e){}
+      return;
+    }
+    remaining--;
+  }
+  tick();
+  _restTimerInterval = setInterval(tick, 1000);
+}
+document.getElementById('restTimerSkip').onclick = () => {
+  clearInterval(_restTimerInterval);
+  document.getElementById('restTimerBar').style.display = 'none';
+};
+function renderGymDayBody(client, day){
+  if(!client._gymLog) client._gymLog = {};
+  return day.esercizi.map((ex, exi) => {
+    const key = ex.esercizio + '_' + exi;
+    if(!client._gymLog[key]) client._gymLog[key] = Array.from({length:ex.serie}, ()=>({peso:'',reps:'',sforzo:'',done:false}));
+    const sets = client._gymLog[key];
+    return `
+      <h3 class="ex-header">${ex.esercizio}</h3>
+      <div class="target-line">Target: ${ex.target} · ${ex.serie} serie x ${ex.reps} reps · riposo ${ex.riposo_sec}s</div>
+      ${sets.map((s,si) => `
+        <div class="gym-set-row ${s.done?'done':''}">
+          <div class="gym-set-top">
+            <div class="gym-set-num">#${si+1}</div>
+            <input type="number" placeholder="kg" value="${s.peso}" data-set="${key}.${si}.peso">
+            <input type="number" placeholder="reps" value="${s.reps}" data-set="${key}.${si}.reps">
+            <button class="check-btn ${s.done?'done':''}" data-check="${key}.${si}">✓</button>
+          </div>
+          <div class="gym-scale-row">
+            ${SFORZO_SCALE.map(sc => `<button class="scale-btn ${s.sforzo===sc.code?'active':''}" data-scale-set="${key}.${si}.${sc.code}">${sc.label}</button>`).join('')}
+          </div>
+        </div>
+      `).join('')}
+    `;
+  }).join('');
+}
+
+/* ============================================================
+   WELLNESS
+   ============================================================ */
+function renderWellness(){
+  let client;
+  if(STATE.role === 'client'){
+    client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+  }else{
+    if(!STATE.activeClientId && STATE.clients.length) STATE.activeClientId = STATE.clients[0].id;
+    client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+  }
+  const clientPicker = STATE.role === 'coach' ? `
+    <div class="field" style="max-width:300px;">
+      <label class="field-label">Atleta</label>
+      <select id="wellClientSel">
+        ${STATE.clients.map(c=>`<option value="${c.id}" ${c.id===STATE.activeClientId?'selected':''}>${c.nome}</option>`).join('')}
+      </select>
+    </div>
+  ` : '';
+  if(!client) return `<div class="page-head"><h1>Wellness</h1></div>${clientPicker}<div class="card">${emptyState('Nessun atleta','Crea o scegli un atleta.')}</div>`;
+
+  const today = new Date().toISOString().slice(0,10);
+  const w = (client.wellness && client.wellness[today]) || {sonno:0, doms:0, stress:0, energia:0};
+
+  return `
+    <div class="page-head"><h1>Wellness</h1><p>${client.nome} · ${today}</p></div>
+    ${clientPicker}
+    <div class="card">
+      <label class="field-label">Qualità del sonno (1-5)</label>
+      <div class="wellness-scale" data-scale="sonno">${scaleButtons(w.sonno)}</div>
+      <label class="field-label">DOMS / indolenzimento (1-5)</label>
+      <div class="wellness-scale" data-scale="doms">${scaleButtons(w.doms)}</div>
+      <label class="field-label">Stress percepito (1-5)</label>
+      <div class="wellness-scale" data-scale="stress">${scaleButtons(w.stress)}</div>
+      <label class="field-label">Energia (1-5)</label>
+      <div class="wellness-scale" data-scale="energia">${scaleButtons(w.energia)}</div>
+      <button class="btn" id="saveWellnessBtn" style="margin-top:6px;">Salva check-in di oggi</button>
+    </div>
+  `;
+}
+function scaleButtons(current){
+  return [1,2,3,4,5].map(n => `<button class="${n==current?'active':''}" data-val="${n}">${n}</button>`).join('');
+}
+
+/* ============================================================
+   PROGRESSI / STORICO (coach e atleta)
+   ============================================================ */
+// Range di volume settimanale (serie dirette per gruppo muscolare) indicativi
+// da letteratura (Israetel et al., volume landmarks). Punto di partenza,
+// non regola fissa: la risposta individuale prevale sempre.
+const VOLUME_LANDMARKS = {
+  'Petto': {mev:8, mav:16, mrv:22},
+  'Dorso': {mev:10, mav:18, mrv:25},
+  'Spalle': {mev:8, mav:18, mrv:26},
+  'Bicipiti': {mev:6, mav:16, mrv:26},
+  'Tricipiti': {mev:6, mav:12, mrv:18},
+  'Gambe (quadricipiti)': {mev:8, mav:14, mrv:20},
+  'Gambe (posteriore/glutei)': {mev:6, mav:12, mrv:20},
+  'Polpacci': {mev:8, mav:14, mrv:20}
+};
+function computeWeeklySetsByCategory(client){
+  const weekAgo = Date.now() - 7*24*3600*1000;
+  const counts = {};
+  (client.logs||[]).forEach(l => {
+    if(l.data < weekAgo) return;
+    (l.esercizi||[]).forEach(exLog => {
+      const libEx = STATE.exercises.find(e => e.nome === exLog.esercizio);
+      const cat = libEx ? libEx.categoria : 'Non categorizzato';
+      const setsCount = (exLog.sets||[]).filter(s => (parseFloat(s.reps)||0) > 0).length;
+      counts[cat] = (counts[cat]||0) + setsCount;
+    });
+  });
+  return counts;
+}
+function renderVolumeLandmarksCard(client){
+  const counts = computeWeeklySetsByCategory(client);
+  const rows = Object.keys(VOLUME_LANDMARKS).map(cat => {
+    const val = counts[cat] || 0;
+    const lm = VOLUME_LANDMARKS[cat];
+    let status, color;
+    if(val < lm.mev){ status = 'Sotto il minimo'; color = 'var(--danger)'; }
+    else if(val > lm.mrv){ status = 'Sopra il recuperabile'; color = 'var(--danger)'; }
+    else if(val >= lm.mav){ status = 'Alto ma nel range'; color = 'var(--accent2)'; }
+    else { status = 'Nel range'; color = 'var(--accent)'; }
+    return `
+      <div class="list-row">
+        <div>
+          <div class="list-row-title">${cat}</div>
+          <div class="list-row-sub">${val} serie questa settimana · range indicativo ${lm.mev}-${lm.mrv}</div>
+        </div>
+        <span class="tag" style="color:${color}; border-color:${color};">${status}</span>
+      </div>
+    `;
+  }).join('');
+  const uncategorized = counts['Non categorizzato'];
+  return `
+    <div class="card" style="margin-top:14px;">
+      <h3 style="font-size:16px; margin-bottom:4px;">Volume settimanale vs range di letteratura</h3>
+      <p style="color:var(--ink-soft); font-size:12px; margin-bottom:12px; line-height:1.5;">
+        Serie dirette completate negli ultimi 7 giorni per gruppo muscolare, confrontate con range indicativi MEV-MRV. Punto di partenza da leggere insieme alla risposta individuale dell'atleta, non una soglia rigida.
+      </p>
+      ${rows}
+      ${uncategorized ? `<div class="list-row"><div><div class="list-row-title">Non categorizzato</div><div class="list-row-sub">${uncategorized} serie — il nome esercizio non corrisponde a nessuno della libreria</div></div></div>` : ''}
+    </div>
+  `;
+}
+function computeWeeklyVolume(logs){
+  const buckets = {};
+  logs.forEach(l => {
+    const d = new Date(l.data);
+    const day = d.getDay();
+    const diffToMonday = (day===0 ? -6 : 1-day);
+    const monday = new Date(d); monday.setDate(d.getDate()+diffToMonday); monday.setHours(0,0,0,0);
+    const key = monday.toISOString().slice(0,10);
+    let vol = 0;
+    (l.esercizi||[]).forEach(ex => (ex.sets||[]).forEach(s => {
+      vol += (parseFloat(s.peso)||0) * (parseFloat(s.reps)||0);
+    }));
+    buckets[key] = (buckets[key]||0) + vol;
+  });
+  const keys = Object.keys(buckets).sort();
+  return {
+    labels: keys.map(k => new Date(k).toLocaleDateString('it-IT', {day:'2-digit', month:'short'})),
+    values: keys.map(k => Math.round(buckets[k]))
+  };
+}
+let _volumeChartInstance = null;
+function drawVolumeChart(){
+  const canvas = document.getElementById('volumeChart');
+  if(!canvas || typeof Chart === 'undefined') return;
+  const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+  if(!client) return;
+  const weekly = computeWeeklyVolume(client.logs||[]);
+  if(_volumeChartInstance) _volumeChartInstance.destroy();
+  _volumeChartInstance = new Chart(canvas.getContext('2d'), {
+    type:'line',
+    data:{labels:weekly.labels, datasets:[{label:'Volume (kg)', data:weekly.values, borderColor:'#E0A458', backgroundColor:'rgba(224,164,88,0.15)', tension:0.3, fill:true}]},
+    options:{responsive:true, plugins:{legend:{display:false}}, scales:{
+      x:{ticks:{color:'#A7ACB6'}, grid:{color:'#343943'}},
+      y:{ticks:{color:'#A7ACB6'}, grid:{color:'#343943'}}
+    }}
+  });
+}
+function renderProgress(){
+  let client;
+  if(STATE.role === 'client'){
+    client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+  }else{
+    if(!STATE.activeClientId && STATE.clients.length) STATE.activeClientId = STATE.clients[0].id;
+    client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+  }
+  const clientPicker = STATE.role === 'coach' ? `
+    <div class="field" style="max-width:300px;">
+      <label class="field-label">Atleta</label>
+      <select id="progressClientSel">
+        ${STATE.clients.map(c=>`<option value="${c.id}" ${c.id===STATE.activeClientId?'selected':''}>${c.nome}</option>`).join('')}
+      </select>
+    </div>
+  ` : '';
+  const title = STATE.role === 'client' ? 'I miei progressi' : 'Storico atleta';
+  if(!client) return `<div class="page-head"><h1>${title}</h1></div>${clientPicker}<div class="card">${emptyState('Nessun atleta','Crea o scegli un atleta.')}</div>`;
+  const logs = client.logs || [];
+  const weekly = computeWeeklyVolume(logs);
+  return `
+    <div class="page-head"><h1>${title}</h1><p>${client.nome}</p></div>
+    ${clientPicker}
+    <div class="grid-2">
+      <div class="card"><div class="stat-num">${logs.length}</div><div class="stat-label">Sessioni completate</div></div>
+      <div class="card"><div class="stat-num">${weekly.values.length}</div><div class="stat-label">Settimane con dati</div></div>
+    </div>
+    <div class="card" style="margin-top:14px;">
+      <h3 style="font-size:16px; margin-bottom:12px;">Volume settimanale (kg totali sollevati)</h3>
+      ${weekly.values.length===0 ? emptyState('Ancora nessun dato','Logga qualche sessione per vedere il trend.') : '<canvas id="volumeChart" height="180"></canvas>'}
+    </div>
+    ${STATE.role === 'coach' ? renderVolumeLandmarksCard(client) : ''}
+    <div class="card" style="margin-top:14px;">
+      <h3 style="font-size:16px; margin-bottom:12px;">Sessioni recenti</h3>
+      ${logs.length===0 ? emptyState('Ancora nessuna sessione','Vai su Log allenamento e registra la prima sessione.') :
+        logs.slice().reverse().slice(0,10).map(l => `
+          <div class="list-row">
+            <div>
+              <div class="list-row-title">${l.giorno_nome}</div>
+              <div class="list-row-sub">${new Date(l.data).toLocaleDateString('it-IT')}</div>
+            </div>
+            <span class="tag mono">${l.esercizi.length} esercizi</span>
+          </div>
+        `).join('')
+      }
+    </div>
+  `;
+}
+
+/* ============================================================
+   GESTIONE COACH (solo admin)
+   ============================================================ */
+let _coachRegistryCache = [];
+function renderAdmin(){
+  return `
+    <div class="page-head">
+      <h1>Gestione coach</h1>
+      <p>Crea gli account coach: username scelto da te, codice generato automaticamente</p>
+    </div>
+    <button class="btn small" id="newCoachBtn" style="width:auto; margin-bottom:18px;">+ Nuovo coach</button>
+    <div class="card" id="coachRegistryCard">Caricamento...</div>
+  `;
+}
+async function loadAndRenderCoachRegistry(){
+  _coachRegistryCache = await getCoachRegistry();
+  const card = document.getElementById('coachRegistryCard');
+  if(!card) return;
+  card.innerHTML = _coachRegistryCache.length === 0 ? emptyState('Nessun coach ancora', 'Crea il primo account coach.') :
+    _coachRegistryCache.map(c => `
+      <div class="list-row">
+        <div>
+          <div class="list-row-title">${c.nome} ${c.cognome}</div>
+          <div class="list-row-sub">username: <span class="mono">${c.username}</span></div>
+        </div>
+        <span class="tag mono" style="font-size:14px; padding:6px 10px;">${c.codice}</span>
+      </div>
+    `).join('');
+}
+function openNewCoachModal(){
+  document.getElementById('modalBody').innerHTML = `
+    <h2>Nuovo coach</h2>
+    <div class="field"><label>Nome</label><input type="text" id="mCoNome"></div>
+    <div class="field"><label>Cognome</label><input type="text" id="mCoCognome"></div>
+    <div class="field"><label>Username</label><input type="text" id="mCoUsername" placeholder="usato per il login"></div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="modalCancel">Annulla</button>
+      <button class="btn" id="modalSaveCoach">Crea e genera codice</button>
+    </div>
+  `;
+  document.getElementById('modalBackdrop').classList.add('active');
+  document.getElementById('modalCancel').onclick = closeModal;
+  document.getElementById('modalSaveCoach').onclick = async () => {
+    const nome = document.getElementById('mCoNome').value.trim();
+    const cognome = document.getElementById('mCoCognome').value.trim();
+    const username = document.getElementById('mCoUsername').value.trim();
+    if(!nome || !username){ alert('Nome e username sono obbligatori'); return; }
+    const existing = await getCoachRegistry();
+    if(existing.some(c => c.username === username)){ alert('Username già in uso, scegline un altro'); return; }
+    const codice = genSixDigitCode();
+    let entry;
+    try{
+      entry = await addCoachToRegistry({nome, cognome, username, codice});
+    }catch(e){
+      alert('Salvataggio fallito: ' + e.message + '\n\nProbabile causa: le regole Firestore non permettono la scrittura su /coaches/{id}. Controlla le regole nella console Firebase.');
+      console.error(e);
+      return;
+    }
+    document.getElementById('modalBody').innerHTML = `
+      <h2>Coach creato</h2>
+      <p style="color:var(--ink-soft); font-size:14px; margin-bottom:16px;">
+        Comunica queste credenziali a ${entry.nome}. Il codice non verrà mostrato di nuovo qui — se lo perde, elimina il coach e ricrealo.
+      </p>
+      <div class="card" style="text-align:center; padding:24px;">
+        <div class="stat-label">Username</div>
+        <div class="stat-num" style="font-size:22px;">${entry.username}</div>
+        <div style="height:14px;"></div>
+        <div class="stat-label">Codice</div>
+        <div class="stat-num" style="font-size:36px; color:var(--accent);">${entry.codice}</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="modalCloseAfterCoach">Chiudi</button>
+      </div>
+    `;
+    document.getElementById('modalCloseAfterCoach').onclick = async () => {
+      closeModal();
+      await loadAndRenderCoachRegistry();
+    };
+  };
+}
+
+/* ============================================================
+   IMPOSTAZIONI
+   ============================================================ */
+function renderSettings(){
+  return `
+    <div class="page-head"><h1>Impostazioni</h1></div>
+    ${STATE.role === 'admin' ? `
+    <div class="card">
+      <h3 style="font-size:16px; margin-bottom:10px;">Password admin</h3>
+      <div class="field"><label>Nuova password</label><input type="password" id="newAdminPass" placeholder="Scrivi la nuova password"></div>
+      <button class="btn small" id="saveAdminPassBtn">Salva nuova password</button>
+    </div>
+    ` : ''}
+    <div class="card">
+      <h3 style="font-size:16px; margin-bottom:10px;">Stato Firebase</h3>
+      <p style="color:var(--ink-soft); font-size:14px; line-height:1.6;">
+        ${firebaseReady
+          ? 'Connesso a Firestore. I dati vengono salvati anche in cloud, non solo nel browser.'
+          : 'Non connesso. I dati restano solo in questo browser (localStorage) — se cambi dispositivo o cancelli la cache li perdi. Per collegare Firestore, apri il file index.html e sostituisci il blocco firebaseConfig con quello del tuo progetto GIMTONIC Coaching su Firebase.'}
+      </p>
+    </div>
+    <div class="card">
+      <h3 style="font-size:16px; margin-bottom:10px;">Promemoria sicurezza</h3>
+      <p style="color:var(--ink-soft); font-size:14px; line-height:1.6;">
+        Il login ad oggi è: password admin fissa nel codice, e username/codice coach verificati leggendo Firestore in chiaro (regole ancora aperte a tutti). Funziona, ma chiunque legga il file sorgente vede la password admin, e le regole Firestore permettono lettura/scrittura a chiunque abbia il link. Prima di avere molti atleti reali, va sostituito con Firebase Authentication vera e regole Firestore che verificano l'identità lato server.
+      </p>
+    </div>
+  `;
+}
+
+/* ============================================================
+   EVENT HANDLERS DI PAGINA (delegati dopo ogni render)
+   ============================================================ */
+function attachPageHandlers(){
+  // Admin
+  const saveAdminPassBtn = document.getElementById('saveAdminPassBtn');
+  if(saveAdminPassBtn) saveAdminPassBtn.onclick = async () => {
+    const val = document.getElementById('newAdminPass').value.trim();
+    if(val.length < 4){ alert('Usa almeno 4 caratteri'); return; }
+    try{
+      await setAdminPassword(val);
+      alert('Password aggiornata.');
+      document.getElementById('newAdminPass').value = '';
+    }catch(e){
+      alert('Salvataggio fallito: ' + e.message + '\n\nControlla che le regole Firestore permettano /config/{doc}.');
+    }
+  };
+  const newCoachBtn = document.getElementById('newCoachBtn');
+  if(newCoachBtn) newCoachBtn.onclick = openNewCoachModal;
+  if(document.getElementById('coachRegistryCard')) loadAndRenderCoachRegistry();
+
+  // Libreria esercizi
+  const newExerciseBtn = document.getElementById('newExerciseBtn');
+  if(newExerciseBtn) newExerciseBtn.onclick = () => openExerciseModal(null);
+  const exSearchInput = document.getElementById('exSearchInput');
+  const exCategoriaFilter = document.getElementById('exCategoriaFilter');
+  function refreshExerciseList(){
+    const card = document.getElementById('exerciseListCard');
+    if(!card) return;
+    card.innerHTML = renderExerciseListInner(exSearchInput?exSearchInput.value:'', exCategoriaFilter?exCategoriaFilter.value:'');
+    card.querySelectorAll('[data-edit-exercise]').forEach(b => b.onclick = () => {
+      openExerciseModal(STATE.exercises.find(x=>x.id===b.dataset.editExercise));
+    });
+    card.querySelectorAll('[data-del-exercise]').forEach(b => b.onclick = async () => {
+      if(!confirm('Eliminare questo esercizio dalla libreria?')) return;
+      STATE.exercises = STATE.exercises.filter(x=>x.id!==b.dataset.delExercise);
+      await persistExercises();
+      refreshExerciseList();
+    });
+  }
+  if(exSearchInput) exSearchInput.oninput = refreshExerciseList;
+  if(exCategoriaFilter) exCategoriaFilter.onchange = refreshExerciseList;
+  if(document.getElementById('exerciseListCard')) refreshExerciseList();
+
+  // Clienti
+  const newClientBtn = document.getElementById('newClientBtn');
+  if(newClientBtn) newClientBtn.onclick = () => openClientModal(null);
+  document.querySelectorAll('[data-edit-client]').forEach(b => b.onclick = () => {
+    const c = STATE.clients.find(x=>x.id===b.dataset.editClient);
+    openClientModal(c);
+  });
+  document.querySelectorAll('[data-del-client]').forEach(b => b.onclick = async () => {
+    if(!confirm('Eliminare questo atleta e tutti i suoi dati?')) return;
+    STATE.clients = STATE.clients.filter(x=>x.id!==b.dataset.delClient);
+    await persistClients();
+    render();
+  });
+
+  // Templates
+  const newTplBtn = document.getElementById('newTemplateBtn');
+  if(newTplBtn) newTplBtn.onclick = () => openTemplateModal(null);
+  document.querySelectorAll('[data-edit-template]').forEach(b => b.onclick = () => {
+    const t = STATE.templates.find(x=>x.id===b.dataset.editTemplate);
+    openTemplateModal(t);
+  });
+  document.querySelectorAll('[data-del-template]').forEach(b => b.onclick = async () => {
+    if(!confirm('Eliminare questo template dalla libreria?')) return;
+    STATE.templates = STATE.templates.filter(x=>x.id!==b.dataset.delTemplate);
+    await persistTemplates();
+    render();
+  });
+
+  // Assegna
+  const assignBtn = document.getElementById('doAssignBtn');
+  if(assignBtn) assignBtn.onclick = async () => {
+    const clientId = document.getElementById('assignClientSel').value;
+    const tplId = document.getElementById('assignTplSel').value;
+    const client = STATE.clients.find(c=>c.id===clientId);
+    const tpl = STATE.templates.find(t=>t.id===tplId);
+    // copia profonda scollegata dal template originale
+    client.programma_attivo = JSON.parse(JSON.stringify(tpl));
+    client.programma_attivo.origine_template = tpl.id;
+    client._gymDayIdx = 0;
+    client._gymLog = {};
+    await persistClients();
+    alert('Programma assegnato a ' + client.nome + '. È una copia indipendente: modificarla non tocca il template originale.');
+    goPage('gym');
+  };
+
+  // Gym mode
+  const gymClientSel = document.getElementById('gymClientSel');
+  if(gymClientSel) gymClientSel.onchange = e => { STATE.activeClientId = e.target.value; render(); };
+  const gymDaySel = document.getElementById('gymDaySel');
+  if(gymDaySel){
+    const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    gymDaySel.value = client._gymDayIdx || 0;
+    gymDaySel.onchange = e => {
+      client._gymDayIdx = parseInt(e.target.value);
+      client._gymLog = {};
+      render();
+    };
+  }
+  document.querySelectorAll('[data-set]').forEach(inp => inp.onchange = e => {
+    const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    const [key, si, field] = inp.dataset.set.split('.');
+    client._gymLog[key][+si][field] = e.target.value;
+  });
+  document.querySelectorAll('[data-scale-set]').forEach(btn => btn.onclick = () => {
+    const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    const [key, si, code] = btn.dataset.scaleSet.split('.');
+    client._gymLog[key][+si].sforzo = code;
+    document.getElementById('gymDayBody').innerHTML = renderGymDayBody(client, client.programma_attivo.giorni[client._gymDayIdx||0]);
+    attachPageHandlers();
+  });
+  document.querySelectorAll('[data-check]').forEach(btn => btn.onclick = () => {
+    const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    const day = client.programma_attivo.giorni[client._gymDayIdx||0];
+    const [key, si] = btn.dataset.check.split('.');
+    const wasDone = client._gymLog[key][+si].done;
+    client._gymLog[key][+si].done = !wasDone;
+    if(!wasDone){
+      const exIdx = day.esercizi.findIndex((ex,i) => (ex.esercizio+'_'+i) === key);
+      if(exIdx >= 0) startRestTimer(day.esercizi[exIdx].riposo_sec);
+    }
+    document.getElementById('gymDayBody').innerHTML = renderGymDayBody(client, day);
+    attachPageHandlers();
+  });
+  const finishBtn = document.getElementById('finishSessionBtn');
+  if(finishBtn) finishBtn.onclick = async () => {
+    const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    const day = client.programma_attivo.giorni[client._gymDayIdx||0];
+    const esercizi = day.esercizi.map((ex,exi) => {
+      const key = ex.esercizio + '_' + exi;
+      return {esercizio: ex.esercizio, sets: (client._gymLog[key]||[]).map(s=>({peso:s.peso,reps:s.reps,sforzo:s.sforzo,timestamp:Date.now()}))};
+    });
+    if(!client.logs) client.logs = [];
+    client.logs.push({data: Date.now(), giorno_nome: day.nome, esercizi});
+    client._gymLog = {};
+    await persistClients();
+    alert('Sessione salvata.');
+    render();
+  };
+
+  // Wellness
+  const wellClientSel = document.getElementById('wellClientSel');
+  if(wellClientSel) wellClientSel.onchange = e => { STATE.activeClientId = e.target.value; render(); };
+
+  // Storico/Progressi
+  const progressClientSel = document.getElementById('progressClientSel');
+  if(progressClientSel) progressClientSel.onchange = e => { STATE.activeClientId = e.target.value; render(); };
+  if(document.getElementById('volumeChart')) drawVolumeChart();
+  document.querySelectorAll('[data-scale]').forEach(group => {
+    group.querySelectorAll('button').forEach(btn => btn.onclick = () => {
+      group.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+  const saveWellBtn = document.getElementById('saveWellnessBtn');
+  if(saveWellBtn) saveWellBtn.onclick = async () => {
+    const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    const today = new Date().toISOString().slice(0,10);
+    if(!client.wellness) client.wellness = {};
+    const entry = {};
+    document.querySelectorAll('[data-scale]').forEach(group => {
+      const activeBtn = group.querySelector('button.active');
+      entry[group.dataset.scale] = activeBtn ? parseInt(activeBtn.dataset.val) : 0;
+    });
+    client.wellness[today] = entry;
+    await persistClients();
+    alert('Check-in salvato.');
+  };
+}
+</script>
+</body>
+</html>
