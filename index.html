@@ -596,6 +596,14 @@ function hooperBand(score){
   return {label:'Critico', color:'var(--clay)', advice:'Confronto diretto con il giocatore'};
 }
 
+/* Percentuale di freschezza: 100% = pienamente pronto (HI 4), 0% = scarico (HI 28).
+   Piu' intuitiva del punteggio grezzo: alta = sta bene, come una batteria. */
+function hooperPercent(score){
+  if(score === null || typeof score === 'undefined') return null;
+  const pct = Math.round((28 - score) / 24 * 100);
+  return Math.max(0, Math.min(100, pct));
+}
+
 /* Compatibilita': le voci vecchie usavano muscles/mood su scala 1-5 */
 function hooperScore(entry){
   if(!entry) return null;
@@ -645,6 +653,26 @@ const BODY_ZONES = [
   'Piede Destro',
   'Piede Sinistro',
 ];
+
+/* ---------- MODULI DI GIOCO ----------
+   Coordinate normalizzate su campo 0-100.
+   La propria porta e' in basso (y alto), gli attaccanti sono in alto (y basso).
+   r = ruolo suggerito: P=Portiere, D=Difensore, C=Centrocampista, T=Trequartista, A=Attaccante.
+   L'ordine dei ruoli nell'array e' quello che il picker usa per suggerire i giocatori. */
+const FORMATIONS = {
+  '4-4-2':   [{r:'P',x:50,y:92},{r:'D',x:15,y:75},{r:'D',x:38,y:78},{r:'D',x:62,y:78},{r:'D',x:85,y:75},{r:'C',x:15,y:50},{r:'C',x:38,y:52},{r:'C',x:62,y:52},{r:'C',x:85,y:50},{r:'A',x:38,y:22},{r:'A',x:62,y:22}],
+  '4-3-3':   [{r:'P',x:50,y:92},{r:'D',x:15,y:75},{r:'D',x:38,y:78},{r:'D',x:62,y:78},{r:'D',x:85,y:75},{r:'C',x:30,y:52},{r:'C',x:50,y:55},{r:'C',x:70,y:52},{r:'A',x:18,y:22},{r:'A',x:50,y:20},{r:'A',x:82,y:22}],
+  '4-2-3-1': [{r:'P',x:50,y:92},{r:'D',x:15,y:75},{r:'D',x:38,y:78},{r:'D',x:62,y:78},{r:'D',x:85,y:75},{r:'C',x:35,y:60},{r:'C',x:65,y:60},{r:'T',x:20,y:38},{r:'T',x:50,y:38},{r:'T',x:80,y:38},{r:'A',x:50,y:18}],
+  '4-3-1-2': [{r:'P',x:50,y:92},{r:'D',x:15,y:75},{r:'D',x:38,y:78},{r:'D',x:62,y:78},{r:'D',x:85,y:75},{r:'C',x:22,y:55},{r:'C',x:50,y:58},{r:'C',x:78,y:55},{r:'T',x:50,y:35},{r:'A',x:35,y:18},{r:'A',x:65,y:18}],
+  '4-1-4-1': [{r:'P',x:50,y:92},{r:'D',x:15,y:75},{r:'D',x:38,y:78},{r:'D',x:62,y:78},{r:'D',x:85,y:75},{r:'C',x:50,y:62},{r:'C',x:15,y:40},{r:'C',x:38,y:42},{r:'C',x:62,y:42},{r:'C',x:85,y:40},{r:'A',x:50,y:18}],
+  '3-5-2':   [{r:'P',x:50,y:92},{r:'D',x:25,y:78},{r:'D',x:50,y:80},{r:'D',x:75,y:78},{r:'C',x:8,y:55},{r:'C',x:30,y:55},{r:'C',x:50,y:58},{r:'C',x:70,y:55},{r:'C',x:92,y:55},{r:'A',x:35,y:20},{r:'A',x:65,y:20}],
+  '3-4-3':   [{r:'P',x:50,y:92},{r:'D',x:25,y:78},{r:'D',x:50,y:80},{r:'D',x:75,y:78},{r:'C',x:15,y:55},{r:'C',x:38,y:55},{r:'C',x:62,y:55},{r:'C',x:85,y:55},{r:'A',x:20,y:22},{r:'A',x:50,y:20},{r:'A',x:80,y:22}],
+  '5-3-2':   [{r:'P',x:50,y:92},{r:'D',x:10,y:72},{r:'D',x:30,y:78},{r:'D',x:50,y:80},{r:'D',x:70,y:78},{r:'D',x:90,y:72},{r:'C',x:30,y:52},{r:'C',x:50,y:55},{r:'C',x:70,y:52},{r:'A',x:35,y:22},{r:'A',x:65,y:22}],
+  '5-4-1':   [{r:'P',x:50,y:92},{r:'D',x:10,y:72},{r:'D',x:30,y:78},{r:'D',x:50,y:80},{r:'D',x:70,y:78},{r:'D',x:90,y:72},{r:'C',x:20,y:50},{r:'C',x:40,y:52},{r:'C',x:60,y:52},{r:'C',x:80,y:50},{r:'A',x:50,y:22}],
+  '4-5-1':   [{r:'P',x:50,y:92},{r:'D',x:15,y:75},{r:'D',x:38,y:78},{r:'D',x:62,y:78},{r:'D',x:85,y:75},{r:'C',x:10,y:50},{r:'C',x:30,y:52},{r:'C',x:50,y:55},{r:'C',x:70,y:52},{r:'C',x:90,y:50},{r:'A',x:50,y:22}]
+};
+
+const FORMATION_ROLE_LABELS = {P:'Portiere', D:'Difensore', C:'Centrocampista', T:'Trequartista', A:'Attaccante'};
 
 /* ---------- AREA MEDICA ----------
    L'infortunio e' un'entita' con inizio, durata e rientro: solo cosi' si puo'
@@ -1213,8 +1241,13 @@ function getHooperTrend(playerId, windowDays){
   return {
     direction, label, color,
     delta: Math.round(delta * 10) / 10,
+    // Variazione in punti di freschezza: piu' leggibile del punteggio grezzo.
+    // Un calo di punteggio (miglioramento) diventa un +% di freschezza.
+    deltaPercent: Math.round((hooperPercent(recentAvg) - hooperPercent(previousAvg))),
     recentAvg: Math.round(recentAvg * 10) / 10,
     previousAvg: Math.round(previousAvg * 10) / 10,
+    recentPercent: hooperPercent(recentAvg),
+    previousPercent: hooperPercent(previousAvg),
     recentCount: recent.length,
     previousCount: previous.length,
     windowDays: win
@@ -1947,7 +1980,7 @@ function buildDailyReport(){
     <h2>Quadro squadra</h2>
     <table>
       <thead>
-        <tr><th>Giocatore</th><th>Ruolo</th><th>Stato</th><th>HI</th><th>ACWR</th><th>Dolori aperti</th><th>Pres.</th></tr>
+        <tr><th>Giocatore</th><th>Ruolo</th><th>Stato</th><th>Fresch.</th><th>ACWR</th><th>Dolori aperti</th><th>Pres.</th></tr>
       </thead>
       <tbody>
         ${righe.map(r=>`
@@ -1964,7 +1997,7 @@ function buildDailyReport(){
     </table>
 
     <div class="ps-foot">
-      HI = Hooper Index, da 4 (ottimo) a 28 (critico): punteggio basso significa giocatore fresco.
+      Fresch. = freschezza (Hooper Index in percentuale): 100% pienamente pronto, 0% scarico. Passa sopra il valore per il punteggio grezzo.
       L'asterisco indica una rilevazione non aggiornata a oggi.
       ACWR = carico ultima settimana diviso media delle ultime quattro; zona ottimale fra 0.8 e 1.3.
       <br>Generato il ${fmtDate(todayStr())} alle ${new Date().toTimeString().slice(0,5)} &middot; Team Hub Pro &middot; documento a uso interno dello staff.
@@ -2051,9 +2084,9 @@ function renderDashboard(el){
       <div class="tile tap" id="tileWellness">
         <div class="tile-accent" style="background:${w.bandOggi ? w.bandOggi.color : 'var(--line)'};"></div>
         <div class="tile-lbl">Wellness squadra</div>
-        <div class="tile-big" style="color:${w.bandOggi ? w.bandOggi.color : 'var(--ink-soft)'};">${w.avgOggi !== null ? w.avgOggi : '—'}<small>/28</small></div>
+        <div class="tile-big" style="color:${w.bandOggi ? w.bandOggi.color : 'var(--ink-soft)'};">${w.avgOggi !== null ? hooperPercent(w.avgOggi) + '<small>%</small>' : '—'}</div>
         <div class="tile-sub">${w.bandOggi ? w.bandOggi.label + ' &middot; ' : ''}${w.compilatiOggi}/${w.attesiOggi} hanno compilato</div>
-        <div class="tile-sub" style="opacity:0.6;">Tocca per il dettaglio</div>
+        <div class="tile-sub" style="opacity:0.6;">Freschezza media &middot; tocca per il dettaglio</div>
       </div>
 
       <div class="tile tap" id="tileRosa">
@@ -2441,8 +2474,14 @@ function getSeasonStats(playerId){
         if(row.status === 'starter') starts++;
       }
     }
-    if(Array.isArray(m.goals))   goals   += m.goals.filter(g => String(g.playerId) === pid).length;
-    if(Array.isArray(m.assists)) assists += m.assists.filter(a => String(a.playerId) === pid).length;
+    /* Prima leggo dagli eventi timeline (formato nuovo). Se manca, ricado sui vecchi array. */
+    if(Array.isArray(m.events) && m.events.length){
+      goals   += m.events.filter(e => e.type === 'goal'   && String(e.playerId) === pid).length;
+      assists += m.events.filter(e => e.type === 'assist' && String(e.playerId) === pid).length;
+    } else {
+      if(Array.isArray(m.goals))   goals   += m.goals.filter(g => String(g.playerId) === pid).length;
+      if(Array.isArray(m.assists)) assists += m.assists.filter(a => String(a.playerId) === pid).length;
+    }
   });
 
   return {minutes, goals, assists, matches, starts};
@@ -2464,6 +2503,10 @@ function getTrainingAttendance(playerId){
    ACWR = carico dell'ultima settimana / media settimanale delle ultime 4.
    Sotto 0.8 scarico, 0.8-1.3 zona ottimale, sopra 1.5 rischio. */
 function sessionLoad(rpeEntry){
+  // Se il singolo RPE ha i suoi minuti, hanno la precedenza su tutto
+  if(typeof rpeEntry.minutes === 'number' && rpeEntry.minutes > 0){
+    return (rpeEntry.rpe || 0) * rpeEntry.minutes;
+  }
   const ev = STATE.events.find(e => e.id === rpeEntry.sessionId);
   let dur;
   if(ev && ev.importedDuration) dur = ev.importedDuration;      // RPE storici importati
@@ -2684,10 +2727,10 @@ function showPlayerReport(playerId){
 
       <div class="grid3" style="margin-bottom:18px;">
         <div style="background:var(--chalk);padding:12px;border-radius:8px;">
-          <div style="font-size:10px;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Hooper attuale</div>
+          <div style="font-size:10px;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Freschezza</div>
           ${latest ? `
-            <div style="font-size:26px;font-weight:700;color:${latest.band.color};">${latest.score}<span style="font-size:13px;color:var(--ink-soft);">/28</span></div>
-            <div style="font-size:11px;color:${latest.band.color};font-weight:600;">${latest.band.label}</div>
+            <div style="font-size:26px;font-weight:700;color:${latest.band.color};">${hooperPercent(latest.score)}<span style="font-size:13px;color:var(--ink-soft);">%</span></div>
+            <div style="font-size:11px;color:${latest.band.color};font-weight:600;">${latest.band.label} · HI ${latest.score}/28</div>
             <div style="font-size:10px;color:var(--ink-soft);">${fmtDate(latest.date)}</div>
           ` : '<div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">Nessun dato</div>'}
         </div>
@@ -2696,8 +2739,8 @@ function showPlayerReport(playerId){
           <div style="font-size:10px;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Andamento 7 giorni</div>
           ${trend ? `
             <div style="font-size:15px;font-weight:700;color:${trend.color};margin-top:4px;">${trend.label}</div>
-            <div style="font-size:11px;color:var(--ink-soft);">media ${trend.previousAvg} &rarr; ${trend.recentAvg}</div>
-            <div style="font-size:10px;color:var(--ink-soft);">${trend.recentCount} rilevazioni recenti su ${trend.previousCount} precedenti</div>
+            <div style="font-size:13px;font-weight:600;color:${trend.color};">${trend.deltaPercent > 0 ? '+' : ''}${trend.deltaPercent}% freschezza</div>
+            <div style="font-size:10px;color:var(--ink-soft);">${trend.previousPercent}% &rarr; ${trend.recentPercent}%</div>
           ` : '<div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">Servono almeno due settimane di dati</div>'}
         </div>
 
@@ -2946,6 +2989,10 @@ function rpeEntryForm(playerId, entry, onDone){
         ${sessioni.map(e=>`<option value="${e.id}" ${entry && entry.sessionId === e.id ? 'selected' : ''}>${esc(e.title)} — ${fmtDate(e.date)}</option>`).join('')}
       </select>
 
+      <label>Minuti (facoltativo)</label>
+      <input id="reMinutes" type="number" min="0" max="240" value="${entry && entry.minutes ? entry.minutes : ''}" placeholder="Lascia vuoto per usare i minuti della sessione">
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">Se indichi i minuti, il carico di questa seduta usa questo valore invece di quello della sessione.</div>
+
       <div style="margin-top:14px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
           <label style="margin:0;">Sforzo percepito</label>
@@ -2986,23 +3033,28 @@ function rpeEntryForm(playerId, entry, onDone){
     if(date > todayStr()){ showToast('La data non puo essere futura'); return; }
     const rpe = parseInt(slider.value, 10);
     const sessionId = document.getElementById('reSession').value;
+    const minInput = document.getElementById('reMinutes').value;
+    const minutes = minInput === '' ? null : Math.max(0, Math.min(240, parseInt(minInput, 10) || 0));
 
     if(nuovo){
       const gia = STATE.rpeLog.some(x => String(x.playerId)===String(playerId) && x.date===date);
       if(gia && !confirm('Esiste gia un RPE di ' + (player?player.name:'') + ' per il ' + fmtDate(date) + '.\n\nAggiungerne un altro? Quel giorno contera carico doppio.')) return;
       if(!confirm('Registrare RPE ' + rpe + '/10 per ' + (player?player.name:'') + ' in data ' + fmtDate(date) + '?')) return;
-      STATE.rpeLog.push({
+      const nuovaVoce = {
         id: uid(), playerId: playerId, date: date,
         sessionId: sessionId, rpe: rpe, addedBy: 'staff',
         statusAtEntry: currentStatusOf(playerId)
-      });
+      };
+      if(minutes !== null) nuovaVoce.minutes = minutes;
+      STATE.rpeLog.push(nuovaVoce);
     } else {
-      const cambiato = (entry.rpe !== rpe) || (entry.date !== date) || (entry.sessionId !== sessionId);
+      const cambiato = (entry.rpe !== rpe) || (entry.date !== date) || (entry.sessionId !== sessionId) || ((entry.minutes||null) !== minutes);
       if(!cambiato){ modal.remove(); return; }
       if(!confirm('Salvare le modifiche?\n\nIl dato inserito dal giocatore verra sostituito.')) return;
       entry.rpe = rpe;
       entry.date = date;
       entry.sessionId = sessionId;
+      if(minutes !== null) entry.minutes = minutes; else delete entry.minutes;
       entry.editedBy = 'staff';
       entry.editedAt = todayStr();
     }
@@ -3294,10 +3346,10 @@ function renderGiocatori(el){
           <button class="btn" id="addPlayerBtn" style="padding:6px 12px;font-size:12px;">+ Aggiungi</button>
         </div>
         <table>
-          <thead><tr><th>Nome</th><th>Eta</th><th>Ruolo</th><th>Min.</th><th>HI</th><th>Stato</th></tr></thead>
+          <thead><tr><th>Nome</th><th>Eta</th><th>Ruolo</th><th>Min.</th><th>Fresch.</th><th>Stato</th></tr></thead>
           <tbody id="playersTableBody"></tbody>
         </table>
-        <div style="font-size:11px;color:var(--ink-soft);margin-top:10px;">HI = Hooper Index piu' recente, da 4 (ottimo) a 28 (critico): basso significa fresco. Min. = minuti giocati in stagione. Il pallino rosso segnala un dolore aperto. Tocca un giocatore per la scheda completa.</div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-top:10px;">Fresch. = freschezza (Hooper in %): 100% pronto, 0% scarico. Min. = minuti in stagione. Il pallino rosso segnala un dolore aperto. Tocca un giocatore per la scheda.</div>
       </div>
       <div id="detailsPanel">
         ${isAddingNew ? `
@@ -3373,7 +3425,7 @@ function renderGiocatori(el){
 
     const hooper = getLatestHooperIndex(p.id);
     const hiDisplay = hooper
-      ? `<span style="font-weight:700;color:${hooper.band.color};" title="${hooper.band.label} — rilevato il ${fmtDate(hooper.date)}">${hooper.score}</span>`
+      ? `<span style="font-weight:700;color:${hooper.band.color};" title="Hooper ${hooper.score}/28 · ${hooper.band.label} — rilevato il ${fmtDate(hooper.date)}">${hooperPercent(hooper.score)}%</span>`
       : '<span style="color:var(--ink-soft);">—</span>';
 
     const meta = statusMeta(p.status);
@@ -4939,15 +4991,26 @@ function getMatchStats(match){
     assists: {},
     lineup: {}
   };
-  if(match.goals){
-    match.goals.forEach(g => {
-      stats.goals[g.playerId] = (stats.goals[g.playerId] || 0) + 1;
+  /* Formato nuovo: eventi in match.events con type 'goal' o 'assist'. Se manca, ricado sui vecchi array. */
+  if(Array.isArray(match.events) && match.events.length){
+    match.events.forEach(evt => {
+      if(evt.type === 'goal'){
+        stats.goals[evt.playerId] = (stats.goals[evt.playerId] || 0) + 1;
+      } else if(evt.type === 'assist'){
+        stats.assists[evt.playerId] = (stats.assists[evt.playerId] || 0) + 1;
+      }
     });
-  }
-  if(match.assists){
-    match.assists.forEach(a => {
-      stats.assists[a.playerId] = (stats.assists[a.playerId] || 0) + 1;
-    });
+  } else {
+    if(match.goals){
+      match.goals.forEach(g => {
+        stats.goals[g.playerId] = (stats.goals[g.playerId] || 0) + 1;
+      });
+    }
+    if(match.assists){
+      match.assists.forEach(a => {
+        stats.assists[a.playerId] = (stats.assists[a.playerId] || 0) + 1;
+      });
+    }
   }
   if(match.lineup){
     match.lineup.forEach(l => {
@@ -5089,6 +5152,372 @@ async function toggleConvocato(eventId, playerId){
   const i = event.convocati.indexOf(id);
   if(i === -1) event.convocati.push(id); else event.convocati.splice(i, 1);
   await saveKey('events', STATE.events);
+}
+
+/* ---------- FORMAZIONE GRAFICA (SVG + click-to-place) ----------
+   Il modello dati:
+   - match.starters: array di playerId dei titolari (esisteva gia', continuo a usarlo per non rompere niente)
+   - match.formationSlots: mappa { slotIdx -> playerId } che fissa la posizione grafica del titolare
+     Se un giocatore e' in starters ma non ha slot assegnato, viene mostrato "senza posizione" sotto al campo
+   Le sostituzioni continuano a vivere in match.substitutions: il subentrante prende il posto grafico dell'uscente. */
+
+/* Iniziali di un nome per il pallino sul campo (max 2 lettere) */
+function playerInitials(name){
+  if(!name) return '?';
+  const parts = String(name).trim().split(/\s+/);
+  if(parts.length === 1) return parts[0].substring(0,2).toUpperCase();
+  return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+}
+
+/* Cognome di un giocatore per l'etichetta sotto al pallino */
+function playerShortLabel(name){
+  if(!name) return '';
+  const parts = String(name).trim().split(/\s+/);
+  return (parts.length > 1 ? parts[parts.length-1] : parts[0]).substring(0,10);
+}
+
+/* Chi occupa uno slot in questo momento, considerando le sostituzioni */
+function currentPlayerInSlot(match, slotIdx){
+  const slots = match.formationSlots || {};
+  const originalPid = slots[slotIdx];
+  if(!originalPid) return null;
+  const subs = (match.substitutions || []).slice().sort((a,b)=>(a.minute||0)-(b.minute||0));
+  let currentPid = String(originalPid);
+  let subbedOut = false;
+  for(const sw of subs){
+    if(String(sw.outPlayerId) === currentPid){
+      currentPid = String(sw.inPlayerId);
+      subbedOut = true;
+    }
+  }
+  const reds = match.redCards || [];
+  const wasRed = reds.some(r => String(r.playerId) === currentPid);
+  return {playerId: currentPid, originalPlayerId: String(originalPid), subbedOut, wasRed};
+}
+
+/* Disegna il campo con gli slot del modulo selezionato */
+function renderPitchSVG(match){
+  const modulo = match.modulo;
+  const formation = FORMATIONS[modulo];
+  if(!formation){
+    return '<div style="padding:24px;text-align:center;font-size:12.5px;color:var(--ink-soft);background:#F7F5EC;border-radius:8px;border:1px dashed var(--line);">Seleziona un modulo dall\'elenco per disegnare la formazione sul campo.</div>';
+  }
+  let svg = `<svg viewBox="0 0 100 100" style="width:100%;max-width:360px;height:auto;display:block;margin:0 auto;background:linear-gradient(180deg,#2F7A4E 0%,#276941 100%);border-radius:8px;border:2px solid var(--pitch-dark);" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="2" width="96" height="96" fill="none" stroke="white" stroke-width="0.4" opacity="0.85"/>
+    <line x1="2" y1="50" x2="98" y2="50" stroke="white" stroke-width="0.3" opacity="0.85"/>
+    <circle cx="50" cy="50" r="7" fill="none" stroke="white" stroke-width="0.3" opacity="0.85"/>
+    <circle cx="50" cy="50" r="0.6" fill="white" opacity="0.85"/>
+    <rect x="25" y="84" width="50" height="14" fill="none" stroke="white" stroke-width="0.3" opacity="0.85"/>
+    <rect x="37" y="92" width="26" height="6" fill="none" stroke="white" stroke-width="0.3" opacity="0.85"/>
+    <rect x="25" y="2" width="50" height="14" fill="none" stroke="white" stroke-width="0.3" opacity="0.85"/>
+    <rect x="37" y="2" width="26" height="6" fill="none" stroke="white" stroke-width="0.3" opacity="0.85"/>`;
+
+  formation.forEach((pos, i)=>{
+    const occ = currentPlayerInSlot(match, i);
+    let fill = 'rgba(255,255,255,0.14)', stroke = 'rgba(255,255,255,0.7)', strokeDash = '1.2 1.2', label = '+', name = '', textColor = 'white';
+    if(occ){
+      const pl = STATE.players.find(x => String(x.id) === String(occ.playerId));
+      if(pl){
+        label = playerInitials(pl.name);
+        name = playerShortLabel(pl.name);
+        strokeDash = '';
+        if(occ.wasRed){
+          fill = '#B5473A'; stroke = 'white'; textColor = 'white';
+        } else if(occ.subbedOut){
+          fill = '#3F7A5C'; stroke = 'white'; textColor = 'white';
+        } else {
+          fill = '#C9922B'; stroke = 'white'; textColor = '#0E241C';
+        }
+      }
+    }
+    svg += `<g class="pitch-slot" data-slot-idx="${i}" style="cursor:pointer;">
+      <circle cx="${pos.x}" cy="${pos.y}" r="5.8" fill="${fill}" stroke="${stroke}" stroke-width="0.7" stroke-dasharray="${strokeDash}"/>
+      <text x="${pos.x}" y="${pos.y+0.3}" text-anchor="middle" dominant-baseline="central" font-size="3.4" font-weight="700" fill="${textColor}" style="pointer-events:none;font-family:Inter,sans-serif;">${label}</text>
+      ${name ? `<text x="${pos.x}" y="${pos.y+9}" text-anchor="middle" font-size="2.6" font-weight="600" fill="white" style="pointer-events:none;font-family:Inter,sans-serif;paint-order:stroke;stroke:rgba(0,0,0,0.55);stroke-width:0.5;">${esc(name)}</text>` : ''}
+    </g>`;
+  });
+
+  svg += '</svg>';
+
+  /* Titolari senza slot: elenco sotto al campo, cosi' l'utente puo' assegnarli */
+  const starters = Array.isArray(match.starters) ? match.starters.map(String) : [];
+  const slotsMap = match.formationSlots || {};
+  const assigned = new Set(Object.values(slotsMap).map(String));
+  const unassigned = starters.filter(pid => !assigned.has(pid));
+  let extra = '';
+  if(unassigned.length){
+    extra = `<div style="margin-top:10px;padding:8px 10px;background:#FFF8E7;border:1px solid var(--amber);border-radius:6px;font-size:11.5px;color:var(--ink);">
+      <strong>Titolari senza posizione:</strong> ${unassigned.map(pid=>{
+        const p = STATE.players.find(x => String(x.id) === pid);
+        return p ? esc(p.name) : 'giocatore rimosso';
+      }).join(', ')}<br>
+      <span style="color:var(--ink-soft);font-size:10.5px;">Tocca una casella libera del campo per assegnare la posizione.</span>
+    </div>`;
+  }
+  return svg + extra;
+}
+
+function updatePitchStarterCount(match){
+  const el = document.getElementById('pitchStarterCount');
+  if(!el) return;
+  const n = Array.isArray(match.starters) ? match.starters.length : 0;
+  el.textContent = n + ' / 11 in campo';
+  el.style.color = n === 11 ? 'var(--ok)' : (n > 11 ? 'var(--clay)' : 'var(--ink-soft)');
+}
+
+/* Aggancia i click ai pallini del campo e apre il picker contestuale */
+function bindPitchInteractions(match){
+  const pitch = document.getElementById('pitchContainer');
+  if(!pitch) return;
+  pitch.querySelectorAll('.pitch-slot').forEach(g=>{
+    g.addEventListener('click', ()=>{
+      const idx = parseInt(g.dataset.slotIdx, 10);
+      openPitchPicker(match, idx);
+    });
+  });
+}
+
+/* Picker inline: se lo slot e' vuoto mostra i convocati disponibili, filtrati per ruolo suggerito;
+   se e' pieno mostra le azioni possibili (sostituzione, espulsione, rimozione). */
+function openPitchPicker(match, slotIdx){
+  const picker = document.getElementById('pitchPicker');
+  if(!picker) return;
+  const formation = FORMATIONS[match.modulo];
+  if(!formation) return;
+
+  const slotDef = formation[slotIdx];
+  const occ = currentPlayerInSlot(match, slotIdx);
+
+  const close = ()=>{ picker.style.display = 'none'; picker.innerHTML = ''; };
+
+  if(!occ){
+    /* Slot vuoto: mostro i convocati non ancora piazzati, ordinati per ruolo compatibile */
+    const slotsMap = match.formationSlots || {};
+    const assigned = new Set(Object.values(slotsMap).map(String));
+    const convocati = (match.convocati || []).map(String);
+    const candidateIds = convocati.length ? convocati : STATE.players.filter(p=>p.status==='Disponibile').map(p=>String(p.id));
+    const candidates = candidateIds
+      .filter(pid => !assigned.has(pid))
+      .map(pid => STATE.players.find(p => String(p.id) === pid))
+      .filter(Boolean)
+      .sort((a,b)=>{
+        /* Se lo slot e' portiere, i portieri vanno in cima */
+        const aIsGK = /portiere/i.test(a.role||'');
+        const bIsGK = /portiere/i.test(b.role||'');
+        if(slotDef.r === 'P'){
+          if(aIsGK && !bIsGK) return -1;
+          if(!aIsGK && bIsGK) return 1;
+        } else {
+          if(aIsGK && !bIsGK) return 1;
+          if(!aIsGK && bIsGK) return -1;
+        }
+        return String(a.name).localeCompare(String(b.name));
+      });
+
+    picker.innerHTML = `
+      <div style="border:1px solid var(--amber);background:#FFFBEF;border-radius:8px;padding:12px;margin-top:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <strong style="font-size:12.5px;color:var(--pitch);">Assegna posizione: ${FORMATION_ROLE_LABELS[slotDef.r] || 'Giocatore'}</strong>
+          <button type="button" class="btn secondary" id="pitchPickerCloseBtn" style="font-size:11px;padding:4px 10px;">Annulla</button>
+        </div>
+        ${candidates.length === 0
+          ? '<div style="font-size:12px;color:var(--ink-soft);padding:8px 0;">Nessun convocato disponibile. Aggiungi convocati nella sezione qui sopra, oppure imposta lo stato dei giocatori su Disponibile.</div>'
+          : `<div style="max-height:220px;overflow-y:auto;">
+              ${candidates.map(p=>`
+                <button type="button" class="pitch-assign-btn" data-player-id="${p.id}" style="width:100%;text-align:left;padding:8px 10px;margin-bottom:4px;background:white;border:1px solid var(--line);border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:12.5px;font-weight:600;">${esc(p.name)}</span>
+                  <span style="font-size:10.5px;color:var(--ink-soft);">${esc(p.role || '—')}</span>
+                </button>
+              `).join('')}
+            </div>`
+        }
+      </div>`;
+    picker.style.display = 'block';
+
+    document.getElementById('pitchPickerCloseBtn').addEventListener('click', close);
+    picker.querySelectorAll('.pitch-assign-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const pid = btn.dataset.playerId;
+        if(!match.formationSlots) match.formationSlots = {};
+        match.formationSlots[slotIdx] = pid;
+        /* Assicuro che sia tra i titolari */
+        if(!Array.isArray(match.starters)) match.starters = [];
+        if(!match.starters.map(String).includes(String(pid))) match.starters.push(pid);
+        await saveKey('events', STATE.events);
+        close();
+        refreshPitch(match);
+      });
+    });
+    return;
+  }
+
+  /* Slot pieno: azioni contestuali */
+  const pl = STATE.players.find(x => String(x.id) === String(occ.playerId));
+  const plName = pl ? pl.name : 'giocatore';
+  const isPast = match.date && match.date < todayStr();
+  picker.innerHTML = `
+    <div style="border:1px solid var(--amber);background:#FFFBEF;border-radius:8px;padding:12px;margin-top:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <strong style="font-size:12.5px;color:var(--pitch);">${esc(plName)}${occ.subbedOut ? ' (entrato al posto di ' + esc((STATE.players.find(x=>String(x.id)===occ.originalPlayerId)||{}).name||'') + ')' : ''}</strong>
+        <button type="button" class="btn secondary" id="pitchPickerCloseBtn" style="font-size:11px;padding:4px 10px;">Chiudi</button>
+      </div>
+      ${isPast ? `
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <button type="button" id="pitchActionSub" class="btn secondary" style="width:100%;text-align:left;font-size:12.5px;">Sostituisci al minuto...</button>
+          <button type="button" id="pitchActionRed" class="btn secondary" style="width:100%;text-align:left;font-size:12.5px;color:var(--clay);">Espulsione (rosso) al minuto...</button>
+          <button type="button" id="pitchActionRemove" class="btn secondary" style="width:100%;text-align:left;font-size:12.5px;">Rimuovi dalla formazione</button>
+        </div>
+      ` : `
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <button type="button" id="pitchActionRemove" class="btn secondary" style="width:100%;text-align:left;font-size:12.5px;">Rimuovi dalla formazione</button>
+        </div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-top:8px;">Sostituzioni ed espulsioni si registrano solo per partite gia' giocate.</div>
+      `}
+    </div>`;
+  picker.style.display = 'block';
+
+  document.getElementById('pitchPickerCloseBtn').addEventListener('click', close);
+
+  const removeBtn = document.getElementById('pitchActionRemove');
+  if(removeBtn){
+    removeBtn.addEventListener('click', async ()=>{
+      /* Se il giocatore era il titolare originale, rimuovo lo slot;
+         se era subentrato, tolgo la sostituzione */
+      if(String(occ.playerId) === String(occ.originalPlayerId)){
+        if(match.formationSlots) delete match.formationSlots[slotIdx];
+        if(Array.isArray(match.starters)){
+          match.starters = match.starters.filter(pid => String(pid) !== String(occ.originalPlayerId));
+        }
+      } else if(Array.isArray(match.substitutions)){
+        /* Rimuovo l'ultima sostituzione che ha portato in campo questo giocatore su questa catena */
+        const idx = match.substitutions.findIndex(s => String(s.inPlayerId) === String(occ.playerId) && String(s.outPlayerId) === String(occ.originalPlayerId));
+        if(idx !== -1) match.substitutions.splice(idx, 1);
+      }
+      await saveKey('events', STATE.events);
+      close();
+      refreshPitch(match);
+    });
+  }
+
+  const subBtn = document.getElementById('pitchActionSub');
+  if(subBtn){
+    subBtn.addEventListener('click', ()=>{
+      openPitchSubDialog(match, slotIdx, occ);
+    });
+  }
+
+  const redBtn = document.getElementById('pitchActionRed');
+  if(redBtn){
+    redBtn.addEventListener('click', ()=>{
+      openPitchRedDialog(match, slotIdx, occ);
+    });
+  }
+}
+
+/* Sostituzione: chiedo minuto + chi entra (fra i convocati non ancora in campo) */
+function openPitchSubDialog(match, slotIdx, occ){
+  const picker = document.getElementById('pitchPicker');
+  if(!picker) return;
+  const dur = matchDuration(match);
+  const inField = new Set();
+  const formation = FORMATIONS[match.modulo] || [];
+  formation.forEach((_,i)=>{
+    const cur = currentPlayerInSlot(match, i);
+    if(cur) inField.add(String(cur.playerId));
+  });
+  const convocati = (match.convocati || []).map(String);
+  const pool = convocati.length ? convocati : STATE.players.filter(p=>p.status==='Disponibile').map(p=>String(p.id));
+  const bench = pool
+    .filter(pid => !inField.has(pid))
+    .map(pid => STATE.players.find(p => String(p.id) === pid))
+    .filter(Boolean)
+    .sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+
+  const outName = (STATE.players.find(x=>String(x.id)===String(occ.playerId))||{}).name || '';
+  picker.innerHTML = `
+    <div style="border:1px solid var(--amber);background:#FFFBEF;border-radius:8px;padding:12px;margin-top:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <strong style="font-size:12.5px;color:var(--pitch);">Sostituisci ${esc(outName)}</strong>
+        <button type="button" class="btn secondary" id="pitchPickerCloseBtn" style="font-size:11px;padding:4px 10px;">Annulla</button>
+      </div>
+      <label style="font-size:11.5px;color:var(--ink-soft);">Minuto della sostituzione</label>
+      <input type="number" id="pitchSubMinute" min="1" max="${dur}" value="60" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;margin-bottom:10px;">
+      <label style="font-size:11.5px;color:var(--ink-soft);">Entra al suo posto</label>
+      ${bench.length === 0
+        ? '<div style="font-size:12px;color:var(--ink-soft);padding:6px 0;">Nessun sostituto disponibile in panchina.</div>'
+        : `<select id="pitchSubIn" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;margin-bottom:10px;">
+            ${bench.map(p=>`<option value="${p.id}">${esc(p.name)}${p.role?' — '+esc(p.role):''}</option>`).join('')}
+          </select>
+          <button type="button" id="pitchSubConfirm" class="btn" style="width:100%;">Conferma sostituzione</button>`
+      }
+    </div>`;
+  document.getElementById('pitchPickerCloseBtn').addEventListener('click', ()=>{ picker.style.display='none'; picker.innerHTML=''; });
+  const confirm = document.getElementById('pitchSubConfirm');
+  if(confirm){
+    confirm.addEventListener('click', async ()=>{
+      const minute = parseInt(document.getElementById('pitchSubMinute').value, 10);
+      const inId = document.getElementById('pitchSubIn').value;
+      if(isNaN(minute) || minute < 1 || minute > dur){ showToast('Minuto non valido'); return; }
+      if(!inId){ showToast('Scegli chi entra'); return; }
+      if(!Array.isArray(match.substitutions)) match.substitutions = [];
+      match.substitutions.push({
+        id: 'sub_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+        minute,
+        outPlayerId: String(occ.playerId),
+        inPlayerId: String(inId)
+      });
+      await saveKey('events', STATE.events);
+      picker.style.display='none'; picker.innerHTML='';
+      refreshPitch(match);
+      showToast('Sostituzione registrata');
+    });
+  }
+}
+
+/* Espulsione */
+function openPitchRedDialog(match, slotIdx, occ){
+  const picker = document.getElementById('pitchPicker');
+  if(!picker) return;
+  const dur = matchDuration(match);
+  const plName = (STATE.players.find(x=>String(x.id)===String(occ.playerId))||{}).name || '';
+  picker.innerHTML = `
+    <div style="border:1px solid var(--clay);background:#F9E4E0;border-radius:8px;padding:12px;margin-top:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <strong style="font-size:12.5px;color:var(--clay);">Espulsione: ${esc(plName)}</strong>
+        <button type="button" class="btn secondary" id="pitchPickerCloseBtn" style="font-size:11px;padding:4px 10px;">Annulla</button>
+      </div>
+      <label style="font-size:11.5px;color:var(--ink-soft);">Minuto dell'espulsione</label>
+      <input type="number" id="pitchRedMinute" min="1" max="${dur}" value="70" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;margin-bottom:10px;">
+      <button type="button" id="pitchRedConfirm" class="btn" style="width:100%;background:var(--clay);">Conferma espulsione</button>
+    </div>`;
+  document.getElementById('pitchPickerCloseBtn').addEventListener('click', ()=>{ picker.style.display='none'; picker.innerHTML=''; });
+  document.getElementById('pitchRedConfirm').addEventListener('click', async ()=>{
+    const minute = parseInt(document.getElementById('pitchRedMinute').value, 10);
+    if(isNaN(minute) || minute < 1 || minute > dur){ showToast('Minuto non valido'); return; }
+    if(!Array.isArray(match.redCards)) match.redCards = [];
+    match.redCards.push({
+      id: 'red_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+      minute,
+      playerId: String(occ.playerId)
+    });
+    await saveKey('events', STATE.events);
+    picker.style.display='none'; picker.innerHTML='';
+    refreshPitch(match);
+    showToast('Espulsione registrata');
+  });
+}
+
+/* Ridisegna il campo, aggiorna il conteggio titolari e riaggancia gli handler.
+   NON ricarica l'intero modale, per non perdere lo scroll. */
+function refreshPitch(match){
+  const container = document.getElementById('pitchContainer');
+  if(!container) return;
+  container.innerHTML = renderPitchSVG(match);
+  bindPitchInteractions(match);
+  updatePitchStarterCount(match);
+  /* Chiudo eventuale picker aperto */
+  const picker = document.getElementById('pitchPicker');
+  if(picker){ picker.style.display = 'none'; picker.innerHTML = ''; }
 }
 
 function renderCalendario(el){
@@ -5936,10 +6365,21 @@ function renderMatchDetails(match){
         </div>
       </div>
 
-      <!-- MODULO (SEMPRE) -->
+      <!-- MODULO + CAMPO GRAFICO (SEMPRE) -->
       <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:20px;">
-        <h4 style="margin:0 0 12px 0;color:var(--pitch);font-size:13px;">Modulo</h4>
-        <input id="modulo" type="text" placeholder="Es. 4-3-3" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;" value="${match.modulo || ''}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;flex-wrap:wrap;">
+          <h4 style="margin:0;color:var(--pitch);font-size:13px;">Modulo e formazione</h4>
+          <span id="pitchStarterCount" style="font-size:12px;font-weight:700;color:var(--ink-soft);"></span>
+        </div>
+        <select id="modulo" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;background:white;font-size:13px;margin-bottom:12px;">
+          <option value="">— Nessun modulo —</option>
+          ${Object.keys(FORMATIONS).map(m=>`<option value="${m}" ${match.modulo===m?'selected':''}>${m}</option>`).join('')}
+        </select>
+        <div id="pitchContainer"></div>
+        <div id="pitchPicker" style="display:none;"></div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-top:10px;line-height:1.4;">
+          Tocca una casella vuota sul campo per assegnare un convocato. Tocca un giocatore in campo per sostituirlo, espellerlo o rimuoverlo.
+        </div>
       </div>
       
       <!-- DURATA -->
@@ -6186,31 +6626,63 @@ function renderMatchDetails(match){
 
   if(closeBtn) closeBtn.addEventListener('click', ()=>modal.remove());
   if(closeBtn2) closeBtn2.addEventListener('click', ()=>modal.remove());
-  
+
+  /* --- Modulo + campo grafico --- */
+  const moduloSel = document.getElementById('modulo');
+  if(moduloSel){
+    moduloSel.addEventListener('change', async ()=>{
+      const newMod = moduloSel.value;
+      match.modulo = newMod;
+      /* Se il modulo cambia il numero di slot, ripulisco assegnazioni fuori range.
+         Non tolgo i titolari da match.starters: restano "senza posizione" e ripiazzabili. */
+      const nSlots = (FORMATIONS[newMod] || []).length;
+      if(match.formationSlots){
+        Object.keys(match.formationSlots).forEach(k=>{
+          if(parseInt(k,10) >= nSlots) delete match.formationSlots[k];
+        });
+      }
+      await saveKey('events', STATE.events);
+      refreshPitch(match);
+    });
+  }
+  /* Primo render del campo, se il modulo e' gia' impostato */
+  refreshPitch(match);
+
   // Add event (only for past matches)
   if(isPast && document.getElementById('addEventBtn')){
-    document.getElementById('addEventBtn').addEventListener('click', ()=>{
+    document.getElementById('addEventBtn').addEventListener('click', async ()=>{
       const type = document.getElementById('eventType').value;
       const minute = parseInt(document.getElementById('eventMinute').value);
-      const playerId = parseInt(document.getElementById('eventPlayer').value);
-      
-      if(!playerId || minute < 0 || minute > 120){
-        showToast('Completa campi');
+      const playerIdRaw = document.getElementById('eventPlayer').value;
+
+      if(!playerIdRaw || isNaN(minute) || minute < 0 || minute > 120){
+        showToast('Completa minuto e giocatore');
         return;
       }
-      
+
+      /* Manteniamo l'id come stringa: coerente con come sono salvati altrove. */
       if(!match.events) match.events = [];
-      match.events.push({type, minute, playerId});
+      match.events.push({type, minute, playerId: String(playerIdRaw)});
+      await saveKey('events', STATE.events);
+      showToast(type === 'goal' ? 'Gol registrato' : 'Assist registrato');
       renderMatchDetails(match);
       modal.remove();
     });
   }
-  
+
   // Delete event
   modal.querySelectorAll('.del-evt-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
+    btn.addEventListener('click', async ()=>{
       const idx = parseInt(btn.dataset.evtIdx);
-      if(match.events) match.events.splice(idx, 1);
+      if(!match.events || isNaN(idx)) return;
+      /* La timeline mostrata e' ordinata per minuto, quindi devo ritrovare l'evento */
+      const sortedEvents = match.events.slice().sort((a,b)=>a.minute-b.minute);
+      const toRemove = sortedEvents[idx];
+      if(!toRemove) return;
+      const realIdx = match.events.indexOf(toRemove);
+      if(realIdx !== -1) match.events.splice(realIdx, 1);
+      await saveKey('events', STATE.events);
+      showToast('Evento rimosso');
       renderMatchDetails(match);
       modal.remove();
     });
@@ -6229,7 +6701,8 @@ function renderMatchDetails(match){
         };
       }
       
-      match.modulo = document.getElementById('modulo').value.trim();
+      /* modulo e' un select: value e' gia' pulito, uso stringa vuota se "— Nessun modulo —" */
+      match.modulo = document.getElementById('modulo').value || '';
       
       // I minuti sono calcolati dagli eventi: allineo match.lineup per le statistiche
       const nStarters = (match.starters || []).length;
@@ -6500,6 +6973,71 @@ function renderWellness(el){
   }
 }
 
+/* Modulo RPE semplificato per il giocatore, legato a una sessione */
+function formRpeGiocatore(playerId, evento, onDone){
+  const old = document.getElementById('playerRpeModal');
+  if(old) old.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'playerRpeModal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:10002;padding:20px;box-sizing:border-box;overflow-y:auto;';
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:12px;max-width:420px;width:100%;padding:24px;margin:auto;">
+      <h3 style="margin:0 0 4px 0;color:var(--pitch);">Quanto e stato faticoso?</h3>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:18px;">${esc(evento.title)} · ${fmtDate(evento.date)}</div>
+
+      <div style="text-align:center;margin-bottom:8px;">
+        <span id="prVal" style="font-size:40px;font-weight:700;color:var(--amber);font-family:'Oswald',sans-serif;">5</span>
+        <span style="font-size:18px;color:var(--ink-soft);">/10</span>
+      </div>
+      <input id="prRpe" type="range" min="0" max="10" step="1" value="5">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--ink-soft);margin-top:4px;">
+        <span>0 · nessuno sforzo</span><span>10 · sforzo massimale</span>
+      </div>
+      <div id="prDesc" style="font-size:13px;color:var(--pitch);margin-top:12px;text-align:center;font-weight:600;"></div>
+
+      <div class="btn-row" style="justify-content:flex-end;margin-top:20px;">
+        <button id="prCancel" class="btn secondary">Annulla</button>
+        <button id="prSave" class="btn">Invia</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+
+  const SCALA = ['Riposo assoluto','Molto leggero','Leggero','Moderato','Piuttosto pesante','Pesante',
+                 'Piu che pesante','Molto pesante','Molto molto pesante','Estremamente pesante','Massimale'];
+  const slider = document.getElementById('prRpe');
+  const refresh = ()=>{
+    const v = parseInt(slider.value, 10);
+    document.getElementById('prVal').textContent = v;
+    document.getElementById('prDesc').textContent = SCALA[v] || '';
+  };
+  slider.addEventListener('input', refresh);
+  refresh();
+
+  document.getElementById('prCancel').addEventListener('click', ()=> modal.remove());
+  modal.addEventListener('click', e=>{ if(e.target === modal) modal.remove(); });
+
+  document.getElementById('prSave').addEventListener('click', async ()=>{
+    const rpe = parseInt(slider.value, 10);
+    // Evito doppioni sullo stesso evento
+    const gia = STATE.rpeLog.find(r => String(r.playerId)===String(playerId) && r.sessionId===evento.id);
+    if(gia){ gia.rpe = rpe; gia.editedBy = 'giocatore'; }
+    else {
+      STATE.rpeLog.push({
+        id: uid(), playerId: playerId, date: evento.date,
+        sessionId: evento.id, rpe: rpe,
+        statusAtEntry: currentStatusOf(playerId)
+      });
+    }
+    await saveKey('rpe-log', STATE.rpeLog);
+    showToast('Grazie, RPE registrato');
+    modal.remove();
+    if(onDone) onDone();
+  });
+}
+
 function renderPlayerCalendario(el){
  try{
   const today = todayStr();
@@ -6590,15 +7128,25 @@ function renderPlayerCalendario(el){
     ${pastEvents.length > 0 ? `
       <div class="card">
         <h3>Impegni passati</h3>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">Dopo un allenamento a cui eri presente, indica quanto e stato faticoso (RPE).</div>
         ${pastEvents.slice(-10).reverse().map(e => {
           const isMatch = e.type === 'Partita';
+          const eroPresente = Array.isArray(e.presentPlayers) && e.presentPlayers.includes(playerId);
+          const rpeGia = STATE.rpeLog.find(r => String(r.playerId)===String(playerId) && r.sessionId===e.id);
+          const puoRpe = !isMatch && eroPresente;
           return `
-            <div style="padding:12px;background:#F9F9F9;border-radius:6px;margin-bottom:8px;opacity:0.7;">
-              <div style="font-weight:600;color:var(--pitch);margin-bottom:4px;">${isMatch ? '' : ''} ${esc(e.title)}</div>
-              <div style="font-size:12px;color:var(--ink-soft);">
-                ${fmtDate(e.date)} ${e.time ? '' + e.time : ''}
+            <div style="padding:12px;background:#F9F9F9;border-radius:6px;margin-bottom:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+                <div>
+                  <div style="font-weight:600;color:var(--pitch);">${esc(e.title)}</div>
+                  <div style="font-size:12px;color:var(--ink-soft);">${fmtDate(e.date)}${e.time ? ' · ' + e.time : ''}</div>
+                  ${isMatch && e.result ? `<div style="font-size:12px;color:var(--amber);font-weight:600;margin-top:4px;">${e.result.goalsFor}-${e.result.goalsAgainst}</div>` : ''}
+                </div>
+                ${puoRpe ? (rpeGia
+                  ? `<div style="text-align:right;"><div style="font-size:11px;color:var(--ink-soft);">RPE inserito</div><div style="font-size:18px;font-weight:700;color:var(--amber-dark);">${rpeGia.rpe}/10</div></div>`
+                  : `<button class="player-rpe-btn" data-event-id="${e.id}" style="padding:8px 14px;background:var(--amber);color:var(--pitch);border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap;">Inserisci RPE</button>`)
+                : ''}
               </div>
-              ${isMatch && e.result ? `<div style="font-size:12px;color:var(--amber);font-weight:600;margin-top:4px;">${e.result.goalsFor}-${e.result.goalsAgainst}</div>` : ''}
             </div>
           `;
         }).join('')}
@@ -6622,6 +7170,13 @@ function renderPlayerCalendario(el){
       render();
     });
   }
+
+  el.querySelectorAll('.player-rpe-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const ev = STATE.events.find(e => e.id === btn.dataset.eventId);
+      if(ev) formRpeGiocatore(playerId, ev, ()=>render());
+    });
+  });
  }catch(err){
   console.error('Errore calendario giocatore:', err);
   el.innerHTML = `<div class="page-head"><h1>Calendario</h1></div><div class="card" style="background:#F0DAD6;border:1px solid #B5473A;color:#8B3429;"><p style="margin:0;">Errore nel caricamento del calendario: ${esc(err.message)}</p></div>`;
