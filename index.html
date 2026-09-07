@@ -277,7 +277,7 @@ const TEAM_ID = 'alense';
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '2';
+const APP_VERSION = '3';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -2896,15 +2896,24 @@ function getSeasonStats(playerId){
   let minutes = 0, goals = 0, assists = 0, matches = 0, starts = 0;
 
   STATE.events.filter(e => e.type === 'Partita').forEach(m=>{
-    if(Array.isArray(m.lineup)){
-      const row = m.lineup.find(l => String(l.playerId) === pid);
-      if(row && (row.minutes || 0) > 0){
-        minutes += row.minutes || 0;
-        matches++;
-        if(row.status === 'starter') starts++;
-      }
+    /* Calcolo i minuti al volo da computeMatchMinutes: cosi' subentrati, sostituzioni
+       ed espulsioni fatte dal campo grafico si riflettono subito nelle statistiche,
+       senza dover richiamare syncMatchLineup ad ogni modifica. Fallback su m.lineup
+       solo per partite senza starters (es. dati importati vecchi). */
+    let row = null;
+    if(Array.isArray(m.starters) && m.starters.length > 0){
+      const calc = computeMatchMinutes(m);
+      if(calc[pid]) row = {minutes: calc[pid].minutes, status: calc[pid].status};
+    } else if(Array.isArray(m.lineup)){
+      row = m.lineup.find(l => String(l.playerId) === pid) || null;
     }
-    /* Prima leggo dagli eventi timeline (formato nuovo). Se manca, ricado sui vecchi array. */
+    if(row && (row.minutes || 0) > 0){
+      minutes += row.minutes || 0;
+      matches++;
+      if(row.status === 'starter') starts++;
+    }
+
+    /* Gol e assist: leggo dagli eventi timeline (formato nuovo), fallback sui vecchi array. */
     if(Array.isArray(m.events) && m.events.length){
       goals   += m.events.filter(e => e.type === 'goal'   && String(e.playerId) === pid).length;
       assists += m.events.filter(e => e.type === 'assist' && String(e.playerId) === pid).length;
@@ -5465,7 +5474,13 @@ function getMatchStats(match){
       });
     }
   }
-  if(match.lineup){
+  /* Anche qui uso il calcolo al volo, con fallback su match.lineup per compatibilita' */
+  if(Array.isArray(match.starters) && match.starters.length > 0){
+    const calc = computeMatchMinutes(match);
+    Object.keys(calc).forEach(pid=>{
+      stats.lineup[pid] = {playerId: pid, minutes: calc[pid].minutes, status: calc[pid].status};
+    });
+  } else if(match.lineup){
     match.lineup.forEach(l => {
       stats.lineup[l.playerId] = l;
     });
