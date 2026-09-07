@@ -548,6 +548,18 @@ function countsInTeamStats(player){
   return player && player.status === 'Disponibile';
 }
 
+/* Portieri: sono a parte. Non entrano nelle medie e negli aggregati di squadra
+   (wellness media, ACWR media), ma restano con la loro scheda individuale,
+   la loro storia RPE, la loro Area Medica, e i loro alert. */
+function isPortiere(player){
+  return player && String(player.role || '').trim().toLowerCase() === 'portiere';
+}
+
+/* Chi conta nelle medie/aggregati di squadra: solo Disponibili E non portieri. */
+function countsInTeamAggregate(player){
+  return countsInTeamStats(player) && !isPortiere(player);
+}
+
 /* Chi si allena in qualche forma: serve per il monitoraggio individuale,
    non per le medie. */
 function isTrainingStatus(player){
@@ -1725,18 +1737,24 @@ function showTileDetail(opts){
 }
 
 function showWellnessDetail(){
-  const inMedia = [], fuoriMedia = [], senza = [];
+  const inMedia = [], fuoriMedia = [], senza = [], portieri = [];
   STATE.players.forEach(p=>{
     const hi = getLatestHooperIndex(p.id);
     if(!hi){ senza.push(p); return; }
     const r = {p, hi, trend: getHooperTrend(p.id, 7)};
-    if(countsInTeamStats(p) && entryCountsInTeamStats(hi.data)) inMedia.push(r); else fuoriMedia.push(r);
+    /* I portieri hanno una sezione a parte: individualmente visibili, fuori dalla media. */
+    if(isPortiere(p) && countsInTeamStats(p) && entryCountsInTeamStats(hi.data)){
+      portieri.push(r); return;
+    }
+    if(countsInTeamAggregate(p) && entryCountsInTeamStats(hi.data)) inMedia.push(r); else fuoriMedia.push(r);
   });
   inMedia.sort((a,b)=> b.hi.score - a.hi.score);
   fuoriMedia.sort((a,b)=> b.hi.score - a.hi.score);
+  portieri.sort((a,b)=> b.hi.score - a.hi.score);
 
   const media = inMedia.length ? inMedia.reduce((a,x)=>a+x.hi.score,0)/inMedia.length : null;
-  const disponibili = STATE.players.filter(countsInTeamStats).length;
+  const mediaPortieri = portieri.length ? portieri.reduce((a,x)=>a+x.hi.score,0)/portieri.length : null;
+  const disponibili = STATE.players.filter(countsInTeamAggregate).length;   /* denominatore senza portieri */
   const oggi = inMedia.filter(x=> daysSince(x.hi.date) === 0).length;
 
   const riga = (x, dentro)=>({
@@ -1763,24 +1781,31 @@ function showWellnessDetail(){
     ],
     sections: [
       {title:'Disponibili — fanno media', rows: inMedia.map(x=>riga(x,true))},
+      {title:'Portieri (a parte' + (mediaPortieri !== null ? ' · media ' + Math.round(mediaPortieri*10)/10 : '') + ')', color:'var(--pitch)', rows: portieri.map(x=>riga(x,false))},
       {title:'Fuori media — monitorati', color:'var(--amber-dark)', rows: fuoriMedia.map(x=>riga(x,false))},
       {title:'Nessuna rilevazione', color:'var(--ink-soft)', rows: senza.map(p=>({
         playerId: p.id, name: p.name, sub: statusMeta(p.status).label, value:'—', color:'var(--ink-soft)'
       }))}
     ],
-    footer: 'La media considera solo i giocatori pienamente disponibili, e solo le rilevazioni fatte mentre lo erano. RTP, In valutazione e infortunati restano visibili ma non entrano nel calcolo.'
+    footer: 'La media considera solo i giocatori di movimento pienamente disponibili, e solo le rilevazioni fatte mentre lo erano. I portieri hanno una loro media a parte perche lavorano in modo diverso dal resto della rosa. RTP, In valutazione e infortunati restano visibili ma non entrano nel calcolo.'
   });
 }
 
 function showAcwrDetail(){
-  const conDati = [], pochiDati = [], fermi = [];
+  const conDati = [], pochiDati = [], fermi = [], portieriDati = [];
   STATE.players.forEach(p=>{
     const a = getACWR(p.id);
     if(!countsInTeamStats(p)){ fermi.push({p, a}); return; }
+    /* I portieri restano visibili individualmente ma non contano nelle medie. */
+    if(isPortiere(p)){
+      if(a && !a.insufficient) portieriDati.push({p, a});
+      return;
+    }
     if(a && !a.insufficient) conDati.push({p, a});
     else pochiDati.push({p, a});
   });
   conDati.sort((x,y)=> y.a.ratio - x.a.ratio);
+  portieriDati.sort((x,y)=> y.a.ratio - x.a.ratio);
 
   const media = conDati.length ? conDati.reduce((s,x)=>s+x.a.ratio,0)/conDati.length : null;
   const caricoMedio = conDati.length ? conDati.reduce((s,x)=>s+x.a.acute,0)/conDati.length : null;
@@ -1804,13 +1829,18 @@ function showAcwrDetail(){
       {label:'Media squadra', value: media !== null ? Math.round(media*100)/100 : '—',
        color: media !== null ? (media > 1.3 ? 'var(--clay)' : media < 0.8 ? 'var(--amber-dark)' : 'var(--ok)') : 'var(--ink-soft)'},
       {label:'Carico medio', value: caricoMedio !== null ? Math.round(caricoMedio) : '—', note:'UA settimana'},
-      {label:'Nella media', value: conDati.length + '/' + STATE.players.filter(countsInTeamStats).length, note:'solo disponibili'}
+      {label:'Nella media', value: conDati.length + '/' + STATE.players.filter(countsInTeamAggregate).length, note:'esclusi portieri'}
     ],
     sections: [
       gruppo('Zona rischio, oltre 1.5', ['high'], 'var(--clay)'),
       gruppo('In salita, 1.3 - 1.5', ['warn'], 'var(--amber-dark)'),
       gruppo('Zona ottimale, 0.8 - 1.3', ['ok'], 'var(--ok)'),
       gruppo('Scarico o fermi', ['low','none'], 'var(--amber-dark)'),
+      {title:'Portieri (a parte, non nella media)', color:'var(--pitch)', rows: portieriDati.map(x=>({
+        playerId: x.p.id, name: x.p.name,
+        sub: 'carico settimana ' + x.a.acute + ' UA · media 4 settimane ' + x.a.chronicWeekly + ' UA',
+        value: x.a.ratio, color: x.a.color, valueSub: x.a.label
+      }))},
       {title:'Dati insufficienti', color:'var(--ink-soft)', rows: pochiDati.map(x=>({
         playerId: x.p.id, name: x.p.name,
         sub: x.a ? x.a.sessions + ' sessioni nelle ultime 4 settimane' : 'nessun RPE registrato',
@@ -1824,7 +1854,7 @@ function showAcwrDetail(){
         valueSub: (x.a && !x.a.insufficient) ? x.a.label : 'nessun carico'
       }))}
     ],
-    footer: 'UA = unita arbitrarie, cioe RPE moltiplicato per i minuti di sessione. Servono almeno tre settimane di storico perche il rapporto sia attendibile. Nella media entrano solo i giocatori pienamente disponibili. Chi e in RTP o in valutazione lavora a carico ridotto, quindi resta monitorato ma fuori dal calcolo: il suo ACWR individuale continua a essere valido.'
+    footer: 'UA = unita arbitrarie, cioe RPE moltiplicato per i minuti di sessione. Servono almeno tre settimane di storico perche il rapporto sia attendibile. Nella media entrano solo i giocatori di movimento pienamente disponibili. I portieri restano visibili individualmente ma non contano nella media di squadra. Chi e in RTP o in valutazione lavora a carico ridotto e resta monitorato ma fuori dal calcolo.'
   });
 }
 
@@ -1885,7 +1915,7 @@ function buildDailyReport(){
   const results = getRecentResults(5);
 
   const acwrAll = STATE.players
-    .filter(countsInTeamStats)
+    .filter(countsInTeamAggregate)   /* portieri esclusi dalle aggregate di squadra */
     .map(p => ({player:p, acwr:getACWR(p.id)}))
     .filter(x => x.acwr && !x.acwr.insufficient);
   const acwrRisk = acwrAll.filter(x => x.acwr.zone === 'high' || x.acwr.zone === 'warn')
@@ -2048,7 +2078,7 @@ function renderDashboard(el){
   const results = getRecentResults(6);
 
   const acwrAll = STATE.players
-    .filter(countsInTeamStats)
+    .filter(countsInTeamAggregate)   /* portieri esclusi dalle aggregate di squadra */
     .map(p => ({player:p, acwr:getACWR(p.id)}))
     .filter(x => x.acwr && !x.acwr.insufficient);
   const acwrRisk = acwrAll.filter(x => x.acwr.zone === 'high');
@@ -2558,7 +2588,9 @@ function getACWR(playerId){
 /* ---------- RIEPILOGO SQUADRA ---------- */
 function getTeamWellness(){
   const today = todayStr();
-  const inRosa = STATE.players.filter(countsInTeamStats);   // solo Disponibili
+  /* I portieri sono fuori dalle medie di squadra (sono a parte). */
+  const inRosa = STATE.players.filter(countsInTeamAggregate);   // Disponibili, no portieri
+  const portieri = STATE.players.filter(p => isPortiere(p) && countsInTeamStats(p));
   const ridotti = STATE.players.filter(p => isTrainingStatus(p) && !countsInTeamStats(p)); // RTP, In valutazione
   const fermi = STATE.players.filter(p => !isTrainingStatus(p));                            // Infortunati
 
@@ -2583,8 +2615,20 @@ function getTeamWellness(){
     if(recenti.length) aParte.push({player:p, avg: recenti.reduce((a,h)=>a+hooperScore(h),0)/recenti.length});
   });
 
+  /* Portieri: stessa logica di calcolo, ma media a parte. */
+  const portieriOggi = [];
+  const portieriSettimana = [];
+  portieri.forEach(p=>{
+    const e = STATE.hooperLog.find(h => String(h.playerId)===String(p.id) && h.date===today && !isLegacyHooper(h));
+    if(e && entryCountsInTeamStats(e)) portieriOggi.push({player:p, score: hooperScore(e)});
+    const recenti = getHooperEntries(p.id).filter(h => daysSince(h.date) < 7 && entryCountsInTeamStats(h));
+    if(recenti.length) portieriSettimana.push({player:p, avg: recenti.reduce((a,h)=>a+hooperScore(h),0)/recenti.length});
+  });
+
   const avgOggi = oggi.length ? oggi.reduce((a,x)=>a+x.score,0)/oggi.length : null;
   const avgSett = settimana.length ? settimana.reduce((a,x)=>a+x.avg,0)/settimana.length : null;
+  const avgPortieriOggi = portieriOggi.length ? portieriOggi.reduce((a,x)=>a+x.score,0)/portieriOggi.length : null;
+  const avgPortieriSett = portieriSettimana.length ? portieriSettimana.reduce((a,x)=>a+x.avg,0)/portieriSettimana.length : null;
 
   return {
     compilatiOggi: oggi.length,
@@ -2594,10 +2638,19 @@ function getTeamWellness(){
     avgSettimana: avgSett !== null ? Math.round(avgSett*10)/10 : null,
     peggiori: settimana.slice().sort((a,b)=>b.avg-a.avg).slice(0,3).filter(x=>x.avg >= 13),
     fuoriMedia: aParte.sort((a,b)=>b.avg-a.avg),
-    nonCompilanti: inRosa.filter(p=>{
+    /* La lista "chi non compila" include TUTTI (portieri compresi): serve individualmente. */
+    nonCompilanti: STATE.players.filter(countsInTeamStats).filter(p=>{
       const ultimo = getHooperEntries(p.id)[0];
       return !ultimo || daysSince(ultimo.date) > 3;
-    })
+    }),
+    /* Media portieri a parte. */
+    portieri: {
+      compilatiOggi: portieriOggi.length,
+      attesiOggi: portieri.length,
+      avgOggi: avgPortieriOggi !== null ? Math.round(avgPortieriOggi*10)/10 : null,
+      bandOggi: avgPortieriOggi !== null ? hooperBand(Math.round(avgPortieriOggi)) : null,
+      avgSettimana: avgPortieriSett !== null ? Math.round(avgPortieriSett*10)/10 : null
+    }
   };
 }
 
@@ -8204,6 +8257,31 @@ function avviaAutoBackup(){
 async function setupFirestoreSync(){
   if(!db || !TEAM_ID) return;
 
+  /* Merge in-place: se un elemento e' gia' presente (stesso id/date), aggiorno
+     i suoi campi mantenendo il riferimento dell'oggetto. Cosi' i modali aperti
+     che hanno una reference a un match/giocatore non diventano orfani quando
+     la sync rimbalza indietro dei dati appena salvati. */
+  function mergeInPlace(oldArr, newArr){
+    if(!Array.isArray(oldArr) || !Array.isArray(newArr)) return newArr;
+    const keyOf = o => o && (o.id || o.date || JSON.stringify(o));
+    const oldMap = new Map();
+    oldArr.forEach(o => { const k = keyOf(o); if(k) oldMap.set(k, o); });
+    return newArr.map(nu => {
+      const k = keyOf(nu);
+      const existing = k ? oldMap.get(k) : null;
+      if(existing && typeof existing === 'object' && typeof nu === 'object'){
+        /* Rimuovo campi che non esistono piu' nella nuova versione */
+        for(const kk of Object.keys(existing)){
+          if(!(kk in nu)) delete existing[kk];
+        }
+        /* Aggiorno con la nuova versione, ma preservo la stessa reference */
+        Object.assign(existing, nu);
+        return existing;
+      }
+      return nu;
+    });
+  }
+
   try{
     db.collection('teams').doc(TEAM_ID).collection('data').onSnapshot(snapshot => {
       snapshot.docChanges().forEach(change => {
@@ -8221,18 +8299,22 @@ async function setupFirestoreSync(){
 
         salvaguarda(key, data);
 
-        if(key === 'players') STATE.players = data;
-        if(key === 'workouts') STATE.workouts = data;
-        if(key === 'events') STATE.events = data;
-        if(key === 'tests') STATE.tests = data;
-        if(key === 'rpe-log') STATE.rpeLog = data;
-        if(key === 'hooper-log') STATE.hooperLog = data;
-        if(key === 'pain-log') STATE.painLog = data;
-        if(key === 'team-config') STATE.teamConfig = data;
-        if(key === 'accessCodes') STATE.accessCodes = data || {};
-        if(key === 'customPasswords') STATE.customPasswords = data || {};
-        if(key === 'injuries') STATE.injuries = data || [];
-        if(key === 'staffMembers') STATE.staffMembers = data || [];
+        /* Per gli array di oggetti, uso il merge in-place per preservare
+           i riferimenti (fix bug modale formazione che salvava un giocatore
+           per volta perche' l'oggetto match veniva orfanato ad ogni sync). */
+        if(key === 'players')      STATE.players      = mergeInPlace(STATE.players, data);
+        if(key === 'workouts')     STATE.workouts     = mergeInPlace(STATE.workouts, data);
+        if(key === 'events')       STATE.events       = mergeInPlace(STATE.events, data);
+        if(key === 'tests')        STATE.tests        = mergeInPlace(STATE.tests, data);
+        if(key === 'rpe-log')      STATE.rpeLog       = mergeInPlace(STATE.rpeLog, data);
+        if(key === 'hooper-log')   STATE.hooperLog    = mergeInPlace(STATE.hooperLog, data);
+        if(key === 'pain-log')     STATE.painLog      = mergeInPlace(STATE.painLog, data);
+        if(key === 'injuries')     STATE.injuries     = mergeInPlace(STATE.injuries || [], data);
+        if(key === 'staffMembers') STATE.staffMembers = mergeInPlace(STATE.staffMembers || [], data);
+        /* Chiavi non-array: assegnamento diretto */
+        if(key === 'team-config')      STATE.teamConfig      = data;
+        if(key === 'accessCodes')      STATE.accessCodes     = data || {};
+        if(key === 'customPasswords')  STATE.customPasswords = data || {};
 
         try{ localStorage.setItem(key, JSON.stringify(data)); }catch(e){}
       });
