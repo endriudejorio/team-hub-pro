@@ -275,6 +275,10 @@ let app = null;
 let db = null;
 const TEAM_ID = 'alense';
 
+/* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
+   di login se il sito ha caricato la versione giusta. */
+const APP_VERSION = '1';
+
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
   try{
@@ -1542,6 +1546,7 @@ function renderLogin(el){
           </div>
         </div>
       </div>
+      <div style="margin-top:14px;font-size:11px;color:rgba(244,241,232,0.55);letter-spacing:0.05em;text-align:center;">Versione ${APP_VERSION}</div>
     </div>
   `;
   
