@@ -279,7 +279,7 @@ const TEAM_ID = 'alense';
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '6';
+const APP_VERSION = '1.7';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -1206,6 +1206,485 @@ function logout(){
 
 function setPage(p){ STATE.page = p; render(); }
 function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ============================================================
+   GRAFICI CARTESIANI SVG
+   Sistema di grafici custom, senza dipendenze esterne.
+   Funzioni:
+   - lineChartSVG: linea temporale, singola o multipla
+   - barChartSVG: barre verticali
+   - stackedBarChartSVG: barre impilate per categorie
+   Ogni grafico e' responsive (viewBox), touch-friendly.
+   ============================================================ */
+
+/* Funzioni utili condivise */
+function _chartFormatDate(d){
+  if(!d) return '';
+  const parts = String(d).split('-');
+  if(parts.length >= 3) return parts[2] + '/' + parts[1];
+  return d;
+}
+
+function _chartNiceScale(min, max, ticks){
+  if(min === max){ min = min - 1; max = max + 1; }
+  const range = max - min;
+  const rough = range / (ticks || 5);
+  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / mag;
+  let step;
+  if(norm < 1.5) step = 1 * mag;
+  else if(norm < 3) step = 2 * mag;
+  else if(norm < 7) step = 5 * mag;
+  else step = 10 * mag;
+  const niceMin = Math.floor(min / step) * step;
+  const niceMax = Math.ceil(max / step) * step;
+  const values = [];
+  for(let v = niceMin; v <= niceMax + step*0.001; v += step) values.push(Math.round(v * 1000) / 1000);
+  return {min: niceMin, max: niceMax, values, step};
+}
+
+/* Linea temporale con uno o piu' dataset.
+   Uso: lineChartSVG({series: [{name, color, data:[{x,y}]}], height, yLabel, yMin, yMax, zones}) */
+function lineChartSVG(opts){
+  const s = opts.series || [];
+  const height = opts.height || 220;
+  const width = 800;   /* viewBox width, il grafico e' comunque responsive */
+  const padL = 40, padR = 20, padT = 20, padB = 42;
+  const plotW = width - padL - padR;
+  const plotH = height - padT - padB;
+
+  /* Determina il dominio X (tutte le date uniche ordinate) */
+  const xValues = [];
+  s.forEach(serie => (serie.data || []).forEach(p => { if(xValues.indexOf(p.x) === -1) xValues.push(p.x); }));
+  xValues.sort();
+  if(xValues.length === 0){
+    return `<div style="padding:30px;text-align:center;font-size:12px;color:var(--ink-soft);background:#F7F5EC;border-radius:6px;">Dati insufficienti per il grafico.</div>`;
+  }
+
+  /* Y auto scala */
+  let allY = [];
+  s.forEach(serie => (serie.data || []).forEach(p => { if(p.y != null && !isNaN(p.y)) allY.push(p.y); }));
+  if(allY.length === 0){
+    return `<div style="padding:30px;text-align:center;font-size:12px;color:var(--ink-soft);background:#F7F5EC;border-radius:6px;">Nessun valore da rappresentare.</div>`;
+  }
+  const yMinRaw = opts.yMin != null ? opts.yMin : Math.min(...allY);
+  const yMaxRaw = opts.yMax != null ? opts.yMax : Math.max(...allY);
+  const scale = _chartNiceScale(yMinRaw, yMaxRaw, 5);
+  const yMin = scale.min, yMax = scale.max;
+
+  const xPos = i => padL + (xValues.length === 1 ? plotW/2 : (i / (xValues.length - 1)) * plotW);
+  const yPos = v => padT + plotH - ((v - yMin) / (yMax - yMin || 1)) * plotH;
+
+  /* Zone colorate di sfondo (es. zona rischio ACWR) */
+  let zonesHTML = '';
+  if(Array.isArray(opts.zones)){
+    opts.zones.forEach(z => {
+      const y1 = yPos(z.max);
+      const y2 = yPos(z.min);
+      zonesHTML += `<rect x="${padL}" y="${y1}" width="${plotW}" height="${y2 - y1}" fill="${z.color}" opacity="0.14"/>`;
+    });
+  }
+
+  /* Griglia orizzontale + label Y */
+  let gridHTML = '';
+  scale.values.forEach(v=>{
+    const y = yPos(v);
+    gridHTML += `<line x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}" stroke="#E5E1D5" stroke-width="1"/>`;
+    gridHTML += `<text x="${padL - 6}" y="${y + 3}" font-size="9" text-anchor="end" fill="#8A8578" font-family="Inter,sans-serif">${v}</text>`;
+  });
+
+  /* Label X: mostro solo alcune date per non affollare */
+  let xLabelsHTML = '';
+  const maxLabels = 8;
+  const stepLabels = Math.max(1, Math.ceil(xValues.length / maxLabels));
+  xValues.forEach((x, i)=>{
+    if(i % stepLabels === 0 || i === xValues.length - 1){
+      const px = xPos(i);
+      xLabelsHTML += `<text x="${px}" y="${height - padB + 14}" font-size="9" text-anchor="middle" fill="#8A8578" font-family="Inter,sans-serif">${_chartFormatDate(x)}</text>`;
+    }
+  });
+
+  /* Linee dei dataset */
+  let seriesHTML = '';
+  let legendHTML = '';
+  s.forEach(serie => {
+    const color = serie.color || 'var(--pitch)';
+    const data = (serie.data || []).filter(p => p.y != null && !isNaN(p.y));
+    if(data.length === 0) return;
+    /* Path */
+    const points = data.map(p => ({x: xPos(xValues.indexOf(p.x)), y: yPos(p.y)}));
+    let d = '';
+    points.forEach((pt, i) => {
+      d += (i === 0 ? 'M' : 'L') + pt.x + ' ' + pt.y + ' ';
+    });
+    if(data.length > 1){
+      seriesHTML += `<path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="${serie.opacity != null ? serie.opacity : 0.95}"/>`;
+    }
+    /* Punti */
+    points.forEach((pt, i) => {
+      seriesHTML += `<circle cx="${pt.x}" cy="${pt.y}" r="3" fill="${color}" stroke="white" stroke-width="1.5"><title>${esc(serie.name || '')} — ${_chartFormatDate(data[i].x)}: ${data[i].y}</title></circle>`;
+    });
+    if(serie.name){
+      legendHTML += `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px;font-size:11px;color:var(--ink);"><span style="display:inline-block;width:11px;height:3px;background:${color};border-radius:2px;"></span>${esc(serie.name)}</span>`;
+    }
+  });
+
+  const yLabelHTML = opts.yLabel ? `<text x="8" y="${padT + plotH/2}" font-size="10" fill="#8A8578" text-anchor="middle" transform="rotate(-90 8 ${padT + plotH/2})" font-family="Inter,sans-serif">${esc(opts.yLabel)}</text>` : '';
+
+  return `
+    ${legendHTML ? `<div style="margin-bottom:6px;">${legendHTML}</div>` : ''}
+    <svg viewBox="0 0 ${width} ${height}" style="width:100%;height:auto;display:block;" preserveAspectRatio="none">
+      ${zonesHTML}
+      ${gridHTML}
+      <line x1="${padL}" y1="${padT + plotH}" x2="${width - padR}" y2="${padT + plotH}" stroke="#5C5648" stroke-width="1.2"/>
+      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT + plotH}" stroke="#5C5648" stroke-width="1.2"/>
+      ${xLabelsHTML}
+      ${yLabelHTML}
+      ${seriesHTML}
+    </svg>
+  `;
+}
+
+/* Grafico a barre verticali.
+   Uso: barChartSVG({data:[{label, value, color?}], height, yLabel, yMax?}) */
+function barChartSVG(opts){
+  const data = opts.data || [];
+  const height = opts.height || 220;
+  const width = 800;
+  const padL = 40, padR = 16, padT = 16, padB = 46;
+  const plotW = width - padL - padR;
+  const plotH = height - padT - padB;
+
+  if(data.length === 0){
+    return `<div style="padding:30px;text-align:center;font-size:12px;color:var(--ink-soft);background:#F7F5EC;border-radius:6px;">Nessun dato.</div>`;
+  }
+
+  const maxVal = opts.yMax != null ? opts.yMax : Math.max(...data.map(d=>d.value||0), 1);
+  const scale = _chartNiceScale(0, maxVal, 5);
+  const yMax = scale.max;
+
+  const barW = Math.max(4, plotW / data.length * 0.72);
+  const gap = (plotW - barW * data.length) / (data.length + 1);
+
+  let gridHTML = '';
+  scale.values.forEach(v=>{
+    const y = padT + plotH - (v / yMax) * plotH;
+    gridHTML += `<line x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}" stroke="#E5E1D5" stroke-width="1"/>`;
+    gridHTML += `<text x="${padL - 6}" y="${y + 3}" font-size="9" text-anchor="end" fill="#8A8578" font-family="Inter,sans-serif">${v}</text>`;
+  });
+
+  let barsHTML = '';
+  data.forEach((d, i) => {
+    const x = padL + gap + i * (barW + gap);
+    const h = ((d.value || 0) / yMax) * plotH;
+    const y = padT + plotH - h;
+    const color = d.color || 'var(--pitch)';
+    barsHTML += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${color}" opacity="0.9" rx="2"><title>${esc(d.label || '')}: ${d.value}</title></rect>`;
+    /* Valore in cima alla barra (se sopra la soglia) */
+    if(h > 20){
+      barsHTML += `<text x="${x + barW/2}" y="${y - 4}" font-size="9" text-anchor="middle" fill="#5C5648" font-family="Inter,sans-serif">${d.value}</text>`;
+    }
+    /* Label sotto */
+    const rot = data.length > 8 ? `transform="rotate(-30 ${x + barW/2} ${height - padB + 12})"` : '';
+    barsHTML += `<text x="${x + barW/2}" y="${height - padB + 14}" font-size="9" text-anchor="${data.length > 8 ? 'end' : 'middle'}" fill="#8A8578" font-family="Inter,sans-serif" ${rot}>${esc(String(d.label || '').substring(0, 12))}</text>`;
+  });
+
+  const yLabelHTML = opts.yLabel ? `<text x="8" y="${padT + plotH/2}" font-size="10" fill="#8A8578" text-anchor="middle" transform="rotate(-90 8 ${padT + plotH/2})" font-family="Inter,sans-serif">${esc(opts.yLabel)}</text>` : '';
+
+  return `
+    <svg viewBox="0 0 ${width} ${height}" style="width:100%;height:auto;display:block;" preserveAspectRatio="none">
+      ${gridHTML}
+      <line x1="${padL}" y1="${padT + plotH}" x2="${width - padR}" y2="${padT + plotH}" stroke="#5C5648" stroke-width="1.2"/>
+      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT + plotH}" stroke="#5C5648" stroke-width="1.2"/>
+      ${yLabelHTML}
+      ${barsHTML}
+    </svg>
+  `;
+}
+
+/* ============================================================
+   ESTRAZIONE SERIE TEMPORALI PER GRAFICI
+   ============================================================ */
+
+function _analyticsDateRange(days){
+  const dates = [];
+  const today = new Date(todayStr() + 'T00:00:00');
+  for(let i = days - 1; i >= 0; i--){
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    dates.push(d.toISOString().slice(0,10));
+  }
+  return dates;
+}
+
+function serieACWRGiocatore(playerId, days){
+  const dates = _analyticsDateRange(days || 60);
+  const pid = String(playerId);
+  const entries = STATE.rpeLog.filter(r => String(r.playerId) === pid);
+  return dates.map(dateStr => {
+    const target = new Date(dateStr + 'T00:00:00').getTime();
+    const day = 86400000;
+    const acuto = entries
+      .filter(r => { const t = new Date(r.date + 'T00:00:00').getTime(); return t <= target && t > target - 7*day; })
+      .reduce((s,r)=>s + Number(r.rpe||0)*Number(r.minutes||0), 0);
+    const cronico28 = entries
+      .filter(r => { const t = new Date(r.date + 'T00:00:00').getTime(); return t <= target && t > target - 28*day; })
+      .reduce((s,r)=>s + Number(r.rpe||0)*Number(r.minutes||0), 0);
+    const cronico = cronico28 / 4;
+    if(cronico === 0) return {x: dateStr, y: null};
+    return {x: dateStr, y: Math.round((acuto / cronico) * 100) / 100};
+  }).filter(p => p.y != null);
+}
+
+function serieACWRSquadra(days){
+  const dates = _analyticsDateRange(days || 60);
+  const rosa = STATE.players.filter(p => !isPortiere(p));
+  return dates.map(dateStr => {
+    const acwrs = [];
+    rosa.forEach(p => {
+      const target = new Date(dateStr + 'T00:00:00').getTime();
+      const day = 86400000;
+      const entries = STATE.rpeLog.filter(r => String(r.playerId) === String(p.id));
+      const acuto = entries
+        .filter(r => { const t = new Date(r.date + 'T00:00:00').getTime(); return t <= target && t > target - 7*day; })
+        .reduce((s,r)=>s + Number(r.rpe||0)*Number(r.minutes||0), 0);
+      const cronico28 = entries
+        .filter(r => { const t = new Date(r.date + 'T00:00:00').getTime(); return t <= target && t > target - 28*day; })
+        .reduce((s,r)=>s + Number(r.rpe||0)*Number(r.minutes||0), 0);
+      const cronico = cronico28 / 4;
+      if(cronico > 0) acwrs.push(acuto / cronico);
+    });
+    if(acwrs.length === 0) return {x: dateStr, y: null};
+    const avg = acwrs.reduce((s,v)=>s+v,0) / acwrs.length;
+    return {x: dateStr, y: Math.round(avg * 100) / 100};
+  }).filter(p => p.y != null);
+}
+
+function serieWellnessGiocatore(playerId, days){
+  const dates = _analyticsDateRange(days || 60);
+  const pid = String(playerId);
+  const log = STATE.hooperLog.filter(h => String(h.playerId) === pid && !isLegacyHooper(h));
+  return dates.map(dateStr => {
+    const h = log.find(x => x.date === dateStr);
+    if(!h) return {x: dateStr, y: null};
+    return {x: dateStr, y: hooperPercent(hooperScore(h))};
+  }).filter(p => p.y != null);
+}
+
+function serieWellnessSquadra(days){
+  const dates = _analyticsDateRange(days || 60);
+  const rosa = STATE.players.filter(p => !isPortiere(p) && countsInTeamStats(p));
+  return dates.map(dateStr => {
+    const scores = [];
+    rosa.forEach(p => {
+      const h = STATE.hooperLog.find(x => String(x.playerId) === String(p.id) && x.date === dateStr && !isLegacyHooper(x));
+      if(h) scores.push(hooperPercent(hooperScore(h)));
+    });
+    if(scores.length === 0) return {x: dateStr, y: null};
+    return {x: dateStr, y: Math.round(scores.reduce((s,v)=>s+v,0) / scores.length)};
+  }).filter(p => p.y != null);
+}
+
+function serieRPEGiocatore(playerId, days){
+  const pid = String(playerId);
+  const soglia = new Date(todayStr() + 'T00:00:00').getTime() - (days || 60) * 86400000;
+  return STATE.rpeLog
+    .filter(r => String(r.playerId) === pid && r.source !== 'plan')
+    .filter(r => new Date(r.date + 'T00:00:00').getTime() >= soglia)
+    .sort((a,b) => String(a.date).localeCompare(String(b.date)))
+    .map(r => ({x: r.date, y: Number(r.rpe || 0)}));
+}
+
+function serieRPESquadra(days){
+  const soglia = new Date(todayStr() + 'T00:00:00').getTime() - (days || 60) * 86400000;
+  const bySession = {};
+  STATE.rpeLog.filter(r => r.source !== 'plan').forEach(r => {
+    if(new Date(r.date + 'T00:00:00').getTime() < soglia) return;
+    const p = STATE.players.find(x => String(x.id) === String(r.playerId));
+    if(!p || isPortiere(p)) return;
+    const key = r.sessionId || r.date;
+    if(!bySession[key]) bySession[key] = {date: r.date, rpes: []};
+    bySession[key].rpes.push(Number(r.rpe || 0));
+  });
+  return Object.values(bySession)
+    .map(g => ({x: g.date, y: Math.round(g.rpes.reduce((s,v)=>s+v,0) / g.rpes.length * 10) / 10}))
+    .sort((a,b) => String(a.x).localeCompare(String(b.x)));
+}
+
+function serieMinutiPerSettimana(playerId, weeks){
+  const pid = String(playerId);
+  const n = weeks || 10;
+  const today = new Date(todayStr() + 'T00:00:00');
+  const dayOfWeek = today.getDay();
+  const thisSunday = new Date(today);
+  thisSunday.setDate(today.getDate() + (7 - dayOfWeek) % 7);
+  const buckets = [];
+  for(let w = n - 1; w >= 0; w--){
+    const end = new Date(thisSunday); end.setDate(end.getDate() - w * 7);
+    const start = new Date(end); start.setDate(end.getDate() - 6);
+    const startStr = start.toISOString().slice(0,10);
+    const endStr = end.toISOString().slice(0,10);
+    let minuti = 0;
+    STATE.events.filter(e => e.type === 'Partita' && e.date >= startStr && e.date <= endStr).forEach(m => {
+      if(Array.isArray(m.starters) && m.starters.length > 0){
+        const calc = computeMatchMinutes(m);
+        if(calc[pid]) minuti += calc[pid].minutes;
+      } else if(Array.isArray(m.lineup)){
+        const row = m.lineup.find(l => String(l.playerId) === pid);
+        if(row) minuti += row.minutes || 0;
+      }
+    });
+    buckets.push({label: end.getDate() + '/' + (end.getMonth()+1), value: minuti});
+  }
+  return buckets;
+}
+
+/* ============================================================
+   MAPPA CORPO SVG
+   Silhouette anatomica semplificata frontale + posteriore.
+   Hotspot per ogni zona di BODY_ZONES, colorati in base al conteggio.
+   ============================================================ */
+
+/* Coordinate degli hotspot: {zoneName: {view:'front'|'back', x, y, r}}.
+   Coordinate su viewBox 200x400 per ogni silhouette. */
+const BODY_MAP_COORDS = {
+  /* FRONT */
+  'Testa':                       {view:'front', x:100, y:26, r:8},
+  'Collo':                       {view:'front', x:100, y:48, r:5},
+  'Spalla Destra':               {view:'front', x:78, y:70, r:7},
+  'Spalla Sinistra':             {view:'front', x:122, y:70, r:7},
+  'Petto':                       {view:'front', x:100, y:90, r:8},
+  'Gomito Destro':               {view:'front', x:66, y:130, r:6},
+  'Gomito Sinistro':             {view:'front', x:134, y:130, r:6},
+  'Addominali':                  {view:'front', x:100, y:130, r:8},
+  'Fianco Destro':               {view:'front', x:82, y:135, r:5},
+  'Fianco Sinistro':             {view:'front', x:118, y:135, r:5},
+  'Polso Destro':                {view:'front', x:56, y:170, r:5},
+  'Polso Sinistro':              {view:'front', x:144, y:170, r:5},
+  'Mano/Dita Destra':            {view:'front', x:52, y:185, r:5},
+  'Mano/Dita Sinistra':          {view:'front', x:148, y:185, r:5},
+  'Anca Destra':                 {view:'front', x:88, y:175, r:6},
+  'Anca Sinistra':               {view:'front', x:112, y:175, r:6},
+  'Coscia Destra':               {view:'front', x:86, y:220, r:8},
+  'Coscia Sinistra':             {view:'front', x:114, y:220, r:8},
+  'Ginocchio Destro':            {view:'front', x:86, y:275, r:7},
+  'Ginocchio Sinistro':          {view:'front', x:114, y:275, r:7},
+  'Polpaccio Destro':            {view:'front', x:86, y:320, r:7},
+  'Polpaccio Sinistro':          {view:'front', x:114, y:320, r:7},
+  'Caviglia Destra':             {view:'front', x:86, y:360, r:5},
+  'Caviglia Sinistra':           {view:'front', x:114, y:360, r:5},
+  'Piede Destro':                {view:'front', x:86, y:380, r:6},
+  'Piede Sinistro':              {view:'front', x:114, y:380, r:6},
+  /* BACK */
+  'Schiena Alta Destra':         {view:'back',  x:88, y:85, r:6},
+  'Schiena Alta Centrale':       {view:'back',  x:100, y:82, r:6},
+  'Schiena Alta Sinistra':       {view:'back',  x:112, y:85, r:6},
+  'Schiena Bassa Destra':        {view:'back',  x:88, y:140, r:6},
+  'Schiena Bassa Centrale':      {view:'back',  x:100, y:138, r:6},
+  'Schiena Bassa Sinistra':      {view:'back',  x:112, y:140, r:6},
+  'Bicipite Femorale Destro':    {view:'back',  x:86, y:230, r:8},
+  'Bicipite Femorale Sinistro':  {view:'back',  x:114, y:230, r:8}
+};
+
+/* Silhouette semplificata: path SVG per corpo umano stilizzato */
+function _bodySilhouetteFront(){
+  return `
+    <!-- Testa -->
+    <ellipse cx="100" cy="26" rx="14" ry="17" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <!-- Collo -->
+    <rect x="93" y="42" width="14" height="10" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <!-- Torso -->
+    <path d="M 70 55 Q 70 52 80 52 L 120 52 Q 130 52 130 55 L 138 100 Q 140 130 132 165 L 68 165 Q 60 130 62 100 Z" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <!-- Braccia -->
+    <path d="M 68 60 Q 55 65 52 100 Q 50 140 55 175 Q 55 190 50 195 L 58 195 Q 60 175 62 145 Q 62 100 70 78 Z" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <path d="M 132 60 Q 145 65 148 100 Q 150 140 145 175 Q 145 190 150 195 L 142 195 Q 140 175 138 145 Q 138 100 130 78 Z" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <!-- Bacino -->
+    <path d="M 70 165 Q 70 175 74 190 L 100 195 L 126 190 Q 130 175 130 165 Z" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <!-- Gambe -->
+    <path d="M 74 190 Q 72 240 76 290 Q 78 340 82 380 L 96 385 Q 98 340 98 290 Q 98 240 96 195 Z" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <path d="M 126 190 Q 128 240 124 290 Q 122 340 118 380 L 104 385 Q 102 340 102 290 Q 102 240 104 195 Z" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <!-- Piedi -->
+    <ellipse cx="86" cy="388" rx="8" ry="4" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <ellipse cx="114" cy="388" rx="8" ry="4" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+  `;
+}
+
+function _bodySilhouetteBack(){
+  return `
+    <!-- Testa -->
+    <ellipse cx="100" cy="26" rx="14" ry="17" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <!-- Collo -->
+    <rect x="93" y="42" width="14" height="10" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <!-- Torso schiena -->
+    <path d="M 70 55 Q 70 52 80 52 L 120 52 Q 130 52 130 55 L 138 100 Q 140 130 132 165 L 68 165 Q 60 130 62 100 Z" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <!-- Braccia -->
+    <path d="M 68 60 Q 55 65 52 100 Q 50 140 55 175 Q 55 190 50 195 L 58 195 Q 60 175 62 145 Q 62 100 70 78 Z" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <path d="M 132 60 Q 145 65 148 100 Q 150 140 145 175 Q 145 190 150 195 L 142 195 Q 140 175 138 145 Q 138 100 130 78 Z" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <!-- Bacino -->
+    <path d="M 70 165 Q 70 175 74 190 L 100 195 L 126 190 Q 130 175 130 165 Z" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <!-- Gambe -->
+    <path d="M 74 190 Q 72 240 76 290 Q 78 340 82 380 L 96 385 Q 98 340 98 290 Q 98 240 96 195 Z" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <path d="M 126 190 Q 128 240 124 290 Q 122 340 118 380 L 104 385 Q 102 340 102 290 Q 102 240 104 195 Z" fill="#F0EBDE" stroke="#8A8578" stroke-width="1"/>
+    <!-- Colonna vertebrale (riferimento) -->
+    <line x1="100" y1="55" x2="100" y2="165" stroke="#C9C4B4" stroke-width="1" stroke-dasharray="2 2"/>
+  `;
+}
+
+/* Ritorna SVG con silhouette + hotspot cliccabili colorati.
+   dati = {zoneName: count}. onZoneClick opzionale. */
+function bodyMapSVG(dati, opts){
+  const options = opts || {};
+  const maxCount = Math.max(1, ...Object.values(dati || {}).map(v=>v||0));
+
+  /* Colore hotspot: da giallo chiaro (1 infortunio) a rosso scuro (max) */
+  const colorFor = n => {
+    if(!n) return null;
+    const intensity = n / maxCount;
+    if(intensity <= 0.33) return '#F4C542';
+    if(intensity <= 0.66) return '#E67B25';
+    return '#B5473A';
+  };
+
+  const renderHotspots = (view) => {
+    return Object.entries(BODY_MAP_COORDS)
+      .filter(([_, c]) => c.view === view)
+      .map(([zone, c]) => {
+        const n = (dati || {})[zone] || 0;
+        const col = colorFor(n);
+        const outlineCol = n > 0 ? col : '#C9C4B4';
+        const fillCol = n > 0 ? col : 'transparent';
+        const opacity = n > 0 ? 0.85 : 0.5;
+        return `<g class="body-hotspot" data-zone="${esc(zone)}" style="cursor:${options.interactive ? 'pointer' : 'default'};">
+          <circle cx="${c.x}" cy="${c.y}" r="${c.r}" fill="${fillCol}" stroke="${outlineCol}" stroke-width="1.5" opacity="${opacity}"><title>${esc(zone)}${n>0?': '+n+' infortun'+(n===1?'io':'i'):''}</title></circle>
+          ${n > 1 ? `<text x="${c.x}" y="${c.y + 2}" font-size="7" font-weight="700" text-anchor="middle" fill="white" style="pointer-events:none;font-family:Inter,sans-serif;">${n}</text>` : ''}
+        </g>`;
+      }).join('');
+  };
+
+  return `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:520px;margin:0 auto;">
+      <div style="text-align:center;">
+        <div style="font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Frontale</div>
+        <svg viewBox="0 0 200 400" style="width:100%;max-width:200px;height:auto;">
+          ${_bodySilhouetteFront()}
+          ${renderHotspots('front')}
+        </svg>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px;">Posteriore</div>
+        <svg viewBox="0 0 200 400" style="width:100%;max-width:200px;height:auto;">
+          ${_bodySilhouetteBack()}
+          ${renderHotspots('back')}
+        </svg>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-size:11px;color:var(--ink-soft);display:flex;justify-content:center;gap:14px;flex-wrap:wrap;">
+      <span><span style="display:inline-block;width:10px;height:10px;background:#F4C542;border-radius:50%;vertical-align:middle;margin-right:4px;"></span>1 caso</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#E67B25;border-radius:50%;vertical-align:middle;margin-right:4px;"></span>2-${Math.max(2, Math.ceil(maxCount*0.66))} casi</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#B5473A;border-radius:50%;vertical-align:middle;margin-right:4px;"></span>${Math.max(3, Math.ceil(maxCount*0.66)+1)}+ casi</span>
+    </div>
+  `;
+}
 
 function calcWorkoutDuration(workout){
   if(workout.category==='Tecnico-tattico'){
@@ -5043,6 +5522,7 @@ function renderPerformance(el){
       ${tabBtn('test','Test')}
       ${tabBtn('confronti','Confronti')}
       ${tabBtn('carico','Carico')}
+      ${tabBtn('grafici','Grafici')}
       ${tabBtn('rpe','RPE sessioni')}
       ${tabBtn('piani','Piani individuali')}
       ${tabBtn('stagione','Stagione')}
@@ -5063,9 +5543,248 @@ function renderPerformance(el){
   if(tab === 'test') renderTest(content);
   else if(tab === 'confronti') renderPerfConfronti(content);
   else if(tab === 'carico') renderPerfCarico(content);
+  else if(tab === 'grafici') renderPerfGrafici(content);
   else if(tab === 'rpe') renderPerfRPE(content);
   else if(tab === 'piani') renderPianiIndividuali(content, 'integrazione');
   else renderPerfStagione(content);
+}
+
+/* --- GRAFICI: squadra, individuali, confronti --- */
+function renderPerfGrafici(el){
+  const state = el.dataset.grafState || 'squadra';
+  const selectedPid = el.dataset.grafPlayerId || (STATE.players.find(p => !isPortiere(p)) || {}).id || '';
+  const compareIds = el.dataset.grafCompareIds ? el.dataset.grafCompareIds.split(',').filter(Boolean) : [];
+  const rangeDays = parseInt(el.dataset.grafRange || '60', 10);
+
+  const subTabBtn = (id, label) => `<button class="graf-subtab" data-sub="${id}" style="padding:7px 14px;border:none;background:${state===id?'var(--pitch)':'#F7F5EC'};color:${state===id?'white':'var(--ink)'};border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">${label}</button>`;
+
+  const rosaMovimento = STATE.players.filter(p => !isPortiere(p)).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
+
+  el.innerHTML = `
+    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;">
+      ${subTabBtn('squadra','Squadra')}
+      ${subTabBtn('giocatore','Giocatore')}
+      ${subTabBtn('confronti','Confronti')}
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+      <span style="font-size:11px;color:var(--ink-soft);">Periodo:</span>
+      ${[30,60,90,180].map(d=>`<button class="graf-range" data-days="${d}" style="padding:5px 10px;border:1px solid ${rangeDays===d?'var(--pitch)':'var(--line)'};background:${rangeDays===d?'var(--pitch)':'white'};color:${rangeDays===d?'white':'var(--ink)'};border-radius:4px;font-size:11px;cursor:pointer;">${d}gg</button>`).join('')}
+    </div>
+    <div id="grafContent"></div>
+  `;
+
+  el.querySelectorAll('.graf-subtab').forEach(b=>{
+    b.addEventListener('click', ()=>{ el.dataset.grafState = b.dataset.sub; renderPerfGrafici(el); });
+  });
+  el.querySelectorAll('.graf-range').forEach(b=>{
+    b.addEventListener('click', ()=>{ el.dataset.grafRange = b.dataset.days; renderPerfGrafici(el); });
+  });
+
+  const c = document.getElementById('grafContent');
+  if(state === 'squadra') renderGrafSquadra(c, rangeDays);
+  else if(state === 'giocatore') renderGrafGiocatore(c, selectedPid, rangeDays, rosaMovimento, el);
+  else renderGrafConfronti(c, selectedPid, compareIds, rangeDays, rosaMovimento, el);
+}
+
+function renderGrafSquadra(el, days){
+  const acwrData = serieACWRSquadra(days);
+  const wellData = serieWellnessSquadra(days);
+  const rpeData = serieRPESquadra(days);
+
+  el.innerHTML = `
+    <div class="card">
+      <h3>ACWR di squadra</h3>
+      <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Rapporto carico settimana / media 4 settimane. Zone: verde ottimale (0.8-1.3), ambra in salita (1.3-1.5), rosso rischio (&gt;1.5).</div>
+      ${lineChartSVG({
+        series:[{name:'Media squadra', color:'#16352A', data:acwrData}],
+        yLabel:'ACWR',
+        zones:[
+          {min:0.8, max:1.3, color:'#3F7A5C'},
+          {min:1.3, max:1.5, color:'#C9922B'},
+          {min:1.5, max:3, color:'#B5473A'}
+        ]
+      })}
+    </div>
+
+    <div class="card">
+      <h3>Freschezza wellness</h3>
+      <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Media percentuale della squadra (100% = tutti freschi).</div>
+      ${lineChartSVG({
+        series:[{name:'Media squadra', color:'#3F7A5C', data:wellData}],
+        yLabel:'%', yMin:0, yMax:100
+      })}
+    </div>
+
+    <div class="card">
+      <h3>RPE medio per sessione</h3>
+      <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Media dell'RPE di squadra su ogni allenamento/partita.</div>
+      ${lineChartSVG({
+        series:[{name:'RPE medio', color:'#C9922B', data:rpeData}],
+        yLabel:'RPE', yMin:0, yMax:10
+      })}
+    </div>
+  `;
+}
+
+function renderGrafGiocatore(el, playerId, days, rosa, parent){
+  const player = STATE.players.find(p => String(p.id) === String(playerId));
+  const acwr = playerId ? serieACWRGiocatore(playerId, days) : [];
+  const well = playerId ? serieWellnessGiocatore(playerId, days) : [];
+  const rpe = playerId ? serieRPEGiocatore(playerId, days) : [];
+  const minSet = playerId ? serieMinutiPerSettimana(playerId, Math.ceil(days/7)) : [];
+
+  el.innerHTML = `
+    <div class="card">
+      <label style="font-size:11px;">Giocatore</label>
+      <select id="grafPlayerSelect" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;font-size:13px;">
+        ${rosa.map(p => `<option value="${p.id}" ${String(p.id)===String(playerId)?'selected':''}>${esc(p.name)} — ${esc(p.role||'')}</option>`).join('')}
+      </select>
+    </div>
+
+    ${!player ? '<div class="card"><div class="empty">Seleziona un giocatore.</div></div>' : `
+      <div class="card">
+        <h3>ACWR — ${esc(player.name)}</h3>
+        ${lineChartSVG({
+          series:[{name:'ACWR', color:'#16352A', data:acwr}],
+          yLabel:'ACWR',
+          zones:[
+            {min:0.8, max:1.3, color:'#3F7A5C'},
+            {min:1.3, max:1.5, color:'#C9922B'},
+            {min:1.5, max:3, color:'#B5473A'}
+          ]
+        })}
+      </div>
+
+      <div class="card">
+        <h3>Freschezza wellness — ${esc(player.name)}</h3>
+        ${lineChartSVG({
+          series:[{name:'Freschezza %', color:'#3F7A5C', data:well}],
+          yLabel:'%', yMin:0, yMax:100
+        })}
+      </div>
+
+      <div class="card">
+        <h3>RPE per sessione — ${esc(player.name)}</h3>
+        ${lineChartSVG({
+          series:[{name:'RPE', color:'#C9922B', data:rpe}],
+          yLabel:'RPE', yMin:0, yMax:10
+        })}
+      </div>
+
+      <div class="card">
+        <h3>Minuti giocati per settimana — ${esc(player.name)}</h3>
+        ${barChartSVG({
+          data: minSet,
+          yLabel:'Minuti'
+        })}
+      </div>
+    `}
+  `;
+
+  const sel = document.getElementById('grafPlayerSelect');
+  if(sel) sel.addEventListener('change', ()=>{
+    parent.dataset.grafPlayerId = sel.value;
+    renderPerfGrafici(parent);
+  });
+}
+
+function renderGrafConfronti(el, mainPid, compareIds, days, rosa, parent){
+  const colori = ['#16352A', '#C9922B', '#B5473A', '#3F7A5C'];
+
+  /* Prepara serie: giocatore principale + confronti + media squadra */
+  const buildSeries = (fn, seriesLabel) => {
+    const series = [];
+    /* Media squadra come riferimento */
+    const teamFn = seriesLabel === 'ACWR' ? serieACWRSquadra
+                : seriesLabel === 'Freschezza' ? serieWellnessSquadra
+                : seriesLabel === 'RPE' ? serieRPESquadra
+                : null;
+    if(teamFn){
+      series.push({name:'Media squadra', color:'#5C5648', opacity:0.5, data: teamFn(days)});
+    }
+    if(mainPid){
+      const p = STATE.players.find(x => String(x.id) === String(mainPid));
+      if(p) series.push({name: p.name, color: colori[0], data: fn(mainPid, days)});
+    }
+    compareIds.forEach((pid, i)=>{
+      const p = STATE.players.find(x => String(x.id) === String(pid));
+      if(p) series.push({name: p.name, color: colori[(i+1) % colori.length], data: fn(pid, days)});
+    });
+    return series;
+  };
+
+  const seriesACWR = buildSeries(serieACWRGiocatore, 'ACWR');
+  const seriesWell = buildSeries(serieWellnessGiocatore, 'Freschezza');
+  const seriesRPE  = buildSeries(serieRPEGiocatore, 'RPE');
+
+  const allSelected = [mainPid].concat(compareIds).filter(Boolean);
+
+  el.innerHTML = `
+    <div class="card">
+      <label style="font-size:11px;">Giocatore principale</label>
+      <select id="grafMainSelect" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;font-size:13px;margin-bottom:10px;">
+        ${rosa.map(p => `<option value="${p.id}" ${String(p.id)===String(mainPid)?'selected':''}>${esc(p.name)}</option>`).join('')}
+      </select>
+      <label style="font-size:11px;">Confronta con (max 3)</label>
+      <div id="grafCompareList" style="max-height:180px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:6px;">
+        ${rosa.filter(p => String(p.id) !== String(mainPid)).map(p => `
+          <label style="display:flex;align-items:center;gap:6px;padding:3px 4px;font-size:12px;cursor:pointer;">
+            <input type="checkbox" class="graf-compare-chk" value="${p.id}" ${compareIds.includes(String(p.id))?'checked':''}>
+            <span>${esc(p.name)}</span>
+          </label>
+        `).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">Il confronto include sempre la media squadra come linea grigia.</div>
+    </div>
+
+    <div class="card">
+      <h3>ACWR</h3>
+      ${lineChartSVG({
+        series: seriesACWR,
+        yLabel:'ACWR',
+        zones:[
+          {min:0.8, max:1.3, color:'#3F7A5C'},
+          {min:1.3, max:1.5, color:'#C9922B'},
+          {min:1.5, max:3, color:'#B5473A'}
+        ]
+      })}
+    </div>
+
+    <div class="card">
+      <h3>Freschezza wellness</h3>
+      ${lineChartSVG({
+        series: seriesWell,
+        yLabel:'%', yMin:0, yMax:100
+      })}
+    </div>
+
+    <div class="card">
+      <h3>RPE per sessione</h3>
+      ${lineChartSVG({
+        series: seriesRPE,
+        yLabel:'RPE', yMin:0, yMax:10
+      })}
+    </div>
+  `;
+
+  const mainSel = document.getElementById('grafMainSelect');
+  if(mainSel) mainSel.addEventListener('change', ()=>{
+    parent.dataset.grafPlayerId = mainSel.value;
+    renderPerfGrafici(parent);
+  });
+  el.querySelectorAll('.graf-compare-chk').forEach(chk=>{
+    chk.addEventListener('change', ()=>{
+      const selected = Array.from(el.querySelectorAll('.graf-compare-chk:checked')).slice(0, 3).map(c=>c.value);
+      /* Se piu' di 3, deseleziona l'ultimo */
+      if(el.querySelectorAll('.graf-compare-chk:checked').length > 3){
+        chk.checked = false;
+        showToast('Massimo 3 giocatori da confrontare');
+        return;
+      }
+      parent.dataset.grafCompareIds = selected.join(',');
+      renderPerfGrafici(parent);
+    });
+  });
 }
 
 /* --- RPE per sessione: ogni evento passato con RPE, compilazione e carichi --- */
