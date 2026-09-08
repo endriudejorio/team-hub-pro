@@ -155,9 +155,11 @@
   #printSheet{display:none;}
   @media print{
     @page{ size:A4; margin:14mm; }
-    body{background:white!important;}
-    body > *{display:none!important;}
-    #printSheet{display:block!important;color:#000;font-family:'Inter',sans-serif;}
+    html, body{background:white!important; margin:0!important; padding:0!important;}
+    /* Nascondo tutto tranne il foglio di stampa. Usare :not e' piu' robusto
+       che affidarsi alla sola specificita' del selettore #printSheet. */
+    body > *:not(#printSheet){display:none!important;}
+    #printSheet{display:block!important;position:static!important;color:#000;font-family:'Inter',sans-serif;background:white!important;padding:0!important;margin:0!important;width:auto!important;}
     #printSheet .ps-head{border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-end;}
     #printSheet h1{font-family:'Oswald',sans-serif;font-size:20pt;margin:0;letter-spacing:0.02em;}
     #printSheet .ps-date{font-size:10pt;text-align:right;}
@@ -277,7 +279,7 @@ const TEAM_ID = 'alense';
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '3';
+const APP_VERSION = '4';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -349,6 +351,7 @@ const NAV_STAFF = [
 const NAV_PLAYER = [
   {id:'wellness', label:'Wellness', icon:''},
   {id:'calendario', label:'Calendario', icon:''},
+  {id:'profilo', label:'Profilo', icon:''},
 ];
 
 const NAV_ADMIN = [
@@ -892,6 +895,7 @@ let STATE = {
   currentStaff: null,
   staffPassword: 'staff',
   adminPassword: 'admin2024',
+  calendarMonth: null,  /* {year, month} — inizializzato al mese corrente al primo render */
 };
 
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
@@ -1352,6 +1356,7 @@ function render(){
   const playerRenderers = {
     wellness: renderWellness,
     calendario: renderPlayerCalendario,
+    profilo: renderProfiloGiocatore,
   };
   const adminRenderers = {
     dashboard: renderDashboard,
@@ -2056,11 +2061,11 @@ function printDailyReport(){
   };
   window.addEventListener('afterprint', cleanup);
 
-  // Lascia al browser il tempo di applicare gli stili di stampa
+  // Lascia al browser il tempo di applicare gli stili di stampa (su mobile serve piu' tempo)
   setTimeout(()=>{
     window.print();
     setTimeout(cleanup, 1500);
-  }, 120);
+  }, 300);
 }
 
 function renderDashboard(el){
@@ -3825,6 +3830,10 @@ function renderGiocatori(el){
             </div>
             <label>Piede forte</label>
             <select id="newFoot">${footOptions('')}</select>
+            <div class="grid2" style="gap:12px;">
+              <div><label>Altezza (cm)</label><input id="newHeight" type="number" min="130" max="230" placeholder="Es. 178"></div>
+              <div><label>Peso (kg)</label><input id="newWeight" type="number" min="35" max="150" step="0.1" placeholder="Es. 72.5"></div>
+            </div>
             <div style="font-size:11px;color:var(--ink-soft);margin-top:10px;">Il codice di accesso viene generato in automatico.</div>
             <div class="btn-row"><button class="btn" id="confirmAddPlayerBtn">Aggiungi</button><button class="btn secondary" id="cancelAddPlayerBtn">Annulla</button></div>
           </div>
@@ -3846,6 +3855,11 @@ function renderGiocatori(el){
             <div class="grid2" style="gap:12px;">
               <div><label>Piede forte</label><select id="editFoot">${footOptions(selectedPlayer.foot||'')}</select></div>
               <div><label>Stato</label><select id="editStatus">${statusOptions(selectedPlayer.status||'Disponibile')}</select></div>
+            </div>
+
+            <div class="grid2" style="gap:12px;">
+              <div><label>Altezza (cm)</label><input id="editHeight" type="number" min="130" max="230" placeholder="Es. 178" value="${selectedPlayer.height||''}"></div>
+              <div><label>Peso (kg)</label><input id="editWeight" type="number" min="35" max="150" step="0.1" placeholder="Es. 72.5" value="${selectedPlayer.weight||''}"></div>
             </div>
 
             ${(()=>{
@@ -3949,6 +3963,8 @@ function renderGiocatori(el){
       const birthDate = document.getElementById('newBirthDate').value;
       const role = document.getElementById('newRole').value;
       const foot = document.getElementById('newFoot').value;
+      const heightRaw = document.getElementById('newHeight').value;
+      const weightRaw = document.getElementById('newWeight').value;
       if(!name || !birthDate || !role){
         showToast('Completa tutti i campi');
         return;
@@ -3960,6 +3976,8 @@ function renderGiocatori(el){
         birthDate,
         role,
         foot,
+        height: heightRaw ? parseInt(heightRaw, 10) : null,
+        weight: weightRaw ? parseFloat(weightRaw) : null,
         status: 'Disponibile',
         returnDate: ''
       };
@@ -4029,6 +4047,11 @@ function renderGiocatori(el){
       selectedPlayer.foot = footVal;
       selectedPlayer.status = newStatus;
       selectedPlayer.returnDate = returnDate;
+      /* Altezza e peso: campi opzionali, li salvo se compilati */
+      const heightRaw = document.getElementById('editHeight').value;
+      const weightRaw = document.getElementById('editWeight').value;
+      selectedPlayer.height = heightRaw ? parseInt(heightRaw, 10) : null;
+      selectedPlayer.weight = weightRaw ? parseFloat(weightRaw) : null;
 
       // Chi non e' disponibile non resta segnato presente
       if(newStatus !== 'Disponibile'){
@@ -6432,6 +6455,15 @@ function renderCalendario(el){
   const todayMatch = getTodayEvents()[0] || null;
   const nextMatch = getNextMatch();
   const lastMatch = getLastMatch();
+
+  /* Vista mensile: stato del mese corrente conservato tra i render */
+  if(!STATE.calendarMonth){
+    const t = new Date(todayStr() + 'T00:00:00');
+    STATE.calendarMonth = { year: t.getFullYear(), month: t.getMonth() };
+  }
+  const cm = STATE.calendarMonth;
+  const monthNames = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+  const dayNamesShort = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
   
   el.innerHTML = `
     <div class="page-head"><h1>Calendario</h1><p>${STATE.teamConfig.name || 'Squadra'}</p></div>
@@ -6546,61 +6578,76 @@ function renderCalendario(el){
     `:''}
     
     <div class="card">
-      <h3>Timeline Evento (5 giorni)</h3>
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:16px;">
-        ${(() => {
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;">
+        <button id="calPrevBtn" class="btn secondary" style="min-width:44px;font-size:16px;padding:6px 12px;">◀</button>
+        <h3 style="margin:0;text-align:center;">${monthNames[cm.month]} ${cm.year}</h3>
+        <div style="display:flex;gap:6px;">
+          <button id="calTodayBtn" class="btn secondary" style="font-size:11px;padding:6px 10px;">Oggi</button>
+          <button id="calNextBtn" class="btn secondary" style="min-width:44px;font-size:16px;padding:6px 12px;">▶</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;">
+        ${dayNamesShort.map(d=>`<div style="text-align:center;font-size:10px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.04em;padding:4px 0;">${d}</div>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">
+        ${(()=>{
+          const firstDay = new Date(cm.year, cm.month, 1);
+          const lastDay = new Date(cm.year, cm.month + 1, 0);
+          /* Lunedi = 0. new Date().getDay() ritorna 0=Dom, 1=Lun...6=Sab, quindi (getDay()+6)%7 */
+          const startOffset = (firstDay.getDay() + 6) % 7;
+          const totalCells = Math.ceil((startOffset + lastDay.getDate()) / 7) * 7;
           const today = todayStr();
-          const result = [];
-          for(let i=-2; i<=2; i++){
-            // Calcola la data usando la timezone locale
-            const baseDate = new Date(today.split('-')[0], parseInt(today.split('-')[1])-1, parseInt(today.split('-')[2]));
-            baseDate.setDate(baseDate.getDate() + i);
-            const year = baseDate.getFullYear();
-            const month = String(baseDate.getMonth()+1).padStart(2, '0');
-            const day = String(baseDate.getDate()).padStart(2, '0');
-            const dateStr = `${year}-${month}-${day}`;
-            
-            const dayEvents = upcoming.filter(e=>e.date===dateStr).sort((a,b)=>(a.time||'00:00').localeCompare(b.time||'00:00'));
-            const defaultLabel = i === -2 ? 'L-2' : i === -1 ? 'L-1' : i === 0 ? 'OGGI' : i === 1 ? 'D+1' : 'D+2';
-            const isToday = i === 0;
-            
-            // Se ci sono eventi, usa il nome del primo, altrimenti usa il label di default
-            let dayLabel = defaultLabel;
+          const cells = [];
+          for(let i=0; i<totalCells; i++){
+            const dayNum = i - startOffset + 1;
+            if(dayNum < 1 || dayNum > lastDay.getDate()){
+              /* Casella vuota (padding) */
+              cells.push('<div style="min-height:72px;background:#FAFAFA;border-radius:4px;"></div>');
+              continue;
+            }
+            const dateStr = `${cm.year}-${String(cm.month+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+            const isToday = dateStr === today;
+            const dayEvents = upcoming.filter(e => e.date === dateStr)
+              .sort((a,b)=>(a.time||'00:00').localeCompare(b.time||'00:00'));
+
+            let cell = `<div style="min-height:72px;border:${isToday?'2px solid var(--ok)':'1px solid var(--line)'};border-radius:4px;padding:4px;background:${isToday?'#E3EFE7':'white'};overflow:hidden;">`;
+            cell += `<div style="font-size:11px;font-weight:${isToday?'700':'600'};color:${isToday?'var(--ok)':'var(--ink)'};margin-bottom:2px;">${dayNum}</div>`;
+
             if(dayEvents.length > 0){
-              const firstEvent = dayEvents[0];
-              dayLabel = firstEvent.type === 'Partita' ? 'Partita' : 'Allenamento';
-            }
-            
-            let html = `<div style="border:2px solid ${isToday ? 'var(--ok)' : 'var(--line)'};border-radius:8px;padding:12px;background:${isToday ? '#E3EFE7' : 'var(--chalk)'};min-height:140px;">`;
-            html += `<div style="font-size:11px;font-weight:600;color:${isToday ? 'var(--ok)' : 'var(--ink-soft)'};text-transform:uppercase;margin-bottom:8px;">${dayLabel}</div>`;
-            html += `<div style="font-size:10px;color:var(--ink-soft);margin-bottom:12px;">${fmtDate(dateStr)}</div>`;
-            
-            if(dayEvents.length === 0){
-              html += `<div style="font-size:11px;color:#999;text-align:center;padding:16px 0;">-</div>`;
-            } else {
-              dayEvents.forEach(e=>{
+              /* Mostro fino a 3 eventi con nome breve. Se sono di piu', aggiungo "+N". */
+              const visible = dayEvents.slice(0, 3);
+              visible.forEach(e=>{
                 const isMatch = e.type === 'Partita';
-                html += `<div style="background:white;padding:8px;border-radius:4px;margin-bottom:8px;border-left:3px solid ${isMatch ? 'var(--amber)' : 'var(--pitch)'};font-size:10px;cursor:pointer;" class="timelineEvent" data-event-id="${e.id}">`;
-                html += `<div style="font-weight:600;color:var(--pitch);margin-bottom:2px;">${isMatch ? '' : ''} ${esc(e.title.substring(0,14))}</div>`;
-                html += `<div style="color:var(--ink-soft);font-size:9px;">${e.time ? e.time : ''}</div>`;
-                if(e.md) html += `<div style="color:var(--amber);font-size:8px;font-weight:600;">${esc(e.md)}</div>`;
-                if(isMatch && e.result) html += `<div style="color:var(--amber);font-weight:600;font-size:10px;margin-top:3px;">${e.result.goalsFor}-${e.result.goalsAgainst}</div>`;
-                html += `</div>`;
+                const colorLeft = isMatch ? 'var(--amber)' : (e.type === 'Allenamento' ? 'var(--pitch)' : 'var(--ink-soft)');
+                const bg = isMatch ? '#FDF3E7' : (e.type === 'Allenamento' ? '#F0F7F1' : '#F7F5EC');
+                const label = isMatch ? (e.opponent ? esc(e.opponent) : 'Partita') : (e.title ? esc(e.title) : e.type);
+                cell += `<div class="cal-event" data-event-id="${e.id}" style="background:${bg};border-left:3px solid ${colorLeft};padding:2px 4px;margin-bottom:2px;font-size:9.5px;font-weight:600;color:var(--ink);border-radius:2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${label.substring(0,14)}</div>`;
               });
+              if(dayEvents.length > 3){
+                cell += `<div style="font-size:9px;color:var(--ink-soft);text-align:center;">+${dayEvents.length - 3}</div>`;
+              }
             }
-            
-            html += `</div>`;
-            result.push(html);
+
+            cell += '</div>';
+            cells.push(cell);
           }
-          return result.join('');
+          return cells.join('');
         })()}
+      </div>
+      <div style="font-size:10px;color:var(--ink-soft);margin-top:12px;display:flex;gap:12px;flex-wrap:wrap;">
+        <span><span style="display:inline-block;width:8px;height:8px;background:var(--amber);vertical-align:middle;margin-right:4px;"></span>Partita</span>
+        <span><span style="display:inline-block;width:8px;height:8px;background:var(--pitch);vertical-align:middle;margin-right:4px;"></span>Allenamento</span>
+        <span><span style="display:inline-block;width:8px;height:8px;background:var(--ok);vertical-align:middle;margin-right:4px;"></span>Oggi</span>
       </div>
     </div>
     
     <div class="card">
-      <h3>Tutti gli Eventi (${upcoming.length})</h3>
-      ${upcoming.length===0 ? '<div class="empty">Nessun evento</div>' :
-        upcoming.map(e=>{
+      <h3>Prossimi impegni (${(()=>{const t=todayStr();return upcoming.filter(e=>e.date>=t).slice(0,3).length;})()} di ${upcoming.filter(e=>e.date>=todayStr()).length})</h3>
+      ${(()=>{
+        const today = todayStr();
+        const prossimi = upcoming.filter(e => e.date >= today).slice(0, 3);
+        return prossimi.length === 0 ? '<div class="empty">Nessun impegno futuro</div>' :
+          prossimi.map(e=>{
           const isMatch = e.type === 'Partita';
           return `
             <div style="padding:14px;border:1px solid var(--line);border-radius:8px;margin-bottom:12px;">
@@ -6634,7 +6681,8 @@ function renderCalendario(el){
               ` : ''}
             </div>
           `;
-        }).join('')}
+        }).join('');
+      })()}
     </div>
   `;
   
@@ -6790,8 +6838,8 @@ function renderCalendario(el){
     });
   }
   
-  // Timeline event click
-  el.querySelectorAll('.timelineEvent').forEach(card=>{
+  // Click su evento del calendario mensile
+  el.querySelectorAll('.cal-event').forEach(card=>{
     card.addEventListener('click', ()=>{
       const eventId = card.dataset.eventId;
       const event = STATE.events.find(e=>e.id===eventId);
@@ -6802,6 +6850,32 @@ function renderCalendario(el){
         renderAllenamentoDetails(event);
       }
     });
+  });
+
+  // Navigazione calendario mensile
+  const prevBtn = document.getElementById('calPrevBtn');
+  const nextBtn = document.getElementById('calNextBtn');
+  const todayBtn = document.getElementById('calTodayBtn');
+  if(prevBtn) prevBtn.addEventListener('click', ()=>{
+    if(STATE.calendarMonth.month === 0){
+      STATE.calendarMonth = {year: STATE.calendarMonth.year - 1, month: 11};
+    } else {
+      STATE.calendarMonth = {year: STATE.calendarMonth.year, month: STATE.calendarMonth.month - 1};
+    }
+    renderCalendario(el);
+  });
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{
+    if(STATE.calendarMonth.month === 11){
+      STATE.calendarMonth = {year: STATE.calendarMonth.year + 1, month: 0};
+    } else {
+      STATE.calendarMonth = {year: STATE.calendarMonth.year, month: STATE.calendarMonth.month + 1};
+    }
+    renderCalendario(el);
+  });
+  if(todayBtn) todayBtn.addEventListener('click', ()=>{
+    const t = new Date(todayStr() + 'T00:00:00');
+    STATE.calendarMonth = {year: t.getFullYear(), month: t.getMonth()};
+    renderCalendario(el);
   });
 }
 
@@ -7980,6 +8054,100 @@ function formRpeGiocatore(playerId, evento, onDone){
     showToast('Grazie, RPE registrato');
     modal.remove();
     if(onDone) onDone();
+  });
+}
+
+/* ============================================================
+   PROFILO GIOCATORE (lato giocatore)
+   Il giocatore vede e modifica i propri dati anagrafici essenziali:
+   nome, data di nascita, ruolo, piede forte, altezza, peso.
+   Lo stato (Disponibile/Infortunato) e la data di rientro sono di
+   competenza dello staff e non compaiono qui.
+   ============================================================ */
+function renderProfiloGiocatore(el){
+  const playerId = STATE.currentPlayerId;
+  const player = STATE.players.find(p => String(p.id) === String(playerId));
+  if(!player){
+    el.innerHTML = '<div class="card"><div class="empty">Profilo non trovato. Contatta lo staff.</div></div>';
+    return;
+  }
+
+  const roleOptions = (sel)=>{
+    let out = ROLES.map(r=>`<option value="${r}" ${sel===r?'selected':''}>${r}</option>`).join('');
+    if(sel && ROLES.indexOf(sel) === -1){
+      out = `<option value="${esc(sel)}" selected>${esc(sel)} (da aggiornare)</option>` + out;
+    }
+    if(!sel){
+      out = `<option value="" selected disabled>Seleziona ruolo...</option>` + out;
+    }
+    return out;
+  };
+  const footOptions = (sel)=>{
+    let out = FEET.map(f=>`<option value="${f}" ${sel===f?'selected':''}>${f}</option>`).join('');
+    if(!sel) out = `<option value="" selected disabled>Seleziona piede...</option>` + out;
+    return out;
+  };
+
+  const eta = player.birthDate ? calcAge(player.birthDate) : null;
+  const codice = getAccessCode(player.id);
+
+  el.innerHTML = `
+    <div class="page-head"><h1>Il mio profilo</h1><p>Aggiorna qui i tuoi dati anagrafici</p></div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <div>
+          <h3 style="margin:0;">${esc(player.name)}</h3>
+          <div style="font-size:12px;color:var(--ink-soft);">${eta ? eta + ' anni · ' : ''}${esc(player.role || 'ruolo non impostato')}</div>
+        </div>
+      </div>
+
+      <label>Nome e cognome</label>
+      <input id="profName" type="text" value="${esc(player.name)}">
+
+      <div class="grid2" style="gap:12px;">
+        <div><label>Data di nascita</label><input id="profBirthDate" type="date" value="${player.birthDate||''}"></div>
+        <div><label>Ruolo</label><select id="profRole">${roleOptions(player.role)}</select></div>
+      </div>
+
+      <div class="grid2" style="gap:12px;">
+        <div><label>Piede forte</label><select id="profFoot">${footOptions(player.foot||'')}</select></div>
+      </div>
+
+      <div class="grid2" style="gap:12px;">
+        <div><label>Altezza (cm)</label><input id="profHeight" type="number" min="130" max="230" placeholder="Es. 178" value="${player.height||''}"></div>
+        <div><label>Peso (kg)</label><input id="profWeight" type="number" min="35" max="150" step="0.1" placeholder="Es. 72.5" value="${player.weight||''}"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" id="profSaveBtn">Salva modifiche</button>
+      </div>
+
+      <div style="margin-top:16px;padding:10px;background:var(--chalk);border-radius:6px;font-size:11px;color:var(--ink-soft);">
+        Lo stato (Disponibile / Infortunato / In rientro) e le informazioni mediche sono gestiti dallo staff e non modificabili da qui.
+        ${codice ? '<br>Il tuo codice di accesso: <strong style="color:var(--pitch);">' + esc(formatCode(codice)) + '</strong>' : ''}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('profSaveBtn').addEventListener('click', async ()=>{
+    const nameVal = document.getElementById('profName').value.trim();
+    if(!nameVal){ showToast('Il nome non puo essere vuoto'); return; }
+    const roleVal = document.getElementById('profRole').value;
+    const footVal = document.getElementById('profFoot').value;
+    const heightRaw = document.getElementById('profHeight').value;
+    const weightRaw = document.getElementById('profWeight').value;
+
+    player.name = nameVal;
+    player.birthDate = document.getElementById('profBirthDate').value;
+    if(roleVal) player.role = roleVal;
+    if(footVal) player.foot = footVal;
+    player.height = heightRaw ? parseInt(heightRaw, 10) : null;
+    player.weight = weightRaw ? parseFloat(weightRaw) : null;
+
+    await saveKey('players', STATE.players);
+    showToast('Profilo aggiornato');
+    renderProfiloGiocatore(el);
   });
 }
 
