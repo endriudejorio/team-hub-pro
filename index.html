@@ -279,7 +279,7 @@ const TEAM_ID = 'alense';
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '4';
+const APP_VERSION = '5';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -351,6 +351,7 @@ const NAV_STAFF = [
 const NAV_PLAYER = [
   {id:'wellness', label:'Wellness', icon:''},
   {id:'calendario', label:'Calendario', icon:''},
+  {id:'piani', label:'Piani', icon:''},
   {id:'profilo', label:'Profilo', icon:''},
 ];
 
@@ -892,6 +893,7 @@ let STATE = {
   loading: true,
   injuries: [],
   staffMembers: [],
+  individualPlans: [],   /* Piani individuali per giocatore (integrazione o riabilitazione) */
   currentStaff: null,
   staffPassword: 'staff',
   adminPassword: 'admin2024',
@@ -1025,7 +1027,8 @@ async function loadAll(){
     ['accessCodes',      {}],
     ['customPasswords',  {}],
     ['injuries',         []],
-    ['staffMembers',     []]
+    ['staffMembers',     []],
+    ['individualPlans',  []]
   ];
 
   const t0 = Date.now();
@@ -1056,6 +1059,7 @@ async function loadAll(){
   STATE.customPasswords = dati['customPasswords'] || {};
   STATE.injuries        = dati['injuries'] || [];
   STATE.staffMembers    = dati['staffMembers'] || [];
+  STATE.individualPlans = dati['individualPlans'] || [];
 
   // La pagina si sblocca qui: i salvataggi qui sotto non devono farla aspettare
   STATE.loading = false;
@@ -1322,7 +1326,17 @@ function render(){
           </div>
         </div>
         <div class="nav">
-          ${navItems.map(n=>`<button class="nav-btn ${STATE.page===n.id?'active':''}" data-nav="${n.id}"><span class="nav-dot"></span>${n.label}</button>`).join('')}
+          ${navItems.map(n=>{
+            /* Badge: se il giocatore ha piani non visti, mostro il conteggio sulla voce Piani */
+            let badge = '';
+            if(STATE.role === 'player' && n.id === 'piani' && STATE.currentPlayerId){
+              const nv = pianiNonVisti(STATE.currentPlayerId);
+              if(nv > 0){
+                badge = `<span style="background:var(--clay);color:white;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;margin-left:6px;">${nv}</span>`;
+              }
+            }
+            return `<button class="nav-btn ${STATE.page===n.id?'active':''}" data-nav="${n.id}"><span class="nav-dot"></span>${n.label}${badge}</button>`;
+          }).join('')}
         </div>
         <div class="sidebar-foot">
           <span class="role-label">${STATE.role==='staff'?'Staff':STATE.role==='admin'?'Admin':esc(STATE.currentPlayerName||'Atleta')}</span>
@@ -1356,6 +1370,7 @@ function render(){
   const playerRenderers = {
     wellness: renderWellness,
     calendario: renderPlayerCalendario,
+    piani: renderPianiGiocatore,
     profilo: renderProfiloGiocatore,
   };
   const adminRenderers = {
@@ -4090,6 +4105,7 @@ function renderMedica(el){
       ${tabBtn('infermeria','Infermeria')}
       ${tabBtn('registro','Registro infortuni')}
       ${tabBtn('dolori','Dolori')}
+      ${tabBtn('piani','Piani individuali')}
       ${tabBtn('analisi','Analisi')}
     </div>
     <div id="medContent"></div>
@@ -4104,6 +4120,7 @@ function renderMedica(el){
   if(tab === 'infermeria') renderInfermeria(c);
   else if(tab === 'registro') renderRegistroInfortuni(c);
   else if(tab === 'dolori') renderMedDolori(c);
+  else if(tab === 'piani') renderPianiIndividuali(c, 'riabilitazione');
   else renderMedAnalisi(c);
 }
 
@@ -4422,6 +4439,401 @@ function renderMedAnalisi(el){
   });
 }
 
+/* ============================================================
+   PIANI INDIVIDUALI
+   Ogni piano appartiene a un giocatore, ha un tipo (integrazione o
+   riabilitazione), una data, un titolo, testo libero opzionale ed
+   esercizi strutturati opzionali. Il giocatore vede il piano nel
+   proprio menu, puo' aggiungere commenti (uno per piano + uno per
+   esercizio) e inserire un RPE fine allenamento. Se ha anche una
+   partita o allenamento lo stesso giorno, il carico usa la media
+   dei due RPE.
+   ============================================================ */
+
+/* Helper: piani di un giocatore filtrati per tipo, ordinati dal piu' recente */
+function pianiDelGiocatore(playerId, tipo){
+  const pid = String(playerId);
+  return (STATE.individualPlans || [])
+    .filter(p => String(p.playerId) === pid && (!tipo || p.type === tipo))
+    .sort((a,b)=> String(b.date).localeCompare(String(a.date)));
+}
+
+/* Helper: quanti piani non ancora "visti" dal giocatore */
+function pianiNonVisti(playerId){
+  return pianiDelGiocatore(playerId).filter(p => !p.seen).length;
+}
+
+/* Helper: piani attivi/futuri (data >= oggi) */
+function isPianoAttivo(piano){
+  return piano.date >= todayStr() || !piano.completed;
+}
+
+/* Aggregatore RPE per calcolo carico: se un giocatore ha compilato un RPE
+   per un piano individuale nello stesso giorno di una sessione, uso la media. */
+function planRPEForDate(playerId, dateStr){
+  const pid = String(playerId);
+  const daily = (STATE.individualPlans || [])
+    .filter(p => String(p.playerId) === pid && p.date === dateStr && p.playerRPE != null);
+  if(daily.length === 0) return null;
+  const avg = daily.reduce((s,p)=>s + Number(p.playerRPE || 0), 0) / daily.length;
+  return Math.round(avg * 10) / 10;
+}
+
+/* Stima durata di un piano dagli esercizi. Se non ricavabile, default 30 min:
+   valore ragionevole per lavoro individuale integrativo/riabilitativo. */
+function stimaDurataPiano(piano){
+  if(!piano || !Array.isArray(piano.exercises)) return 30;
+  let tot = 0;
+  piano.exercises.forEach(ex=>{
+    const serie = ex.series || 1;
+    const rep = ex.reps || 1;
+    /* Stima tempo per rep: se c'e' TUT parsabile lo uso, altrimenti 3 secondi */
+    let repSec = 3;
+    if(ex.tut){
+      const parts = String(ex.tut).split(/[-\/]/).map(x=>parseInt(x,10));
+      const somma = parts.filter(x=>!isNaN(x)).reduce((s,x)=>s+x,0);
+      if(somma > 0) repSec = somma;
+    }
+    const workSec = serie * rep * repSec;
+    const restSec = serie * (ex.recovery || 60);
+    tot += (workSec + restSec) / 60;   /* converto in minuti */
+  });
+  return Math.max(15, Math.round(tot));
+}
+
+/* Registra o aggiorna la voce sintetica in rpeLog per un piano individuale.
+   Cosi' il carico del piano rientra in ACWR e nelle statistiche senza duplicare
+   dati. La chiave e' 'plan:<planId>' — univoca per piano. */
+async function syncPlanRPEToLog(piano){
+  if(!piano || piano.playerRPE == null) return;
+  if(!Array.isArray(STATE.rpeLog)) STATE.rpeLog = [];
+  const key = 'plan:' + piano.id;
+  const durata = stimaDurataPiano(piano);
+  const existing = STATE.rpeLog.find(r => r.sessionId === key);
+  if(existing){
+    existing.rpe = piano.playerRPE;
+    existing.minutes = durata;
+    existing.date = piano.date;
+  } else {
+    STATE.rpeLog.push({
+      id: uid(),
+      playerId: String(piano.playerId),
+      date: piano.date,
+      rpe: piano.playerRPE,
+      minutes: durata,
+      sessionId: key,
+      source: 'plan',
+      statusAtEntry: 'Disponibile',
+      createdAt: new Date().toISOString()
+    });
+  }
+  await saveKey('rpeLog', STATE.rpeLog);
+}
+
+/* Rimozione voce sintetica quando piano viene eliminato */
+async function removePlanRPEFromLog(planId){
+  if(!Array.isArray(STATE.rpeLog)) return;
+  const key = 'plan:' + planId;
+  const before = STATE.rpeLog.length;
+  STATE.rpeLog = STATE.rpeLog.filter(r => r.sessionId !== key);
+  if(STATE.rpeLog.length !== before) await saveKey('rpeLog', STATE.rpeLog);
+}
+
+/* Vista principale (staff): elenco giocatori con conteggio piani, + editor */
+function renderPianiIndividuali(el, tipoDefault){
+  const tipo = tipoDefault === 'riabilitazione' ? 'riabilitazione' : 'integrazione';
+  const selectedPid = el.dataset.selPlayerId || null;
+  const editingPlanId = el.dataset.editPlanId || null;
+
+  if(editingPlanId){
+    /* Vista editor */
+    return renderPianoEditor(el, editingPlanId, tipo);
+  }
+
+  const rosaConteggi = STATE.players.slice()
+    .sort((a,b)=>String(a.name).localeCompare(String(b.name)))
+    .map(p=>{
+      const piani = pianiDelGiocatore(p.id, tipo);
+      const attivi = piani.filter(isPianoAttivo).length;
+      const totali = piani.length;
+      return {player: p, attivi, totali};
+    });
+
+  const selectedPlayer = selectedPid ? STATE.players.find(p=>String(p.id)===String(selectedPid)) : null;
+  const pianiSel = selectedPlayer ? pianiDelGiocatore(selectedPlayer.id, tipo) : [];
+  const attiviSel = pianiSel.filter(isPianoAttivo);
+  const storiciSel = pianiSel.filter(p => !isPianoAttivo(p));
+
+  const tipoLabel = tipo === 'riabilitazione' ? 'Riabilitazione' : 'Integrazione';
+  const tipoColor = tipo === 'riabilitazione' ? 'var(--clay)' : 'var(--amber)';
+
+  el.innerHTML = `
+    <div class="grid2">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <h3 style="margin:0;">Rosa</h3>
+          <span style="font-size:11px;color:var(--ink-soft);">${tipoLabel}</span>
+        </div>
+        <div style="max-height:600px;overflow-y:auto;">
+          ${rosaConteggi.map(x=>`
+            <div class="pi-player-row" data-player-id="${x.player.id}" style="padding:10px;border:1px solid ${String(selectedPid)===String(x.player.id)?tipoColor:'var(--line)'};border-radius:6px;margin-bottom:6px;cursor:pointer;background:${String(selectedPid)===String(x.player.id)?'var(--chalk)':'white'};display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;">
+              <div>
+                <div style="font-size:13px;font-weight:600;">${esc(x.player.name)}</div>
+                <div style="font-size:10px;color:var(--ink-soft);">${esc(x.player.role || '—')}${x.player.status !== 'Disponibile' ? ' · ' + esc(statusMeta(x.player.status).label) : ''}</div>
+              </div>
+              <div style="text-align:right;">
+                ${x.attivi > 0 ? `<span style="background:${tipoColor};color:white;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;">${x.attivi}</span>` : ''}
+                ${x.totali > 0 ? `<div style="font-size:9px;color:var(--ink-soft);margin-top:2px;">${x.totali} totali</div>` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="card">
+        ${!selectedPlayer ? '<div class="empty">Seleziona un giocatore dall\'elenco.</div>' : `
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px;">
+            <div>
+              <h3 style="margin:0;">${esc(selectedPlayer.name)}</h3>
+              <div style="font-size:11px;color:var(--ink-soft);">Piani di ${tipoLabel.toLowerCase()}</div>
+            </div>
+            <button class="btn pi-new-plan" style="padding:6px 12px;font-size:12px;background:${tipoColor};">+ Nuovo piano</button>
+          </div>
+
+          <h4 style="font-size:12px;text-transform:uppercase;color:var(--ink-soft);letter-spacing:0.04em;margin:14px 0 6px 0;">Attivi (${attiviSel.length})</h4>
+          ${attiviSel.length === 0 ? '<div style="font-size:12px;color:var(--ink-soft);padding:8px;">Nessun piano attivo</div>' : attiviSel.map(p=>rigaPianoStaff(p)).join('')}
+
+          ${storiciSel.length > 0 ? `
+            <h4 style="font-size:12px;text-transform:uppercase;color:var(--ink-soft);letter-spacing:0.04em;margin:14px 0 6px 0;">Storico (${storiciSel.length})</h4>
+            ${storiciSel.slice(0,10).map(p=>rigaPianoStaff(p)).join('')}
+            ${storiciSel.length > 10 ? `<div style="font-size:10px;color:var(--ink-soft);text-align:center;padding:6px;">+${storiciSel.length - 10} altri nello storico</div>` : ''}
+          ` : ''}
+        `}
+      </div>
+    </div>
+  `;
+
+  el.querySelectorAll('.pi-player-row').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      el.dataset.selPlayerId = row.dataset.playerId;
+      renderPianiIndividuali(el, tipo);
+    });
+  });
+
+  const newBtn = el.querySelector('.pi-new-plan');
+  if(newBtn){
+    newBtn.addEventListener('click', async ()=>{
+      const nuovo = {
+        id: uid(),
+        playerId: String(selectedPlayer.id),
+        type: tipo,
+        date: todayStr(),
+        title: '',
+        freeText: '',
+        exercises: [],
+        playerComment: '',
+        playerRPE: null,
+        completed: false,
+        completedAt: null,
+        seen: false,
+        createdAt: new Date().toISOString()
+      };
+      if(!Array.isArray(STATE.individualPlans)) STATE.individualPlans = [];
+      STATE.individualPlans.push(nuovo);
+      await saveKey('individualPlans', STATE.individualPlans);
+      el.dataset.editPlanId = nuovo.id;
+      renderPianiIndividuali(el, tipo);
+    });
+  }
+
+  el.querySelectorAll('.pi-plan-row').forEach(row=>{
+    row.addEventListener('click', (e)=>{
+      if(e.target.closest('.pi-plan-del')) return;   /* click su elimina gestito a parte */
+      el.dataset.editPlanId = row.dataset.planId;
+      renderPianiIndividuali(el, tipo);
+    });
+  });
+
+  el.querySelectorAll('.pi-plan-del').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      if(!confirm('Eliminare questo piano? L\'operazione non e\' reversibile.')) return;
+      const pid = btn.dataset.planId;
+      STATE.individualPlans = (STATE.individualPlans||[]).filter(p => p.id !== pid);
+      await saveKey('individualPlans', STATE.individualPlans);
+      await removePlanRPEFromLog(pid);
+      renderPianiIndividuali(el, tipo);
+    });
+  });
+}
+
+/* Riga riepilogo di un piano nella lista staff */
+function rigaPianoStaff(p){
+  const nEx = (p.exercises || []).length;
+  const hasComment = p.playerComment && p.playerComment.trim().length > 0;
+  const hasExComments = (p.exercises || []).some(ex => ex.playerComment && ex.playerComment.trim());
+  const rpeInfo = p.playerRPE != null ? `<span style="color:var(--pitch);font-weight:700;">RPE ${p.playerRPE}</span>` : '<span style="color:var(--ink-soft);">RPE non compilato</span>';
+  return `
+    <div class="pi-plan-row" data-plan-id="${p.id}" style="padding:10px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;cursor:pointer;background:${p.seen?'white':'#FFF8E7'};">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;">
+        <div>
+          <div style="font-size:13px;font-weight:600;">${esc(p.title || 'Piano senza titolo')}</div>
+          <div style="font-size:11px;color:var(--ink-soft);margin-top:2px;">
+            ${fmtDate(p.date)} · ${nEx} esercizi${p.freeText ? ' · nota libera' : ''}
+          </div>
+          <div style="font-size:11px;margin-top:4px;">${rpeInfo}${hasComment ? ' · <span style="color:var(--amber-dark);">commento piano</span>' : ''}${hasExComments ? ' · <span style="color:var(--amber-dark);">commenti esercizi</span>' : ''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
+          ${!p.seen ? '<span style="background:var(--amber);color:white;padding:2px 6px;border-radius:8px;font-size:9px;font-weight:700;">NUOVO</span>' : ''}
+          ${p.completed ? '<span style="color:var(--ok);font-size:10px;font-weight:700;">COMPLETATO</span>' : ''}
+          <button class="pi-plan-del" data-plan-id="${p.id}" style="background:none;border:1px solid var(--line);border-radius:3px;padding:2px 6px;font-size:10px;color:var(--clay);cursor:pointer;">Elimina</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* Editor di un singolo piano (staff) */
+function renderPianoEditor(el, planId, tipo){
+  const piano = (STATE.individualPlans || []).find(p => p.id === planId);
+  if(!piano){
+    el.dataset.editPlanId = '';
+    renderPianiIndividuali(el, tipo);
+    return;
+  }
+  const player = STATE.players.find(p => String(p.id) === String(piano.playerId));
+  const tipoLabel = piano.type === 'riabilitazione' ? 'Riabilitazione' : 'Integrazione';
+  const tipoColor = piano.type === 'riabilitazione' ? 'var(--clay)' : 'var(--amber)';
+
+  el.innerHTML = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap;">
+        <div>
+          <h3 style="margin:0;">Piano di ${tipoLabel.toLowerCase()}</h3>
+          <div style="font-size:12px;color:var(--ink-soft);">${player ? esc(player.name) : 'giocatore rimosso'}</div>
+        </div>
+        <button class="btn secondary pi-back-btn" style="font-size:12px;padding:6px 12px;">← Indietro</button>
+      </div>
+
+      <div class="grid2" style="gap:12px;">
+        <div><label>Titolo</label><input id="piTitle" type="text" value="${esc(piano.title||'')}" placeholder="Es. Prevenzione infortuni ginocchio"></div>
+        <div><label>Data</label><input id="piDate" type="date" value="${piano.date||''}"></div>
+      </div>
+
+      <label style="margin-top:14px;display:block;">Testo libero (opzionale, senza vincoli)</label>
+      <textarea id="piFreeText" rows="4" placeholder="Descrivi liberamente il lavoro da fare, obiettivi, indicazioni..." style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:12.5px;">${esc(piano.freeText||'')}</textarea>
+
+      <h4 style="margin:18px 0 8px 0;font-size:13px;">Esercizi strutturati</h4>
+      <div id="piExercises">
+        ${(piano.exercises||[]).map((ex,i)=>editorEsercizio(ex, i)).join('')}
+      </div>
+      <button class="btn secondary" id="piAddExercise" style="width:100%;font-size:12px;padding:8px;margin-top:6px;">+ Aggiungi esercizio</button>
+
+      ${(piano.playerComment || (piano.exercises||[]).some(ex=>ex.playerComment)) ? `
+        <div style="margin-top:18px;padding:12px;background:#F0F7F1;border:1px solid var(--ok);border-radius:6px;">
+          <h4 style="margin:0 0 8px 0;color:var(--ok);font-size:12px;">Commenti del giocatore</h4>
+          ${piano.playerComment ? `<div style="font-size:12.5px;margin-bottom:8px;"><strong>Sul piano:</strong> ${esc(piano.playerComment)}</div>` : ''}
+          ${(piano.exercises||[]).filter(ex=>ex.playerComment).map(ex=>`
+            <div style="font-size:11.5px;color:var(--ink);border-left:2px solid var(--ok);padding-left:8px;margin:6px 0;">
+              <strong>${esc(ex.name||'esercizio')}:</strong> ${esc(ex.playerComment)}
+            </div>
+          `).join('')}
+          ${piano.playerRPE != null ? `<div style="font-size:12.5px;margin-top:8px;"><strong>RPE fine allenamento:</strong> ${piano.playerRPE}/10</div>` : ''}
+        </div>
+      ` : ''}
+
+      <div style="margin-top:20px;display:flex;gap:8px;">
+        <button class="btn pi-save-btn" style="flex:1;background:${tipoColor};">Salva piano</button>
+        <button class="btn secondary pi-back-btn2" style="padding:8px 20px;">Chiudi</button>
+      </div>
+    </div>
+  `;
+
+  const back = ()=>{
+    el.dataset.editPlanId = '';
+    renderPianiIndividuali(el, tipo);
+  };
+  el.querySelector('.pi-back-btn').addEventListener('click', back);
+  el.querySelector('.pi-back-btn2').addEventListener('click', back);
+
+  const addExBtn = document.getElementById('piAddExercise');
+  addExBtn.addEventListener('click', ()=>{
+    if(!Array.isArray(piano.exercises)) piano.exercises = [];
+    piano.exercises.push({
+      id: uid(),
+      name: '',
+      series: null,
+      reps: null,
+      tut: '',
+      kg: null,
+      distance: null,
+      recovery: null,
+      rpeTarget: null,
+      notes: '',
+      playerComment: ''
+    });
+    renderPianoEditor(el, planId, tipo);
+  });
+
+  /* Rimozione esercizi */
+  el.querySelectorAll('.pi-ex-del').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const idx = parseInt(b.dataset.idx, 10);
+      piano.exercises.splice(idx, 1);
+      renderPianoEditor(el, planId, tipo);
+    });
+  });
+
+  document.querySelector('.pi-save-btn').addEventListener('click', async ()=>{
+    piano.title = document.getElementById('piTitle').value.trim();
+    piano.date = document.getElementById('piDate').value || todayStr();
+    piano.freeText = document.getElementById('piFreeText').value;
+    /* Leggo i campi di ogni esercizio */
+    (piano.exercises||[]).forEach((ex, i)=>{
+      const g = id => document.getElementById('piEx' + id + i);
+      if(g('Name')) ex.name = g('Name').value.trim();
+      if(g('Series')) ex.series = g('Series').value ? parseInt(g('Series').value,10) : null;
+      if(g('Reps')) ex.reps = g('Reps').value ? parseInt(g('Reps').value,10) : null;
+      if(g('Tut')) ex.tut = g('Tut').value.trim();
+      if(g('Kg')) ex.kg = g('Kg').value ? parseFloat(g('Kg').value) : null;
+      if(g('Distance')) ex.distance = g('Distance').value ? parseInt(g('Distance').value,10) : null;
+      if(g('Recovery')) ex.recovery = g('Recovery').value ? parseInt(g('Recovery').value,10) : null;
+      if(g('RpeTarget')) ex.rpeTarget = g('RpeTarget').value ? parseInt(g('RpeTarget').value,10) : null;
+      if(g('Notes')) ex.notes = g('Notes').value;
+    });
+    await saveKey('individualPlans', STATE.individualPlans);
+    showToast('Piano salvato');
+    back();
+  });
+}
+
+/* Editor di un singolo esercizio (riga nell'editor del piano) */
+function editorEsercizio(ex, i){
+  return `
+    <div style="border:1px solid var(--line);border-radius:6px;padding:10px;margin-bottom:8px;background:#FAFAFA;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <strong style="font-size:12px;color:var(--pitch);">Esercizio ${i+1}</strong>
+        <button class="pi-ex-del" data-idx="${i}" style="background:none;border:1px solid var(--line);border-radius:3px;padding:2px 8px;font-size:11px;color:var(--clay);cursor:pointer;">Rimuovi</button>
+      </div>
+      <input id="piExName${i}" type="text" value="${esc(ex.name||'')}" placeholder="Nome esercizio (es. Squat, Bulgarian split squat)" style="width:100%;padding:6px;font-size:12.5px;margin-bottom:6px;">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;">
+        <div><label style="font-size:10px;">Serie</label><input id="piExSeries${i}" type="number" min="1" max="20" value="${ex.series||''}" placeholder="4" style="width:100%;padding:5px;font-size:12px;"></div>
+        <div><label style="font-size:10px;">Rep</label><input id="piExReps${i}" type="number" min="1" max="200" value="${ex.reps||''}" placeholder="8" style="width:100%;padding:5px;font-size:12px;"></div>
+        <div><label style="font-size:10px;">TUT (es. 3-1-2)</label><input id="piExTut${i}" type="text" value="${esc(ex.tut||'')}" placeholder="3-1-2" style="width:100%;padding:5px;font-size:12px;"></div>
+        <div><label style="font-size:10px;">Kg</label><input id="piExKg${i}" type="number" min="0" max="500" step="0.5" value="${ex.kg||''}" placeholder="60" style="width:100%;padding:5px;font-size:12px;"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:6px;">
+        <div><label style="font-size:10px;">Distanza (m)</label><input id="piExDistance${i}" type="number" min="0" max="10000" value="${ex.distance||''}" placeholder="20" style="width:100%;padding:5px;font-size:12px;"></div>
+        <div><label style="font-size:10px;">Recupero (sec)</label><input id="piExRecovery${i}" type="number" min="0" max="600" value="${ex.recovery||''}" placeholder="90" style="width:100%;padding:5px;font-size:12px;"></div>
+        <div><label style="font-size:10px;">RPE target</label><input id="piExRpeTarget${i}" type="number" min="1" max="10" value="${ex.rpeTarget||''}" placeholder="7" style="width:100%;padding:5px;font-size:12px;"></div>
+      </div>
+      <label style="font-size:10px;">Note tecniche</label>
+      <textarea id="piExNotes${i}" rows="2" placeholder="Note dello staff, punti di attenzione..." style="width:100%;padding:6px;font-size:12px;font-family:inherit;">${esc(ex.notes||'')}</textarea>
+      ${ex.playerComment ? `<div style="margin-top:6px;padding:6px;background:#F0F7F1;border-left:3px solid var(--ok);font-size:11px;"><strong>Commento giocatore:</strong> ${esc(ex.playerComment)}</div>` : ''}
+    </div>
+  `;
+}
+
 /* --- Modulo di inserimento e modifica --- */
 function formInfortunio(inj, onDone){
   const nuovo = !inj;
@@ -4554,6 +4966,7 @@ function renderPerformance(el){
       ${tabBtn('test','Test')}
       ${tabBtn('confronti','Confronti')}
       ${tabBtn('carico','Carico')}
+      ${tabBtn('piani','Piani individuali')}
       ${tabBtn('stagione','Stagione')}
     </div>
     <div id="perfContent"></div>
@@ -4572,6 +4985,7 @@ function renderPerformance(el){
   if(tab === 'test') renderTest(content);
   else if(tab === 'confronti') renderPerfConfronti(content);
   else if(tab === 'carico') renderPerfCarico(content);
+  else if(tab === 'piani') renderPianiIndividuali(content, 'integrazione');
   else renderPerfStagione(content);
 }
 
@@ -8151,6 +8565,224 @@ function renderProfiloGiocatore(el){
   });
 }
 
+/* ============================================================
+   PIANI GIOCATORE (lato giocatore)
+   Il giocatore vede i propri piani individuali distinti in:
+   - Attivi/da fare: piani con data futura o non ancora completati
+   - Storico: piani gia' completati
+   Puo' aprire ciascun piano, aggiungere commenti (per piano e per
+   esercizio) e inserire l'RPE fine allenamento.
+   Distingue chiaramente riabilitazione (colore rosso) da integrazione
+   (colore ambra). Al primo accesso a un piano non visto, lo marchia
+   come visto per far sparire il badge dal menu.
+   ============================================================ */
+function renderPianiGiocatore(el){
+  const playerId = STATE.currentPlayerId;
+  const openPlanId = el.dataset.openPlanId || null;
+
+  if(openPlanId){
+    return renderPianoGiocatoreDettaglio(el, openPlanId);
+  }
+
+  const attivi = pianiDelGiocatore(playerId).filter(isPianoAttivo);
+  const storico = pianiDelGiocatore(playerId).filter(p => !isPianoAttivo(p));
+
+  el.innerHTML = `
+    <div class="page-head"><h1>I miei piani</h1><p>Piani di lavoro assegnati dallo staff</p></div>
+
+    <div class="card">
+      <h3 style="margin:0 0 12px 0;">Da fare (${attivi.length})</h3>
+      ${attivi.length === 0
+        ? '<div class="empty">Non hai piani attivi al momento.</div>'
+        : attivi.map(p => rigaPianoGiocatore(p)).join('')}
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 12px 0;">Storico (${storico.length})</h3>
+      ${storico.length === 0
+        ? '<div class="empty">Nessun piano completato.</div>'
+        : storico.slice(0, 20).map(p => rigaPianoGiocatore(p)).join('')}
+      ${storico.length > 20 ? `<div style="font-size:11px;color:var(--ink-soft);text-align:center;padding:8px;">+${storico.length - 20} piani piu' vecchi</div>` : ''}
+    </div>
+  `;
+
+  el.querySelectorAll('.gp-plan-row').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      el.dataset.openPlanId = row.dataset.planId;
+      renderPianiGiocatore(el);
+    });
+  });
+}
+
+function rigaPianoGiocatore(p){
+  const tipoColor = p.type === 'riabilitazione' ? 'var(--clay)' : 'var(--amber)';
+  const tipoLabel = p.type === 'riabilitazione' ? 'RIABILITAZIONE' : 'INTEGRAZIONE';
+  const nEx = (p.exercises || []).length;
+  return `
+    <div class="gp-plan-row" data-plan-id="${p.id}" style="padding:12px;border:1px solid ${!p.seen ? tipoColor : 'var(--line)'};border-left:4px solid ${tipoColor};border-radius:6px;margin-bottom:8px;cursor:pointer;background:${!p.seen ? '#FFF8E7' : 'white'};">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;">
+        <div style="flex:1;">
+          <div style="font-size:9px;font-weight:700;color:${tipoColor};letter-spacing:0.05em;margin-bottom:3px;">${tipoLabel}${!p.seen ? ' · NUOVO' : ''}</div>
+          <div style="font-size:14px;font-weight:600;">${esc(p.title || 'Piano senza titolo')}</div>
+          <div style="font-size:11px;color:var(--ink-soft);margin-top:2px;">
+            ${fmtDate(p.date)} · ${nEx} eserciz${nEx===1?'io':'i'}${p.freeText ? ' · con nota libera' : ''}
+          </div>
+        </div>
+        <div style="text-align:right;">
+          ${p.completed ? '<span style="color:var(--ok);font-size:11px;font-weight:700;">Completato</span>' : (p.playerRPE != null ? `<span style="color:var(--pitch);font-size:11px;">RPE ${p.playerRPE}</span>` : '<span style="color:var(--amber-dark);font-size:11px;">Da fare</span>')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* Dettaglio di un piano (lato giocatore): mostra tutti i contenuti,
+   permette commenti per esercizio e per piano, RPE fine allenamento. */
+async function renderPianoGiocatoreDettaglio(el, planId){
+  const piano = (STATE.individualPlans || []).find(p => p.id === planId);
+  if(!piano){
+    el.dataset.openPlanId = '';
+    renderPianiGiocatore(el);
+    return;
+  }
+
+  /* Al primo accesso, segnalo come visto per far sparire il badge */
+  if(!piano.seen){
+    piano.seen = true;
+    piano.seenAt = new Date().toISOString();
+    try{ await saveKey('individualPlans', STATE.individualPlans); }catch(e){}
+  }
+
+  const tipoColor = piano.type === 'riabilitazione' ? 'var(--clay)' : 'var(--amber)';
+  const tipoLabel = piano.type === 'riabilitazione' ? 'Riabilitazione' : 'Integrazione';
+
+  el.innerHTML = `
+    <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px;">
+      <div>
+        <h1>${esc(piano.title || 'Piano')}</h1>
+        <p><span style="color:${tipoColor};font-weight:700;">${tipoLabel}</span> · ${fmtDate(piano.date)}</p>
+      </div>
+      <button class="btn secondary gp-back" style="font-size:12px;padding:6px 14px;">← Indietro</button>
+    </div>
+
+    ${piano.freeText ? `
+      <div class="card" style="border-left:4px solid ${tipoColor};">
+        <h3 style="margin:0 0 8px 0;font-size:13px;">Descrizione</h3>
+        <div style="white-space:pre-wrap;font-size:13px;line-height:1.55;">${esc(piano.freeText)}</div>
+      </div>
+    ` : ''}
+
+    ${(piano.exercises || []).length > 0 ? `
+      <div class="card">
+        <h3 style="margin:0 0 12px 0;font-size:13px;">Esercizi (${piano.exercises.length})</h3>
+        ${piano.exercises.map((ex, i) => rigaEsercizioGiocatore(ex, i, piano.id)).join('')}
+      </div>
+    ` : ''}
+
+    <div class="card" style="border-top:4px solid ${tipoColor};">
+      <h3 style="margin:0 0 12px 0;font-size:13px;">Feedback</h3>
+
+      <label>Il tuo commento generale sul piano</label>
+      <textarea id="gpPlanComment" rows="3" placeholder="Come e' andato? Sensazioni? Difficolta'?" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:12.5px;">${esc(piano.playerComment || '')}</textarea>
+
+      <label style="margin-top:12px;">RPE fine allenamento (1-10)</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+        ${[1,2,3,4,5,6,7,8,9,10].map(v=>`
+          <button type="button" class="gp-rpe-btn" data-rpe="${v}" style="flex:1;min-width:36px;padding:10px 4px;background:${piano.playerRPE===v?tipoColor:'white'};color:${piano.playerRPE===v?'white':'var(--ink)'};border:1px solid ${piano.playerRPE===v?tipoColor:'var(--line)'};border-radius:4px;font-size:13px;font-weight:700;cursor:pointer;">${v}</button>
+        `).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">
+        1 = riposo assoluto · 5 = medio · 10 = massimale. Se hai fatto anche partita o allenamento oggi, questo RPE fa media col carico complessivo del giorno.
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button class="btn gp-save-plan" style="flex:1;background:${tipoColor};">Salva feedback</button>
+        <button class="btn secondary gp-complete" style="padding:8px 20px;">${piano.completed ? 'Segna incompleto' : 'Segna completato'}</button>
+      </div>
+    </div>
+  `;
+
+  el.querySelector('.gp-back').addEventListener('click', ()=>{
+    el.dataset.openPlanId = '';
+    renderPianiGiocatore(el);
+  });
+
+  /* Selezione RPE (a tap) */
+  let rpeSel = piano.playerRPE;
+  el.querySelectorAll('.gp-rpe-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      rpeSel = parseInt(btn.dataset.rpe, 10);
+      el.querySelectorAll('.gp-rpe-btn').forEach(b=>{
+        const v = parseInt(b.dataset.rpe, 10);
+        b.style.background = v === rpeSel ? tipoColor : 'white';
+        b.style.color = v === rpeSel ? 'white' : 'var(--ink)';
+        b.style.borderColor = v === rpeSel ? tipoColor : 'var(--line)';
+      });
+    });
+  });
+
+  /* Commenti su singolo esercizio (ognuno con id univoco) */
+  el.querySelectorAll('.gp-ex-comment').forEach(t=>{
+    t.addEventListener('input', ()=>{
+      const idx = parseInt(t.dataset.idx, 10);
+      if(piano.exercises[idx]) piano.exercises[idx].playerComment = t.value;
+    });
+  });
+
+  el.querySelector('.gp-save-plan').addEventListener('click', async ()=>{
+    piano.playerComment = document.getElementById('gpPlanComment').value;
+    piano.playerRPE = rpeSel != null ? rpeSel : piano.playerRPE;
+    try{
+      await saveKey('individualPlans', STATE.individualPlans);
+      await syncPlanRPEToLog(piano);
+      showToast('Feedback salvato');
+    }catch(e){
+      showToast('Errore nel salvataggio');
+    }
+  });
+
+  el.querySelector('.gp-complete').addEventListener('click', async ()=>{
+    piano.completed = !piano.completed;
+    piano.completedAt = piano.completed ? new Date().toISOString() : null;
+    /* Salvo anche eventuali commenti/RPE non ancora committati */
+    piano.playerComment = document.getElementById('gpPlanComment').value;
+    piano.playerRPE = rpeSel != null ? rpeSel : piano.playerRPE;
+    try{
+      await saveKey('individualPlans', STATE.individualPlans);
+      await syncPlanRPEToLog(piano);
+      showToast(piano.completed ? 'Piano completato' : 'Piano riaperto');
+      el.dataset.openPlanId = '';
+      renderPianiGiocatore(el);
+    }catch(e){
+      showToast('Errore nel salvataggio');
+    }
+  });
+}
+
+function rigaEsercizioGiocatore(ex, i, planId){
+  const specs = [];
+  if(ex.series) specs.push(ex.series + ' serie');
+  if(ex.reps) specs.push(ex.reps + ' rep');
+  if(ex.tut) specs.push('TUT ' + ex.tut);
+  if(ex.kg != null) specs.push(ex.kg + ' kg');
+  if(ex.distance) specs.push(ex.distance + ' m');
+  if(ex.recovery) specs.push('rec. ' + ex.recovery + '"');
+  if(ex.rpeTarget) specs.push('RPE target ' + ex.rpeTarget);
+  return `
+    <div style="padding:12px;background:#FAFAFA;border-radius:6px;margin-bottom:10px;border-left:3px solid var(--pitch);">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px;">
+        <div style="font-size:14px;font-weight:700;color:var(--pitch);">${i+1}. ${esc(ex.name || 'esercizio')}</div>
+      </div>
+      ${specs.length > 0 ? `<div style="font-size:12px;color:var(--ink);margin-bottom:6px;">${specs.join(' · ')}</div>` : ''}
+      ${ex.notes ? `<div style="font-size:11.5px;color:var(--ink-soft);font-style:italic;margin-top:4px;border-top:1px dashed var(--line);padding-top:6px;">${esc(ex.notes)}</div>` : ''}
+      <div style="margin-top:8px;">
+        <label style="font-size:10.5px;color:var(--ink-soft);">Commento su questo esercizio</label>
+        <textarea class="gp-ex-comment" data-idx="${i}" rows="2" placeholder="Es. Sentito bene / difficolta' al 3° serie / dolore lieve..." style="width:100%;padding:6px;border:1px solid var(--line);border-radius:4px;font-family:inherit;font-size:11.5px;">${esc(ex.playerComment || '')}</textarea>
+      </div>
+    </div>
+  `;
+}
+
 function renderPlayerCalendario(el){
  try{
   const today = todayStr();
@@ -9371,6 +10003,7 @@ async function setupFirestoreSync(){
         if(key === 'pain-log')     STATE.painLog      = mergeInPlace(STATE.painLog, data);
         if(key === 'injuries')     STATE.injuries     = mergeInPlace(STATE.injuries || [], data);
         if(key === 'staffMembers') STATE.staffMembers = mergeInPlace(STATE.staffMembers || [], data);
+        if(key === 'individualPlans') STATE.individualPlans = mergeInPlace(STATE.individualPlans || [], data);
         /* Chiavi non-array: assegnamento diretto */
         if(key === 'team-config')      STATE.teamConfig      = data;
         if(key === 'accessCodes')      STATE.accessCodes     = data || {};
