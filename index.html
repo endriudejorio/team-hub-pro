@@ -279,7 +279,7 @@ const TEAM_ID = 'alense';
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '5';
+const APP_VERSION = '6';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -693,6 +693,50 @@ const FORMATIONS = {
 };
 
 const FORMATION_ROLE_LABELS = {P:'Portiere', D:'Difensore', C:'Centrocampista', T:'Trequartista', A:'Attaccante'};
+
+/* ---------- TITOLI PIANI INDIVIDUALI ----------
+   Fonti principali:
+   - Integrazione: FIFA 11+, Copenhagen Adduction Program (Harøy et al. 2019),
+     Nordic Hamstring (van der Horst et al. 2015), letteratura pre-hab classica.
+   - Riabilitazione: Fasi RTP secondo Bahr et al., Blanch & Gabbett, Dijkstra,
+     Aspetar RTP consensus (Ardern et al. 2016). */
+const PIANO_TITOLI_INTEGRAZIONE = [
+  'Forza generale',
+  'Forza arti inferiori',
+  'Forza arti superiori',
+  'Core stability',
+  'Pliometria e reattivita',
+  'Prevenzione infortuni — protocollo FIFA 11+',
+  'Prevenzione hamstring — Nordic hamstring',
+  'Prevenzione adduttori — Copenhagen protocol',
+  'Prevenzione caviglia — propriocezione',
+  'Prevenzione ginocchio — controllo neuromuscolare',
+  'Aerobico integrativo — recupero attivo',
+  'Aerobico integrativo — capacita',
+  'Sprint e cambio direzione',
+  'Compensazione tecnica individuale',
+  'Lavoro individuale post-partita',
+  'Mobilita e stabilita',
+  'Rifinitura tecnica'
+];
+
+const PIANO_TITOLI_RIABILITAZIONE = [
+  'Fase 1 — Acuta / gestione carico',
+  'Fase 2 — Rinforzo isometrico',
+  'Fase 3 — Rinforzo isotonico e dinamico',
+  'Fase 4 — Rinforzo eccentrico',
+  'Fase 5 — Pliometria e reattivita',
+  'Fase 6 — Return to running',
+  'Fase 7 — Return to sport (lavoro specifico)',
+  'Fase 8 — Return to performance',
+  'Test funzionali di rientro',
+  'Mantenimento post-rientro',
+  'Trattamento sintomatico',
+  'Mobilizzazione articolare',
+  'Rieducazione propriocettiva',
+  'Rieducazione neuromuscolare',
+  'Controllo motorio'
+];
 
 /* ---------- AREA MEDICA ----------
    L'infortunio e' un'entita' con inizio, durata e rientro: solo cosi' si puo'
@@ -4716,7 +4760,22 @@ function renderPianoEditor(el, planId, tipo){
       </div>
 
       <div class="grid2" style="gap:12px;">
-        <div><label>Titolo</label><input id="piTitle" type="text" value="${esc(piano.title||'')}" placeholder="Es. Prevenzione infortuni ginocchio"></div>
+        <div>
+          <label>Titolo del piano</label>
+          ${(()=>{
+            const opzioni = piano.type === 'riabilitazione' ? PIANO_TITOLI_RIABILITAZIONE : PIANO_TITOLI_INTEGRAZIONE;
+            const titoloCorrente = piano.title || '';
+            const isCustom = titoloCorrente && opzioni.indexOf(titoloCorrente) === -1;
+            return `
+              <select id="piTitleSelect" style="width:100%;padding:7px;border:1px solid var(--line);border-radius:6px;font-size:12.5px;background:white;margin-bottom:6px;">
+                <option value="">— Seleziona un titolo —</option>
+                ${opzioni.map(o=>`<option value="${esc(o)}" ${o===titoloCorrente?'selected':''}>${esc(o)}</option>`).join('')}
+                <option value="__custom__" ${isCustom?'selected':''}>Personalizzato...</option>
+              </select>
+              <input id="piTitle" type="text" value="${esc(titoloCorrente)}" placeholder="Titolo personalizzato" style="display:${isCustom?'block':'none'};">
+            `;
+          })()}
+        </div>
         <div><label>Data</label><input id="piDate" type="date" value="${piano.date||''}"></div>
       </div>
 
@@ -4755,6 +4814,24 @@ function renderPianoEditor(el, planId, tipo){
   };
   el.querySelector('.pi-back-btn').addEventListener('click', back);
   el.querySelector('.pi-back-btn2').addEventListener('click', back);
+
+  /* Dropdown titolo: se scelgo un'opzione predefinita la scrivo nell'input nascosto,
+     se scelgo "Personalizzato" mostro l'input testuale. */
+  const titleSel = document.getElementById('piTitleSelect');
+  const titleInput = document.getElementById('piTitle');
+  if(titleSel){
+    titleSel.addEventListener('change', ()=>{
+      const v = titleSel.value;
+      if(v === '__custom__'){
+        titleInput.style.display = 'block';
+        titleInput.value = '';
+        titleInput.focus();
+      } else {
+        titleInput.style.display = 'none';
+        titleInput.value = v;
+      }
+    });
+  }
 
   const addExBtn = document.getElementById('piAddExercise');
   addExBtn.addEventListener('click', ()=>{
@@ -4966,6 +5043,7 @@ function renderPerformance(el){
       ${tabBtn('test','Test')}
       ${tabBtn('confronti','Confronti')}
       ${tabBtn('carico','Carico')}
+      ${tabBtn('rpe','RPE sessioni')}
       ${tabBtn('piani','Piani individuali')}
       ${tabBtn('stagione','Stagione')}
     </div>
@@ -4985,8 +5063,67 @@ function renderPerformance(el){
   if(tab === 'test') renderTest(content);
   else if(tab === 'confronti') renderPerfConfronti(content);
   else if(tab === 'carico') renderPerfCarico(content);
+  else if(tab === 'rpe') renderPerfRPE(content);
   else if(tab === 'piani') renderPianiIndividuali(content, 'integrazione');
   else renderPerfStagione(content);
+}
+
+/* --- RPE per sessione: ogni evento passato con RPE, compilazione e carichi --- */
+function renderPerfRPE(el){
+  const today = todayStr();
+  /* Considero solo eventi passati o di oggi. Escludo RPE dai piani individuali (source=plan) */
+  const eventiPassati = STATE.events
+    .filter(e => (e.type === 'Allenamento' || e.type === 'Partita') && e.date <= today && e.id !== 'rpe-import-session')
+    .sort((a,b) => String(b.date).localeCompare(String(a.date)));
+
+  /* Statistiche aggregate ultimi 7 e 28 giorni */
+  const in7 = STATE.rpeLog.filter(r => r.source !== 'plan' && daysSince(r.date) <= 7);
+  const in28 = STATE.rpeLog.filter(r => r.source !== 'plan' && daysSince(r.date) <= 28);
+  const avg7 = in7.length ? in7.reduce((s,r)=>s+Number(r.rpe||0),0)/in7.length : null;
+  const load7 = in7.reduce((s,r)=>s+Number(r.rpe||0)*Number(r.minutes||0),0);
+  const avg28 = in28.length ? in28.reduce((s,r)=>s+Number(r.rpe||0),0)/in28.length : null;
+
+  el.innerHTML = `
+    <div class="tiles" style="margin-bottom:20px;">
+      <div class="tile"><div class="tile-accent" style="background:var(--amber);"></div><div class="tile-lbl">Media RPE 7 giorni</div><div class="tile-val" style="color:${avg7 !== null ? (avg7>=7?'var(--clay)':avg7>=5?'var(--amber-dark)':'var(--ok)') : 'var(--ink-soft)'};">${avg7 !== null ? Math.round(avg7*10)/10 : '—'}</div><div class="tile-sub">${in7.length} sessioni</div></div>
+      <div class="tile"><div class="tile-accent" style="background:var(--pitch);"></div><div class="tile-lbl">Carico 7 giorni</div><div class="tile-val">${Math.round(load7)}</div><div class="tile-sub">UA totali</div></div>
+      <div class="tile"><div class="tile-accent" style="background:var(--amber-dark);"></div><div class="tile-lbl">Media RPE 28 giorni</div><div class="tile-val" style="color:${avg28 !== null ? (avg28>=7?'var(--clay)':avg28>=5?'var(--amber-dark)':'var(--ok)') : 'var(--ink-soft)'};">${avg28 !== null ? Math.round(avg28*10)/10 : '—'}</div><div class="tile-sub">${in28.length} sessioni</div></div>
+      <div class="tile"><div class="tile-accent" style="background:var(--ok);"></div><div class="tile-lbl">Sessioni passate</div><div class="tile-val">${eventiPassati.length}</div><div class="tile-sub">totali</div></div>
+    </div>
+
+    <div class="card">
+      <h3>Sessioni con RPE</h3>
+      <div style="font-size:11px;color:var(--ink-soft);margin-bottom:12px;">Clicca su una sessione per aprirne il dettaglio.</div>
+      ${eventiPassati.length === 0
+        ? '<div class="empty">Nessuna sessione passata registrata.</div>'
+        : eventiPassati.slice(0, 30).map(e=>{
+          const rpes = (STATE.rpeLog || []).filter(r => r.sessionId === e.id && r.source !== 'plan');
+          const avg = rpes.length ? rpes.reduce((s,r)=>s+Number(r.rpe||0),0)/rpes.length : null;
+          const load = rpes.reduce((s,r)=>s+Number(r.rpe||0)*Number(r.minutes||0),0);
+          const attesi = Array.isArray(e.presentPlayers) ? e.presentPlayers.length : (Array.isArray(e.starters) ? e.starters.length : 0);
+          const color = avg !== null ? (avg>=7?'var(--clay)':avg>=5?'var(--amber-dark)':avg>=3?'var(--amber)':'var(--ok)') : 'var(--ink-soft)';
+          const isMatch = e.type === 'Partita';
+          return `<div class="rpe-session-row" data-event-id="${e.id}" style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:10px;align-items:center;padding:10px;background:${isMatch?'#FDF3E7':'#F0F7F1'};border-radius:6px;margin-bottom:6px;cursor:pointer;border-left:3px solid ${isMatch?'var(--amber)':'var(--pitch)'};">
+            <span style="font-size:11px;color:var(--ink-soft);width:70px;">${fmtDate(e.date)}</span>
+            <span style="font-size:12.5px;font-weight:600;color:var(--pitch);">${esc(e.title||e.type)}</span>
+            <span style="font-size:11px;color:var(--ink-soft);white-space:nowrap;">${rpes.length}${attesi?'/'+attesi:''} compil.</span>
+            <span style="font-size:11px;color:var(--ink-soft);white-space:nowrap;">${Math.round(load)} UA</span>
+            <span style="font-size:14px;font-weight:700;color:${color};min-width:44px;text-align:right;">${avg !== null ? Math.round(avg*10)/10 : '—'}</span>
+          </div>`;
+        }).join('')
+      }
+      ${eventiPassati.length > 30 ? `<div style="font-size:11px;color:var(--ink-soft);text-align:center;margin-top:8px;">+${eventiPassati.length - 30} sessioni piu' vecchie</div>` : ''}
+    </div>
+  `;
+
+  el.querySelectorAll('.rpe-session-row').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const e = STATE.events.find(ev => ev.id === row.dataset.eventId);
+      if(!e) return;
+      if(e.type === 'Partita') renderMatchDetails(e);
+      else renderAllenamentoDetails(e);
+    });
+  });
 }
 
 /* --- Confronti: un tipo di test alla volta, tutta la squadra --- */
@@ -7035,7 +7172,10 @@ function renderCalendario(el){
                 const colorLeft = isMatch ? 'var(--amber)' : (e.type === 'Allenamento' ? 'var(--pitch)' : 'var(--ink-soft)');
                 const bg = isMatch ? '#FDF3E7' : (e.type === 'Allenamento' ? '#F0F7F1' : '#F7F5EC');
                 const label = isMatch ? (e.opponent ? esc(e.opponent) : 'Partita') : (e.title ? esc(e.title) : e.type);
-                cell += `<div class="cal-event" data-event-id="${e.id}" style="background:${bg};border-left:3px solid ${colorLeft};padding:2px 4px;margin-bottom:2px;font-size:9.5px;font-weight:600;color:var(--ink);border-radius:2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${label.substring(0,14)}</div>`;
+                /* Indicatore RPE: pallino verde piccolo se ci sono dati per questa sessione */
+                const rpeCount = (STATE.rpeLog || []).filter(r => r.sessionId === e.id && r.source !== 'plan').length;
+                const rpeDot = rpeCount > 0 ? `<span style="display:inline-block;width:5px;height:5px;background:var(--ok);border-radius:50%;margin-right:3px;vertical-align:middle;" title="${rpeCount} RPE registrati"></span>` : '';
+                cell += `<div class="cal-event" data-event-id="${e.id}" style="background:${bg};border-left:3px solid ${colorLeft};padding:2px 4px;margin-bottom:2px;font-size:9.5px;font-weight:600;color:var(--ink);border-radius:2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${rpeDot}${label.substring(0,14)}</div>`;
               });
               if(dayEvents.length > 3){
                 cell += `<div style="font-size:9px;color:var(--ink-soft);text-align:center;">+${dayEvents.length - 3}</div>`;
@@ -7052,6 +7192,7 @@ function renderCalendario(el){
         <span><span style="display:inline-block;width:8px;height:8px;background:var(--amber);vertical-align:middle;margin-right:4px;"></span>Partita</span>
         <span><span style="display:inline-block;width:8px;height:8px;background:var(--pitch);vertical-align:middle;margin-right:4px;"></span>Allenamento</span>
         <span><span style="display:inline-block;width:8px;height:8px;background:var(--ok);vertical-align:middle;margin-right:4px;"></span>Oggi</span>
+        <span><span style="display:inline-block;width:5px;height:5px;background:var(--ok);border-radius:50%;vertical-align:middle;margin-right:4px;"></span>RPE registrati</span>
       </div>
     </div>
     
@@ -7340,6 +7481,36 @@ function renderAllenamentoDetails(event){
             <button id="addWorkoutBtn" class="btn" style="padding:8px 16px;font-size:12px;">+ Aggiungi</button>
           </div>
         </div>
+      </div>
+
+      <!-- BLOCCO RPE PER GIOCATORE -->
+      <div style="border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <h4 style="margin:0;color:var(--pitch);font-size:13px;">RPE per giocatore</h4>
+          ${(()=>{
+            const rpes = (STATE.rpeLog || []).filter(r => r.sessionId === event.id && r.source !== 'plan');
+            if(rpes.length === 0) return '<span style="font-size:11px;color:var(--ink-soft);">Nessun RPE inserito</span>';
+            const avg = rpes.reduce((s,r)=>s + Number(r.rpe||0), 0) / rpes.length;
+            const load = rpes.reduce((s,r)=>s + Number(r.rpe||0) * Number(r.minutes||0), 0);
+            return `<span style="font-size:11px;color:var(--ink-soft);">Media <strong style="color:var(--pitch);">${(Math.round(avg*10)/10)}</strong> · Carico totale <strong style="color:var(--pitch);">${Math.round(load)}</strong> UA</span>`;
+          })()}
+        </div>
+        ${(()=>{
+          const rpes = (STATE.rpeLog || []).filter(r => r.sessionId === event.id && r.source !== 'plan');
+          if(rpes.length === 0){
+            return '<div style="font-size:12px;color:var(--ink-soft);padding:10px;text-align:center;background:#F7F5EC;border-radius:6px;">I giocatori presenti compileranno il proprio RPE dalla loro area wellness dopo la sessione.</div>';
+          }
+          const righe = rpes.map(r=>{
+            const p = STATE.players.find(x => String(x.id) === String(r.playerId));
+            const color = r.rpe >= 8 ? 'var(--clay)' : r.rpe >= 6 ? 'var(--amber-dark)' : r.rpe >= 4 ? 'var(--amber)' : 'var(--ok)';
+            return `<div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:6px 10px;background:#F9F9F9;border-radius:4px;margin-bottom:4px;font-size:12px;">
+              <span>${p ? esc(p.name) : 'giocatore rimosso'}</span>
+              <span style="color:var(--ink-soft);font-size:11px;">${r.minutes || 0} min</span>
+              <span style="font-weight:700;color:${color};min-width:34px;text-align:right;">${r.rpe}/10</span>
+            </div>`;
+          }).join('');
+          return '<div style="max-height:280px;overflow-y:auto;">' + righe + '</div>';
+        })()}
       </div>
 
       <!-- BLOCCO DIFFERENZIATO -->
@@ -7851,6 +8022,36 @@ function renderMatchDetails(match){
             }).join('');
           })()}
         </div>
+      </div>
+
+      <!-- BLOCCO RPE PARTITA -->
+      <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <h4 style="margin:0;color:var(--pitch);font-size:13px;">RPE partita</h4>
+          ${(()=>{
+            const rpes = (STATE.rpeLog || []).filter(r => r.sessionId === match.id && r.source !== 'plan');
+            if(rpes.length === 0) return '<span style="font-size:11px;color:var(--ink-soft);">Nessun RPE inserito</span>';
+            const avg = rpes.reduce((s,r)=>s + Number(r.rpe||0), 0) / rpes.length;
+            const load = rpes.reduce((s,r)=>s + Number(r.rpe||0) * Number(r.minutes||0), 0);
+            return `<span style="font-size:11px;color:var(--ink-soft);">Media <strong style="color:var(--pitch);">${(Math.round(avg*10)/10)}</strong> · Carico totale <strong style="color:var(--pitch);">${Math.round(load)}</strong> UA</span>`;
+          })()}
+        </div>
+        ${(()=>{
+          const rpes = (STATE.rpeLog || []).filter(r => r.sessionId === match.id && r.source !== 'plan');
+          if(rpes.length === 0){
+            return '<div style="font-size:12px;color:var(--ink-soft);padding:10px;text-align:center;background:#F7F5EC;border-radius:6px;">Nessun RPE registrato per questa partita.</div>';
+          }
+          const righe = rpes.map(r=>{
+            const p = STATE.players.find(x => String(x.id) === String(r.playerId));
+            const color = r.rpe >= 8 ? 'var(--clay)' : r.rpe >= 6 ? 'var(--amber-dark)' : r.rpe >= 4 ? 'var(--amber)' : 'var(--ok)';
+            return `<div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:6px 10px;background:#F9F9F9;border-radius:4px;margin-bottom:4px;font-size:12px;">
+              <span>${p ? esc(p.name) : 'giocatore rimosso'}</span>
+              <span style="color:var(--ink-soft);font-size:11px;">${r.minutes || 0} min</span>
+              <span style="font-weight:700;color:${color};min-width:34px;text-align:right;">${r.rpe}/10</span>
+            </div>`;
+          }).join('');
+          return '<div style="max-height:280px;overflow-y:auto;">' + righe + '</div>';
+        })()}
       </div>
 
       <!-- EVENTI -->
