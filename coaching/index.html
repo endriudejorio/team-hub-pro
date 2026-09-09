@@ -329,6 +329,13 @@ body:has(#workoutTimerBar[style*='flex']) .main{padding-top:56px;}
 .scale-btn.active{background:var(--accent); color:#FFFFFF; border-color:var(--accent); font-weight:600;}
 .ex-header{font-size:20px; margin:22px 0 10px;}
 .ex-header:first-child{margin-top:0;}
+.sett-grid{width:100%; border-collapse:collapse;}
+.sett-grid th{
+  font-size:10.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.03em;
+  font-weight:600; padding:0 6px 6px; text-align:left;
+}
+.sett-grid td{padding:3px 6px 3px 0;}
+.sett-lbl{font-size:12px; color:var(--ink-soft); white-space:nowrap; padding-right:10px;}
 .hist-link{
   background:none; border:none; color:var(--accent); font-size:11px;
   text-decoration:underline; padding:2px 4px; font-family:'Inter',sans-serif;
@@ -1673,6 +1680,18 @@ function descrizioneTarget(e){
   if(t === 'rpe')     return 'RPE ' + (e.target_val||'—');
   return e.target || 'imposta…';
 }
+// Mostra "10-11-12-13" sulla riga se il piano settimanale non è uniforme
+function riassuntoPiano(e){
+  const p = e.settimane_plan;
+  if(!Array.isArray(p) || p.length < 2) return '';
+  const reps = p.map(x => x.reps).filter(x => x !== '' && x != null);
+  const kg = p.map(x => x.carico).filter(x => x !== '' && x != null);
+  const repsVarie = reps.length === p.length && new Set(reps).size > 1;
+  const kgVari = kg.length === p.length && new Set(kg).size > 1;
+  if(repsVarie) return `<br><span style="font-size:9.5px; opacity:.75;">${reps.join('-')}</span>`;
+  if(kgVari) return `<br><span style="font-size:9.5px; opacity:.75;">${kg.join('-')} kg</span>`;
+  return '';
+}
 function targetLeggibile(e){
   const base = descrizioneTarget(e);
   const p = e.progressione && e.progressione !== 'scala' ? '' : '';
@@ -1705,6 +1724,19 @@ function apriPannelloAvanzato(t, gi, ei, onSave){
         </select>
       </div>
       <div id="advProgExtra"></div>
+
+      <hr style="border:none; border-top:1px solid var(--line); margin:18px 0;">
+
+      <label class="field-label" style="margin-bottom:6px;">Piano settimana per settimana</label>
+      <p style="font-size:11px; color:var(--ink-soft); line-height:1.5; margin-bottom:10px;">
+        Lascia vuoto il carico se preferisci deciderlo al momento. Le reps qui scritte sostituiscono il valore base per quella settimana.
+      </p>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;">
+        <button type="button" class="btn secondary small" id="advFillReps" style="width:auto;">+1 rep/sett.</button>
+        <button type="button" class="btn secondary small" id="advFillKg" style="width:auto;">+2.5 kg/sett.</button>
+        <button type="button" class="btn secondary small" id="advFillFlat" style="width:auto;">Tutto uguale</button>
+      </div>
+      <div id="advSettGriglia" style="margin-bottom:8px;"></div>
 
       <hr style="border:none; border-top:1px solid var(--line); margin:18px 0;">
 
@@ -1757,9 +1789,51 @@ function apriPannelloAvanzato(t, gi, ei, onSave){
       w.innerHTML = `<div style="font-size:11px; color:var(--ink-soft); line-height:1.5;">Nessuna proposta automatica: decidi tu il carico ogni volta.</div>`;
     }
   }
+  const nSett = t.durata_settimane || 4;
+  if(!Array.isArray(e.settimane_plan) || e.settimane_plan.length !== nSett){
+    const vecchio = Array.isArray(e.settimane_plan) ? e.settimane_plan : [];
+    e.settimane_plan = Array.from({length:nSett}, (_,i) => vecchio[i] || {reps: e.reps || '', carico: ''});
+  }
+  function renderGriglia(){
+    document.getElementById('advSettGriglia').innerHTML = `
+      <table class="sett-grid">
+        <thead><tr><th></th><th>${e.a_tempo?'Secondi':'Reps'}</th><th>Carico (kg)</th></tr></thead>
+        <tbody>
+          ${e.settimane_plan.map((p,i)=>`
+            <tr>
+              <td class="sett-lbl">Sett. ${i+1}</td>
+              <td><input type="number" class="mini-input" value="${p.reps ?? ''}" data-sp="${i}.reps"></td>
+              <td><input type="number" step="0.5" class="mini-input" value="${p.carico ?? ''}" data-sp="${i}.carico" placeholder="—"></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+    document.querySelectorAll('[data-sp]').forEach(inp => inp.onchange = ev => {
+      const [i, campo] = inp.dataset.sp.split('.');
+      const v = ev.target.value;
+      e.settimane_plan[+i][campo] = v === '' ? '' : parseFloat(v);
+    });
+  }
+  renderGriglia();
+  document.getElementById('advFillReps').onclick = () => {
+    const base = parseFloat(e.settimane_plan[0].reps) || parseFloat(e.reps) || 8;
+    e.settimane_plan.forEach((p,i)=>{ p.reps = base + i; });
+    renderGriglia();
+  };
+  document.getElementById('advFillKg').onclick = () => {
+    const base = parseFloat(e.settimane_plan[0].carico) || 0;
+    if(!base){ alert('Scrivi prima il carico della settimana 1'); return; }
+    e.settimane_plan.forEach((p,i)=>{ p.carico = base + i*2.5; });
+    renderGriglia();
+  };
+  document.getElementById('advFillFlat').onclick = () => {
+    const r = e.settimane_plan[0].reps, k = e.settimane_plan[0].carico;
+    e.settimane_plan.forEach(p=>{ p.reps = r; p.carico = k; });
+    renderGriglia();
+  };
+
   renderVal(); renderProgExtra();
   document.getElementById('advTipo').onchange = renderVal;
-  document.getElementById('advProg').onchange = renderProgExtra;
+  document.getElementById('advProg').onchange = () => { renderProgExtra(); };
 
   document.getElementById('advCancel').onclick = () => host.classList.remove('active');
   document.getElementById('advSave').onclick = () => {
@@ -1780,6 +1854,8 @@ function apriPannelloAvanzato(t, gi, ei, onSave){
     e.riposo_sec = parseInt(document.getElementById('advRiposo').value) || 90;
     e.a_tempo = document.getElementById('advTempo').checked;
     if(e.a_tempo && (!e.reps || e.reps < 5)) e.reps = 30;
+    // la settimana 1 detta il valore base mostrato nella riga
+    if(e.settimane_plan && e.settimane_plan[0] && e.settimane_plan[0].reps) e.reps = e.settimane_plan[0].reps;
     host.classList.remove('active');
     onSave();
   };
@@ -1821,7 +1897,7 @@ function renderTemplateModalBody(t, isNew, owner){
               <input type="text" placeholder="Esercizio" value="${e.esercizio}" list="exerciseNamesList" data-ex-field="${gi}.${ei}.esercizio">
               <input type="number" placeholder="Serie" value="${e.serie}" data-ex-field="${gi}.${ei}.serie">
               <input type="number" placeholder="${e.a_tempo?'Sec':'Reps'}" value="${e.reps}" data-ex-field="${gi}.${ei}.reps">
-              <button class="target-btn" data-open-adv="${gi}.${ei}" title="Target, progressione, riposo">${descrizioneTarget(e)}</button>
+              <button class="target-btn" data-open-adv="${gi}.${ei}" title="Target, piano settimanale, riposo">${descrizioneTarget(e)}${riassuntoPiano(e)}</button>
               <button class="icon-btn ${e.superset?'ss-on':''}" data-toggle-ss="${gi}.${ei}" title="Superset con il precedente">⇄</button>
               <button class="icon-btn" data-del-ex="${gi}.${ei}">✕</button>
             </div>
@@ -2390,6 +2466,34 @@ function computeProgressionProposal(client, ex){
   return {pesoBase, pct:params.giusto, motivo:'Sforzo max P, reps raggiunte', last};
 }
 function arrotondaCarico(kg){ return Math.round(kg / 2.5) * 2.5; }
+
+// Espande un template in N settimane, applicando a ognuna reps e carico
+// previsti dalla griglia settimanale dell'esercizio (settimane_plan).
+function espandiInSettimane(tpl, origine){
+  const n = tpl.durata_settimane || 4;
+  return {
+    nome: tpl.nome,
+    durata_settimane: n,
+    origine: origine,
+    origine_template: tpl.id,
+    settimane: Array.from({length:n}, (_,i) => ({
+      nome: 'Settimana ' + (i+1),
+      giorni: tpl.giorni.map(g => ({
+        nome: g.nome,
+        esercizi: g.esercizi.map(ex => {
+          const copia = JSON.parse(JSON.stringify(ex));
+          const p = Array.isArray(ex.settimane_plan) ? ex.settimane_plan[i] : null;
+          if(p){
+            if(p.reps !== '' && p.reps != null) copia.reps = p.reps;
+            if(p.carico !== '' && p.carico != null) copia.carico_previsto = p.carico;
+          }
+          delete copia.settimane_plan;
+          return copia;
+        })
+      }))
+    }))
+  };
+}
 // La proposta può essere percentuale (schema a scala) o in kg assoluti (lineare/doppia)
 function caricoProposto(prop){
   if(!prop || !prop.pesoBase) return 0;
@@ -2567,7 +2671,9 @@ function renderGymDayBody(client, day){
   return day.esercizi.map((ex, exi) => {
     const key = ex.esercizio + '_' + exi;
     if(!client._gymLog[key]) client._gymLog[key] = Array.from({length:ex.serie}, ()=>({
-      peso: (client.carichi_correnti && client.carichi_correnti[ex.esercizio]) ? client.carichi_correnti[ex.esercizio] : '',
+      peso: (ex.carico_previsto != null && ex.carico_previsto !== '')
+        ? ex.carico_previsto
+        : ((client.carichi_correnti && client.carichi_correnti[ex.esercizio]) ? client.carichi_correnti[ex.esercizio] : ''),
       reps:'', sforzo:'', tipo:'N', done:false
     }));
     const sets = client._gymLog[key];
@@ -2588,6 +2694,9 @@ function renderGymDayBody(client, day){
         return out;
       })()}
       ${ex.note ? `<div class="ex-note-display">${ex.note}</div>` : ''}
+      ${ex.carico_previsto != null && ex.carico_previsto !== ''
+        ? `<div class="prev-line" style="border-left-color:var(--accent2);"><span class="prev-label" style="color:var(--accent2);">Previsto</span> ${ex.carico_previsto} kg × ${ex.reps}${ex.a_tempo?'s':' reps'} per questa settimana</div>`
+        : ''}
       ${(() => {
         const perf = formatLastPerf(getLastPerformance(client, ex.esercizio));
         if(!perf) return '<div class="prev-line">Nessun dato precedente per questo esercizio</div>';
@@ -3382,16 +3491,7 @@ function attachPageHandlers(){
     selezionati.forEach(cid => {
       const client = STATE.clients.find(c=>c.id===cid);
       // copia profonda scollegata dal template originale, una per atleta
-      client.programma_attivo = {
-        nome: tpl.nome,
-        durata_settimane: nSett,
-        origine: 'coach',
-        origine_template: tpl.id,
-        settimane: Array.from({length:nSett}, (_,i)=>({
-          nome: 'Settimana ' + (i+1),
-          giorni: JSON.parse(JSON.stringify(tpl.giorni))
-        }))
-      };
+      client.programma_attivo = espandiInSettimane(tpl, 'coach');
       client.settimana_corrente = 0;
       client._gymDayIdx = 0;
       client._gymLog = {};
@@ -3528,16 +3628,7 @@ function attachPageHandlers(){
     if(!tpl.giorni.length){ alert('Aggiungi almeno un giorno con esercizi prima di usarlo'); return; }
     if(cl.programma_attivo && !confirm('Questo sostituisce il programma attivo. Continuare?')) return;
     const nSett = tpl.durata_settimane || 4;
-    cl.programma_attivo = {
-      nome: tpl.nome,
-      durata_settimane: nSett,
-      origine: 'atleta',
-      origine_template: tpl.id,
-      settimane: Array.from({length:nSett}, (_,i)=>({
-        nome: 'Settimana ' + (i+1),
-        giorni: JSON.parse(JSON.stringify(tpl.giorni))
-      }))
-    };
+    cl.programma_attivo = espandiInSettimane(tpl, 'atleta');
     cl.settimana_corrente = 0;
     cl._gymDayIdx = 0;
     cl._gymLog = {};
