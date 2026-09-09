@@ -251,7 +251,7 @@ body:has(#workoutTimerBar[style*='flex']) .main{padding-top:56px;}
 .day-block{border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:12px;}
 .day-block-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
 .day-block-head input{background:transparent; border:none; color:var(--ink); font-size:16px; font-weight:700; width:70%;}
-.ex-row{display:grid; grid-template-columns:auto 2fr 0.8fr 0.8fr 1fr auto auto auto; gap:5px; align-items:center; margin-bottom:6px;}
+.ex-row{display:grid; grid-template-columns:auto 2fr 0.7fr 0.7fr 1.6fr auto auto; gap:5px; align-items:center; margin-bottom:6px;}
 .ex-row-wrap{border-radius:6px; padding:6px; margin-bottom:6px; border:1px solid transparent;}
 .ex-row-wrap.in-superset{border-left:3px solid var(--accent); background:var(--accent-soft);}
 .ex-row-wrap.dragging{opacity:.4;}
@@ -260,6 +260,12 @@ body:has(#workoutTimerBar[style*='flex']) .main{padding-top:56px;}
 .ex-note{width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--ink-soft); padding:6px 8px; border-radius:4px; font-size:12px;}
 .icon-btn.ss-on{color:var(--accent);}
 .icon-btn.tt-on{color:#F0B429;}
+.target-btn{
+  background:var(--surface-2); border:1px solid var(--line); color:var(--ink);
+  padding:8px 6px; border-radius:4px; font-size:11px; font-family:'IBM Plex Mono',monospace;
+  text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.target-btn:hover{border-color:var(--accent); color:var(--accent);}
 .ss-badge{display:inline-block; font-size:10px; padding:2px 6px; border-radius:3px; background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent); margin-left:8px; vertical-align:middle;}
 .media-link{
   display:inline-block; font-size:12px; color:var(--accent); text-decoration:none;
@@ -323,6 +329,30 @@ body:has(#workoutTimerBar[style*='flex']) .main{padding-top:56px;}
 .scale-btn.active{background:var(--accent); color:#FFFFFF; border-color:var(--accent); font-weight:600;}
 .ex-header{font-size:20px; margin:22px 0 10px;}
 .ex-header:first-child{margin-top:0;}
+.hist-link{
+  background:none; border:none; color:var(--accent); font-size:11px;
+  text-decoration:underline; padding:2px 4px; font-family:'Inter',sans-serif;
+}
+.hist-table{width:100%; border-collapse:collapse; font-size:12px;}
+.hist-table th{
+  text-align:left; padding:7px 8px; color:var(--ink-soft); font-weight:600;
+  border-bottom:1px solid var(--line); font-size:11px; text-transform:uppercase; letter-spacing:0.03em;
+}
+.hist-table td{padding:8px; border-bottom:1px solid var(--line); vertical-align:top;}
+.hist-table tr:last-child td{border-bottom:none;}
+.hist-set{
+  display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:11.5px;
+  background:var(--surface-2); border:1px solid var(--line); border-radius:3px;
+  padding:2px 6px; margin:2px 3px 2px 0; white-space:nowrap;
+}
+.hist-set b{color:var(--accent);}
+.hist-set sup{color:#F0B429; font-size:9px;}
+.sessione-blocco{border-bottom:1px solid var(--line);}
+.sessione-blocco:last-child{border-bottom:none;}
+.sessione-blocco .list-row{border-bottom:none;}
+.sessione-dettaglio{padding:0 0 14px 0;}
+.sess-ex{padding:6px 0 6px 12px; border-left:2px solid var(--line); margin-bottom:6px;}
+.sess-ex-nome{font-size:12px; font-weight:600; margin-bottom:4px;}
 .resume-banner{
   display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap;
   background:var(--accent-soft); border:1px solid var(--accent); border-radius:var(--radius);
@@ -465,6 +495,8 @@ textarea{
 <div class="modal-backdrop" id="modalBackdrop">
   <div class="modal" id="modalBody"></div>
 </div>
+
+<div class="modal-backdrop" id="advBackdrop" style="z-index:70;"></div>
 
 <script>
 /* ============================================================
@@ -988,7 +1020,9 @@ function uid(prefix){ return prefix + '_' + Math.random().toString(36).slice(2,9
 async function loadAll(){
   STATE.templates = await loadKey('templates', DEFAULT_TEMPLATES);
   STATE.exercises = await loadKey('exercises', DEFAULT_EXERCISES);
-  STATE.clients = await loadKey('clients', []);
+  let clients = await caricaAtleti();
+  if(clients === null) clients = await migraSeServe();
+  STATE.clients = clients || [];
   // Ripristina lo stato di lavoro della sessione interrotta, se presente
   STATE.clients.forEach(cl => {
     if(cl._sessioneInCorso && cl._sessioneInCorso.log){
@@ -1000,7 +1034,157 @@ async function loadAll(){
 }
 async function persistExercises(){ await saveKey('exercises', STATE.exercises); }
 async function persistTemplates(){ await saveKey('templates', STATE.templates); }
-async function persistClients(){ await saveKey('clients', STATE.clients); }
+/* ============================================================
+   PERSISTENZA ATLETI — un documento per atleta, log divisi per mese.
+   Firestore ha un limite rigido di 1 MB per documento: tenere tutti
+   gli atleti e tutti i loro log in un unico documento porta a un
+   fallimento certo dei salvataggi appena i dati si accumulano.
+   Struttura:
+     coaches/{cid}/clients/{clientId}            -> profilo, programma, config
+     coaches/{cid}/clients/{clientId}/logs/{AAAA-MM} -> sessioni di quel mese
+   In memoria STATE.clients resta identico a prima (con .logs pieno),
+   così il resto dell'app non cambia.
+   ============================================================ */
+const CAMPI_TRANSITORI = ['_gymLog','_e1rmSel'];
+function meseDi(ts){
+  const d = new Date(ts);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+function profiloDa(client){
+  const p = {};
+  Object.keys(client).forEach(k => {
+    if(k === 'logs' || CAMPI_TRANSITORI.includes(k)) return;
+    p[k] = client[k];
+  });
+  return p;
+}
+
+async function persistClientProfile(client){
+  const p = profiloDa(client);
+  localStorage.setItem('gtc_'+COACH_ID+'_client_'+client.id, JSON.stringify(p));
+  if(firebaseReady){
+    try{
+      await db.collection('coaches').doc(COACH_ID).collection('clients').doc(client.id).set(p);
+    }catch(e){ console.warn('Errore salvataggio profilo atleta', e); }
+  }
+}
+async function persistClients(){
+  for(const cl of STATE.clients) await persistClientProfile(cl);
+  const ids = STATE.clients.map(c=>c.id);
+  localStorage.setItem('gtc_'+COACH_ID+'_client_ids', JSON.stringify(ids));
+  if(firebaseReady){
+    try{
+      await db.collection('coaches').doc(COACH_ID).collection('meta').doc('clients').set({ids});
+    }catch(e){ console.warn('Errore salvataggio indice atleti', e); }
+  }
+}
+// Salva solo il mese toccato, non tutto lo storico
+async function persistMeseLog(client, mese){
+  const sessioni = (client.logs||[]).filter(l => meseDi(l.data) === mese);
+  localStorage.setItem('gtc_'+COACH_ID+'_logs_'+client.id+'_'+mese, JSON.stringify(sessioni));
+  if(firebaseReady){
+    try{
+      await db.collection('coaches').doc(COACH_ID).collection('clients').doc(client.id)
+              .collection('logs').doc(mese).set({sessioni});
+    }catch(e){ console.warn('Errore salvataggio log', e); }
+  }
+}
+async function caricaLogAtleta(client){
+  let mesi = [];
+  if(firebaseReady){
+    try{
+      const snap = await db.collection('coaches').doc(COACH_ID).collection('clients')
+                           .doc(client.id).collection('logs').get();
+      const out = [];
+      snap.docs.forEach(d => (d.data().sessioni||[]).forEach(s => out.push(s)));
+      client.logs = out.sort((a,b)=>a.data-b.data);
+      return;
+    }catch(e){ console.warn('Errore lettura log', e); }
+  }
+  // fallback locale
+  const out = [];
+  for(let i=0; i<localStorage.length; i++){
+    const k = localStorage.key(i);
+    const prefisso = 'gtc_'+COACH_ID+'_logs_'+client.id+'_';
+    if(k && k.startsWith(prefisso)){
+      try{ JSON.parse(localStorage.getItem(k)).forEach(s => out.push(s)); }catch(e){}
+    }
+  }
+  client.logs = out.sort((a,b)=>a.data-b.data);
+}
+
+async function caricaAtleti(){
+  let ids = null;
+  if(firebaseReady){
+    try{
+      const doc = await db.collection('coaches').doc(COACH_ID).collection('meta').doc('clients').get();
+      if(doc.exists) ids = doc.data().ids || [];
+    }catch(e){ console.warn('Errore lettura indice atleti', e); }
+  }
+  if(ids === null){
+    const raw = localStorage.getItem('gtc_'+COACH_ID+'_client_ids');
+    ids = raw ? JSON.parse(raw) : null;
+  }
+  if(ids === null) return null; // struttura nuova non ancora presente
+
+  const clients = [];
+  for(const id of ids){
+    let p = null;
+    if(firebaseReady){
+      try{
+        const d = await db.collection('coaches').doc(COACH_ID).collection('clients').doc(id).get();
+        if(d.exists) p = d.data();
+      }catch(e){ console.warn('Errore lettura atleta', e); }
+    }
+    if(!p){
+      const raw = localStorage.getItem('gtc_'+COACH_ID+'_client_'+id);
+      if(raw) p = JSON.parse(raw);
+    }
+    if(!p) continue;
+    p.logs = [];
+    await caricaLogAtleta(p);
+    clients.push(p);
+  }
+  return clients;
+}
+
+// Cancella profilo e log: con la struttura a documenti separati non basta
+// toglierlo dall'array, i documenti resterebbero orfani su Firestore.
+async function eliminaAtletaCompleto(id){
+  localStorage.removeItem('gtc_'+COACH_ID+'_client_'+id);
+  const prefisso = 'gtc_'+COACH_ID+'_logs_'+id+'_';
+  Object.keys(localStorage).filter(k => k.startsWith(prefisso)).forEach(k => localStorage.removeItem(k));
+  if(firebaseReady){
+    try{
+      const ref = db.collection('coaches').doc(COACH_ID).collection('clients').doc(id);
+      const snap = await ref.collection('logs').get();
+      for(const d of snap.docs) await d.ref.delete();
+      await ref.delete();
+    }catch(e){ console.warn('Errore eliminazione atleta', e); }
+  }
+}
+
+// Migrazione una tantum dal vecchio documento unico
+async function migraSeServe(){
+  const vecchi = await loadKey('clients', null);
+  if(!vecchi || !Array.isArray(vecchi) || vecchi.length === 0) return null;
+  console.log('Migrazione: sposto', vecchi.length, 'atleti nella nuova struttura');
+  for(const cl of vecchi){
+    await persistClientProfile(cl);
+    const mesi = [...new Set((cl.logs||[]).map(l => meseDi(l.data)))];
+    for(const m of mesi) await persistMeseLog(cl, m);
+  }
+  const ids = vecchi.map(c=>c.id);
+  localStorage.setItem('gtc_'+COACH_ID+'_client_ids', JSON.stringify(ids));
+  if(firebaseReady){
+    try{
+      await db.collection('coaches').doc(COACH_ID).collection('meta').doc('clients').set({ids});
+      // svuoto il vecchio documento solo dopo che la nuova struttura è scritta
+      await db.collection('coaches').doc(COACH_ID).collection('data').doc('clients').set({value:[], migrato:true});
+    }catch(e){ console.warn('Errore in migrazione', e); }
+  }
+  return vecchi;
+}
 
 // Salvataggio automatico della sessione in corso.
 // Debounce: l'atleta tocca molti campi di fila, non serve scrivere su Firestore ogni volta.
@@ -1019,7 +1203,7 @@ function autosaveSessione(){
   if(el){ el.textContent = 'Salvataggio…'; el.style.opacity = '1'; }
   clearTimeout(_autosaveTimer);
   _autosaveTimer = setTimeout(async () => {
-    await persistClients();
+    await persistClientProfile(client);
     if(el){ el.textContent = 'Salvato'; setTimeout(()=>{ el.style.opacity = '0.5'; }, 1200); }
   }, 1500);
 }
@@ -1467,6 +1651,140 @@ function renderTemplates(){
   `;
 }
 
+const TARGET_TIPI = {
+  scala:   {label:'Scala di sforzo', valori:['L','M','M/P','P','C','RM']},
+  rir:     {label:'RIR (reps in riserva)', valori:['0','1','2','3','4']},
+  perc1rm: {label:'% del massimale', valori:['60','65','70','75','80','85','90','95']},
+  rpe:     {label:'RPE (1-10)', valori:['6','6.5','7','7.5','8','8.5','9','9.5','10']},
+  libero:  {label:'Testo libero', valori:[]}
+};
+const PROGRESSIONE_SCHEMI = {
+  scala:    'Autoregolata sulla scala di sforzo',
+  lineare:  'Lineare (+kg quando raggiungi le reps)',
+  doppia:   'Doppia progressione (sali di reps, poi di carico)',
+  manuale:  'Manuale (nessuna proposta)'
+};
+function descrizioneTarget(e){
+  const t = e.target_tipo;
+  if(!t || t === 'libero') return e.target || 'imposta…';
+  if(t === 'scala')   return 'Sforzo ' + (e.target_val||'—');
+  if(t === 'rir')     return 'RIR ' + (e.target_val||'—');
+  if(t === 'perc1rm') return (e.target_val||'—') + '% 1RM';
+  if(t === 'rpe')     return 'RPE ' + (e.target_val||'—');
+  return e.target || 'imposta…';
+}
+function targetLeggibile(e){
+  const base = descrizioneTarget(e);
+  const p = e.progressione && e.progressione !== 'scala' ? '' : '';
+  return base + p;
+}
+
+function apriPannelloAvanzato(t, gi, ei, onSave){
+  const e = t.giorni[gi].esercizi[ei];
+  const tipo = e.target_tipo || 'scala';
+  const prog = e.progressione || 'scala';
+  const host = document.getElementById('advBackdrop');
+  host.innerHTML = `
+    <div class="modal" style="max-width:480px;">
+      <h2>${e.esercizio || 'Esercizio'}</h2>
+
+      <div class="field">
+        <label>Tipo di target</label>
+        <select id="advTipo">
+          ${Object.keys(TARGET_TIPI).map(k=>`<option value="${k}" ${k===tipo?'selected':''}>${TARGET_TIPI[k].label}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field" id="advValWrap"></div>
+
+      <hr style="border:none; border-top:1px solid var(--line); margin:18px 0;">
+
+      <div class="field">
+        <label>Schema di progressione</label>
+        <select id="advProg">
+          ${Object.keys(PROGRESSIONE_SCHEMI).map(k=>`<option value="${k}" ${k===prog?'selected':''}>${PROGRESSIONE_SCHEMI[k]}</option>`).join('')}
+        </select>
+      </div>
+      <div id="advProgExtra"></div>
+
+      <hr style="border:none; border-top:1px solid var(--line); margin:18px 0;">
+
+      <div class="grid-2">
+        <div class="field"><label>Riposo (secondi)</label><input type="number" class="mini-input" id="advRiposo" value="${e.riposo_sec||90}"></div>
+        <div class="field">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:22px;">
+            <input type="checkbox" id="advTempo" ${e.a_tempo?'checked':''} style="width:18px; height:18px; accent-color:var(--accent);">
+            Esercizio a tempo
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn secondary" id="advCancel">Annulla</button>
+        <button class="btn" id="advSave">Applica</button>
+      </div>
+    </div>`;
+  host.classList.add('active');
+
+  function renderVal(){
+    const k = document.getElementById('advTipo').value;
+    const def = TARGET_TIPI[k];
+    const w = document.getElementById('advValWrap');
+    if(k === 'libero'){
+      w.innerHTML = `<label>Testo</label><input type="text" id="advVal" value="${e.target||''}" placeholder="es. tecnica, controllo eccentrico...">`;
+    }else{
+      w.innerHTML = `<label>Valore</label><select id="advVal">${def.valori.map(v=>`<option value="${v}" ${String(e.target_val)===v?'selected':''}>${v}</option>`).join('')}</select>`;
+    }
+    if(k === 'perc1rm'){
+      w.innerHTML += `<div style="font-size:11px; color:var(--ink-soft); margin-top:6px;">Il carico in kg viene calcolato dal massimale stimato dell'atleta, se disponibile.</div>`;
+    }
+  }
+  function renderProgExtra(){
+    const k = document.getElementById('advProg').value;
+    const w = document.getElementById('advProgExtra');
+    if(k === 'lineare'){
+      w.innerHTML = `<div class="field"><label>Incremento quando raggiungi le reps (kg)</label><input type="number" step="0.5" class="mini-input" id="advIncr" value="${e.incremento_kg||2.5}"></div>`;
+    }else if(k === 'doppia'){
+      w.innerHTML = `
+        <div class="grid-2">
+          <div class="field"><label>Reps minime</label><input type="number" class="mini-input" id="advRepsMin" value="${e.reps_min||8}"></div>
+          <div class="field"><label>Reps massime</label><input type="number" class="mini-input" id="advRepsMax" value="${e.reps_max||12}"></div>
+        </div>
+        <div class="field"><label>Incremento a range completato (kg)</label><input type="number" step="0.5" class="mini-input" id="advIncr" value="${e.incremento_kg||2.5}"></div>
+        <div style="font-size:11px; color:var(--ink-soft); line-height:1.5;">Sale di ripetizioni fino al massimo del range, poi aggiunge carico e riparte dal minimo.</div>`;
+    }else if(k === 'scala'){
+      w.innerHTML = `<div style="font-size:11px; color:var(--ink-soft); line-height:1.5;">Usa le percentuali impostate nella pagina Progressione per questo atleta.</div>`;
+    }else{
+      w.innerHTML = `<div style="font-size:11px; color:var(--ink-soft); line-height:1.5;">Nessuna proposta automatica: decidi tu il carico ogni volta.</div>`;
+    }
+  }
+  renderVal(); renderProgExtra();
+  document.getElementById('advTipo').onchange = renderVal;
+  document.getElementById('advProg').onchange = renderProgExtra;
+
+  document.getElementById('advCancel').onclick = () => host.classList.remove('active');
+  document.getElementById('advSave').onclick = () => {
+    const k = document.getElementById('advTipo').value;
+    const val = document.getElementById('advVal').value;
+    e.target_tipo = k;
+    if(k === 'libero'){ e.target = val; e.target_val = ''; }
+    else { e.target_val = val; e.target = descrizioneTarget({target_tipo:k, target_val:val}); }
+    e.progressione = document.getElementById('advProg').value;
+    if(e.progressione === 'lineare' || e.progressione === 'doppia'){
+      e.incremento_kg = parseFloat(document.getElementById('advIncr').value) || 2.5;
+    }
+    if(e.progressione === 'doppia'){
+      e.reps_min = parseInt(document.getElementById('advRepsMin').value) || 8;
+      e.reps_max = parseInt(document.getElementById('advRepsMax').value) || 12;
+      e.reps = e.reps_max;
+    }
+    e.riposo_sec = parseInt(document.getElementById('advRiposo').value) || 90;
+    e.a_tempo = document.getElementById('advTempo').checked;
+    if(e.a_tempo && (!e.reps || e.reps < 5)) e.reps = 30;
+    host.classList.remove('active');
+    onSave();
+  };
+}
+
 function openTemplateModal(existing, owner){
   const t = existing ? JSON.parse(JSON.stringify(existing)) : {id: uid('tpl'), nome:'Nuovo programma', giorni:[]};
   renderTemplateModalBody(t, !existing, owner || 'coach');
@@ -1503,8 +1821,7 @@ function renderTemplateModalBody(t, isNew, owner){
               <input type="text" placeholder="Esercizio" value="${e.esercizio}" list="exerciseNamesList" data-ex-field="${gi}.${ei}.esercizio">
               <input type="number" placeholder="Serie" value="${e.serie}" data-ex-field="${gi}.${ei}.serie">
               <input type="number" placeholder="${e.a_tempo?'Sec':'Reps'}" value="${e.reps}" data-ex-field="${gi}.${ei}.reps">
-              <input type="text" class="mono-field" placeholder="Target" value="${e.target}" data-ex-field="${gi}.${ei}.target">
-              <button class="icon-btn ${e.a_tempo?'tt-on':''}" data-toggle-tt="${gi}.${ei}" title="Esercizio a tempo (secondi invece di reps)">⏱</button>
+              <button class="target-btn" data-open-adv="${gi}.${ei}" title="Target, progressione, riposo">${descrizioneTarget(e)}</button>
               <button class="icon-btn ${e.superset?'ss-on':''}" data-toggle-ss="${gi}.${ei}" title="Superset con il precedente">⇄</button>
               <button class="icon-btn" data-del-ex="${gi}.${ei}">✕</button>
             </div>
@@ -1537,6 +1854,10 @@ function renderTemplateModalBody(t, isNew, owner){
       exo.a_tempo = !exo.a_tempo;
       if(exo.a_tempo && (!exo.reps || exo.reps < 5)) exo.reps = 30;
       renderGiorni();
+    });
+    document.querySelectorAll('[data-open-adv]').forEach(b => b.onclick = () => {
+      const [gi,ei] = b.dataset.openAdv.split('.').map(Number);
+      apriPannelloAvanzato(t, gi, ei, renderGiorni);
     });
     document.querySelectorAll('[data-toggle-ss]').forEach(b => b.onclick = () => {
       const [gi,ei] = b.dataset.toggleSs.split('.');
@@ -1980,11 +2301,13 @@ function openCloseSessionModal(){
       return {esercizio: ex.esercizio, sets: (client._gymLog[key]||[]).map(s=>({peso:s.peso,reps:s.reps,sforzo:s.sforzo,tipo:s.tipo||'N',a_tempo:!!ex.a_tempo,timestamp:Date.now()}))};
     });
     if(!client.logs) client.logs = [];
-    client.logs.push({data: Date.now(), giorno_nome: day.nome, esercizi, durata_min: durata, sRPE: sRPE, ua: durata*sRPE});
+    const nuovaSessione = {data: Date.now(), giorno_nome: day.nome, esercizi, durata_min: durata, sRPE: sRPE, ua: durata*sRPE};
+    client.logs.push(nuovaSessione);
     client._gymLog = {};
     client._sessioneInCorso = null;
     resetWorkoutTimer();
-    await persistClients();
+    await persistClientProfile(client);
+    await persistMeseLog(client, meseDi(nuovaSessione.data));
     closeModal();
     alert('Sessione salvata.');
     render();
@@ -2025,6 +2348,32 @@ function computeProgressionProposal(client, ex){
   const repsOk = sets.every(s => (parseFloat(s.reps)||0) >= (parseFloat(ex.reps)||0));
   const codici = sets.map(s=>s.sforzo).filter(Boolean);
 
+  const schema = ex.progressione || 'scala';
+
+  if(schema === 'manuale')
+    return {pesoBase, pct:0, kgAssoluti:0, motivo:'Schema manuale — decidi tu', last};
+
+  if(schema === 'lineare'){
+    const incr = ex.incremento_kg || 2.5;
+    if(codici.includes('X'))
+      return {pesoBase, pct:0, kgAssoluti:-incr*2, motivo:'Serie fallita — scendi', last};
+    if(!repsOk)
+      return {pesoBase, pct:0, kgAssoluti:0, motivo:`Reps target (${ex.reps}) non raggiunte — mantieni`, last};
+    return {pesoBase, pct:0, kgAssoluti:incr, motivo:`Reps raggiunte su tutte le serie — +${incr} kg`, last};
+  }
+
+  if(schema === 'doppia'){
+    const rmin = ex.reps_min || 8, rmax = ex.reps_max || 12, incr = ex.incremento_kg || 2.5;
+    const repsMin = Math.min(...sets.map(s=>parseFloat(s.reps)||0));
+    if(codici.includes('X'))
+      return {pesoBase, pct:0, kgAssoluti:-incr, motivo:'Serie fallita — scendi', last};
+    if(repsMin >= rmax)
+      return {pesoBase, pct:0, kgAssoluti:incr, nuoveReps:rmin,
+              motivo:`Range completato (${rmax} reps su tutte) — +${incr} kg e riparti da ${rmin}`, last};
+    return {pesoBase, pct:0, kgAssoluti:0, nuoveReps:Math.min(repsMin+1, rmax),
+            motivo:`Stesso carico, punta a ${Math.min(repsMin+1, rmax)} reps (range ${rmin}-${rmax})`, last};
+  }
+
   if(codici.length === 0) return {pesoBase, pct:0, motivo:'Nessuno sforzo registrato', last};
   if(codici.includes('X')) return {pesoBase, pct:params.fallita, motivo:'Serie fallita (🚫)', last};
 
@@ -2041,6 +2390,21 @@ function computeProgressionProposal(client, ex){
   return {pesoBase, pct:params.giusto, motivo:'Sforzo max P, reps raggiunte', last};
 }
 function arrotondaCarico(kg){ return Math.round(kg / 2.5) * 2.5; }
+// La proposta può essere percentuale (schema a scala) o in kg assoluti (lineare/doppia)
+function caricoProposto(prop){
+  if(!prop || !prop.pesoBase) return 0;
+  if(typeof prop.kgAssoluti === 'number' && prop.pct === 0)
+    return Math.max(0, arrotondaCarico(prop.pesoBase + prop.kgAssoluti));
+  return arrotondaCarico(prop.pesoBase * (1 + prop.pct/100));
+}
+function etichettaVariazione(prop){
+  if(typeof prop.kgAssoluti === 'number' && prop.pct === 0){
+    if(prop.kgAssoluti > 0) return '+' + prop.kgAssoluti + ' kg';
+    if(prop.kgAssoluti < 0) return prop.kgAssoluti + ' kg';
+    return '=';
+  }
+  return prop.pct > 0 ? '+'+prop.pct+'%' : (prop.pct < 0 ? prop.pct+'%' : '=');
+}
 
 // e1RM stimato con formula di Epley: 1RM = peso x (1 + reps/30)
 // Affidabile entro ~10 reps; oltre, la stima si degrada parecchio.
@@ -2125,13 +2489,15 @@ function renderProgressione(){
     if(!prop || prop.pesoBase === 0){
       return `<div class="list-row"><div><div class="list-row-title">${ex.esercizio}</div><div class="list-row-sub">Nessun dato sufficiente per una proposta</div></div></div>`;
     }
-    const nuovo = arrotondaCarico(prop.pesoBase * (1 + prop.pct/100));
-    const colore = prop.pct > 0 ? 'var(--accent2)' : (prop.pct < 0 ? 'var(--danger)' : 'var(--ink-soft)');
+    const nuovo = caricoProposto(prop);
+    const su = nuovo > prop.pesoBase, giu = nuovo < prop.pesoBase;
+    const colore = su ? 'var(--accent2)' : (giu ? 'var(--danger)' : 'var(--ink-soft)');
+    const schemaLabel = PROGRESSIONE_SCHEMI[ex.progressione || 'scala'];
     return `
       <div class="list-row">
         <div style="flex:1;">
-          <div class="list-row-title">${ex.esercizio}</div>
-          <div class="list-row-sub">${prop.pesoBase} kg → <span style="color:${colore}; font-weight:600;">${nuovo} kg</span> · ${prop.motivo}</div>
+          <div class="list-row-title">${ex.esercizio} <span class="tag" style="font-size:10px;">${(ex.progressione||'scala')}</span></div>
+          <div class="list-row-sub">${prop.pesoBase} kg → <span style="color:${colore}; font-weight:600;">${nuovo} kg</span>${prop.nuoveReps?' × '+prop.nuoveReps+' reps':''} · ${prop.motivo}</div>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
           <input type="number" class="mini-input" style="width:80px;" value="${nuovo}" data-progr-val="${ex.esercizio}">
@@ -2207,7 +2573,13 @@ function renderGymDayBody(client, day){
     const sets = client._gymLog[key];
     return `
       <h3 class="ex-header">${ex.esercizio}${ex.superset?'<span class="ss-badge">SUPERSET</span>':''}</h3>
-      <div class="target-line">Target: ${ex.target} · ${ex.serie} serie x ${ex.reps}${ex.a_tempo?' secondi':' reps'} · riposo ${ex.riposo_sec}s</div>
+      <div class="target-line">Target: ${descrizioneTarget(ex)}${(() => {
+        if(ex.target_tipo !== 'perc1rm' || !ex.target_val) return '';
+        const h = getE1RMHistory(client, ex.esercizio);
+        if(!h.length) return ' <span style="color:var(--danger);">(nessun massimale stimato: logga qualche serie prima)</span>';
+        const kg = arrotondaCarico(h[h.length-1].e1rm * (parseFloat(ex.target_val)/100));
+        return ` <b style="color:var(--accent);">≈ ${kg} kg</b>`;
+      })()} · ${ex.serie} serie x ${ex.reps}${ex.a_tempo?' secondi':' reps'} · riposo ${ex.riposo_sec}s</div>
       ${(() => {
         const lib = STATE.exercises.find(x => x.nome === ex.esercizio);
         let out = '';
@@ -2222,10 +2594,12 @@ function renderGymDayBody(client, day){
         let sugg = '';
         const prop = computeProgressionProposal(client, ex);
         if(prop && prop.pesoBase > 0){
-          const nuovo = arrotondaCarico(prop.pesoBase * (1 + prop.pct/100));
-          sugg = `<span class="sugg-chip">Suggerito: ${nuovo} kg ${prop.pct>0?'(+'+prop.pct+'%)':(prop.pct<0?'('+prop.pct+'%)':'(=)')}</span>`;
+          const nuovo = caricoProposto(prop);
+          const reps = prop.nuoveReps ? ` × ${prop.nuoveReps}` : '';
+          sugg = `<span class="sugg-chip">Suggerito: ${nuovo} kg${reps} (${etichettaVariazione(prop)})</span>`;
         }
-        return `<div class="prev-line"><span class="prev-label">Precedente ${perf.data}</span> ${perf.testo} ${sugg}</div>`;
+        return `<div class="prev-line"><span class="prev-label">Precedente ${perf.data}</span> ${perf.testo} ${sugg}
+          <button class="hist-link" data-vedi-storico="${ex.esercizio}">storico completo</button></div>`;
       })()}
       ${sets.map((s,si) => `
         <div class="gym-set-row ${s.done?'done':''}">
@@ -2394,6 +2768,62 @@ function renderE1RMCard(client){
         <div class="card"><div class="stat-num" style="color:${delta>0?'var(--accent2)':(delta<0?'var(--danger)':'var(--ink)')};">${delta>0?'+':''}${Math.round(delta*10)/10} kg</div><div class="stat-label">Variazione dal primo dato</div></div>
       </div>
       ${hist.length>1 ? '<canvas id="e1rmChart" height="160" style="margin-top:14px;"></canvas>' : ''}
+      ${renderStoricoCarichi(client, sel)}
+    </div>`;
+}
+
+// Tutte le sessioni in cui compare quell'esercizio, con i carichi reali serie per serie
+function apriStoricoEsercizio(esercizioNome){
+  const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+  const tabella = renderStoricoCarichi(client, esercizioNome);
+  document.getElementById('modalBody').innerHTML = `
+    <h2>${esercizioNome}</h2>
+    ${tabella || emptyState('Nessuno storico','Non ci sono ancora serie registrate per questo esercizio.')}
+    <div class="modal-actions">
+      <button class="btn secondary" id="modalCancel">Chiudi</button>
+    </div>`;
+  document.getElementById('modalBackdrop').classList.add('active');
+  document.getElementById('modalCancel').onclick = closeModal;
+}
+
+function renderStoricoCarichi(client, esercizioNome){
+  const righe = [];
+  (client.logs||[]).slice().sort((a,b)=>b.data-a.data).forEach(l => {
+    const found = (l.esercizi||[]).find(e => e.esercizio === esercizioNome);
+    if(!found) return;
+    const sets = (found.sets||[]).filter(s => s.peso || s.reps);
+    if(!sets.length) return;
+    righe.push({data:l.data, sets, aTempo: sets.some(s=>s.a_tempo)});
+  });
+  if(righe.length === 0) return '';
+  const tipoLbl = {W:'W', D:'D', F:'F'};
+  return `
+    <div style="margin-top:18px;">
+      <h4 style="font-size:13px; margin-bottom:8px; color:var(--ink-soft); font-weight:600;">
+        Storico carichi &mdash; ${righe.length} sessioni registrate${righe.length>12?' (mostrate le 12 più recenti)':''}
+      </h4>
+      <div style="overflow-x:auto;">
+        <table class="hist-table">
+          <thead><tr><th>Data</th><th>Serie svolte</th><th>Top</th></tr></thead>
+          <tbody>
+          ${righe.slice(0,12).map(r => {
+            const pesi = r.sets.map(s=>parseFloat(s.peso)||0);
+            const top = Math.max(...pesi);
+            const celle = r.sets.map(s => {
+              const sc = s.sforzo ? (SFORZO_SCALE.find(x=>x.code===s.sforzo)||{}).label : '';
+              const tp = (s.tipo && s.tipo!=='N') ? `<sup>${tipoLbl[s.tipo]||''}</sup>` : '';
+              const unita = s.a_tempo ? 's' : '';
+              return `<span class="hist-set">${s.peso||'—'}×${s.reps||'—'}${unita}${tp}${sc?' <b>'+sc+'</b>':''}</span>`;
+            }).join('');
+            return `<tr>
+              <td class="mono">${new Date(r.data).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'2-digit'})}</td>
+              <td>${celle}</td>
+              <td class="mono">${top>0?top+' kg':'—'}</td>
+            </tr>`;
+          }).join('')}
+          </tbody>
+        </table>
+      </div>
     </div>`;
 }
 function renderPRCard(client){
@@ -2700,13 +3130,29 @@ function renderProgress(){
     <div class="card" style="margin-top:14px;">
       <h3 style="font-size:16px; margin-bottom:12px;">Sessioni recenti</h3>
       ${logs.length===0 ? emptyState('Ancora nessuna sessione','Vai su Log allenamento e registra la prima sessione.') :
-        logs.slice().reverse().slice(0,10).map(l => `
-          <div class="list-row">
-            <div>
-              <div class="list-row-title">${l.giorno_nome}</div>
-              <div class="list-row-sub">${new Date(l.data).toLocaleDateString('it-IT')}</div>
+        logs.slice().reverse().slice(0,10).map((l,i) => `
+          <div class="sessione-blocco">
+            <div class="list-row" style="cursor:pointer;" data-toggle-sess="${i}">
+              <div>
+                <div class="list-row-title">${l.giorno_nome}</div>
+                <div class="list-row-sub">${new Date(l.data).toLocaleDateString('it-IT')}${l.durata_min?' · '+l.durata_min+' min':''}${l.sRPE?' · sRPE '+l.sRPE:''}</div>
+              </div>
+              <span class="tag mono">${l.esercizi.length} esercizi ▾</span>
             </div>
-            <span class="tag mono">${l.esercizi.length} esercizi</span>
+            <div class="sessione-dettaglio" id="sessDett${i}" style="display:none;">
+              ${(l.esercizi||[]).map(ex => {
+                const sets = (ex.sets||[]).filter(s=>s.peso||s.reps);
+                if(!sets.length) return '';
+                return `<div class="sess-ex">
+                  <div class="sess-ex-nome">${ex.esercizio}</div>
+                  <div>${sets.map(s=>{
+                    const sc = s.sforzo ? (SFORZO_SCALE.find(x=>x.code===s.sforzo)||{}).label : '';
+                    const unita = s.a_tempo ? 's' : '';
+                    return `<span class="hist-set">${s.peso||'—'}×${s.reps||'—'}${unita}${sc?' <b>'+sc+'</b>':''}</span>`;
+                  }).join('')}</div>
+                </div>`;
+              }).join('')}
+            </div>
           </div>
         `).join('')
       }
@@ -2809,6 +3255,26 @@ function renderSettings(){
     </div>
     ` : ''}
     <div class="card">
+      <h3 style="font-size:16px; margin-bottom:10px;">Regole Firestore necessarie</h3>
+      <p style="color:var(--ink-soft); font-size:12px; line-height:1.6; margin-bottom:10px;">
+        Con la nuova struttura dati servono queste regole. Se i salvataggi falliscono, è quasi sempre questo il motivo.
+      </p>
+      <pre style="background:var(--surface-2); padding:12px; border-radius:6px; font-size:10.5px; line-height:1.5; overflow-x:auto; color:var(--ink);">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /coaches/{coachId} {
+      allow read, write: if true;
+      match /{document=**} {
+        allow read, write: if true;
+      }
+    }
+    match /config/{doc} {
+      allow read, write: if true;
+    }
+  }
+}</pre>
+    </div>
+    <div class="card">
       <h3 style="font-size:16px; margin-bottom:10px;">Stato Firebase</h3>
       <p style="color:var(--ink-soft); font-size:14px; line-height:1.6;">
         ${firebaseReady
@@ -2884,7 +3350,9 @@ function attachPageHandlers(){
   });
   document.querySelectorAll('[data-del-client]').forEach(b => b.onclick = async () => {
     if(!confirm('Eliminare questo atleta e tutti i suoi dati?')) return;
-    STATE.clients = STATE.clients.filter(x=>x.id!==b.dataset.delClient);
+    const id = b.dataset.delClient;
+    await eliminaAtletaCompleto(id);
+    STATE.clients = STATE.clients.filter(x=>x.id!==id);
     await persistClients();
     render();
   });
@@ -2961,6 +3429,10 @@ function attachPageHandlers(){
     const [key, si, field] = inp.dataset.set.split('.');
     client._gymLog[key][+si][field] = e.target.value;
     autosaveSessione();
+  });
+  document.querySelectorAll('[data-vedi-storico]').forEach(b => b.onclick = (ev) => {
+    ev.stopPropagation();
+    apriStoricoEsercizio(b.dataset.vediStorico);
   });
   document.querySelectorAll('[data-settimer]').forEach(btn => btn.onclick = () => {
     const [key, si, target] = btn.dataset.settimer.split('.');
@@ -3106,6 +3578,14 @@ function attachPageHandlers(){
     client._e1rmSel = e.target.value;
     render();
   };
+  document.querySelectorAll('[data-toggle-sess]').forEach(row => row.onclick = () => {
+    const d = document.getElementById('sessDett' + row.dataset.toggleSess);
+    if(!d) return;
+    const aperto = d.style.display !== 'none';
+    d.style.display = aperto ? 'none' : 'block';
+    const tag = row.querySelector('.tag');
+    if(tag) tag.textContent = tag.textContent.replace(aperto ? '▴' : '▾', aperto ? '▾' : '▴');
+  });
   const addMisuraBtn = document.getElementById('addMisuraBtn');
   if(addMisuraBtn) addMisuraBtn.onclick = openMisuraModal;
   document.querySelectorAll('[data-edit-landmarks]').forEach(b => b.onclick = () => openVolumeLandmarksModal(b.dataset.editLandmarks));
