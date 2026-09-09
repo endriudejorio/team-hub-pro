@@ -323,6 +323,11 @@ body:has(#workoutTimerBar[style*='flex']) .main{padding-top:56px;}
 .scale-btn.active{background:var(--accent); color:#FFFFFF; border-color:var(--accent); font-weight:600;}
 .ex-header{font-size:20px; margin:22px 0 10px;}
 .ex-header:first-child{margin-top:0;}
+.resume-banner{
+  display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap;
+  background:var(--accent-soft); border:1px solid var(--accent); border-radius:var(--radius);
+  padding:14px 16px; margin-bottom:16px;
+}
 .week-progress{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px;}
 .week-dot{
   width:36px; height:36px; border-radius:50%; border:1px solid var(--line);
@@ -984,10 +989,40 @@ async function loadAll(){
   STATE.templates = await loadKey('templates', DEFAULT_TEMPLATES);
   STATE.exercises = await loadKey('exercises', DEFAULT_EXERCISES);
   STATE.clients = await loadKey('clients', []);
+  // Ripristina lo stato di lavoro della sessione interrotta, se presente
+  STATE.clients.forEach(cl => {
+    if(cl._sessioneInCorso && cl._sessioneInCorso.log){
+      cl.settimana_corrente = cl._sessioneInCorso.settimana;
+      cl._gymDayIdx = cl._sessioneInCorso.giorno;
+      cl._gymLog = cl._sessioneInCorso.log;
+    }
+  });
 }
 async function persistExercises(){ await saveKey('exercises', STATE.exercises); }
 async function persistTemplates(){ await saveKey('templates', STATE.templates); }
 async function persistClients(){ await saveKey('clients', STATE.clients); }
+
+// Salvataggio automatico della sessione in corso.
+// Debounce: l'atleta tocca molti campi di fila, non serve scrivere su Firestore ogni volta.
+let _autosaveTimer = null;
+function autosaveSessione(){
+  const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+  if(!client) return;
+  client._sessioneInCorso = {
+    settimana: client.settimana_corrente || 0,
+    giorno: client._gymDayIdx || 0,
+    log: client._gymLog || {},
+    secondi: typeof _wtSeconds !== 'undefined' ? _wtSeconds : 0,
+    aggiornata: Date.now()
+  };
+  const el = document.getElementById('autosaveHint');
+  if(el){ el.textContent = 'Salvataggio…'; el.style.opacity = '1'; }
+  clearTimeout(_autosaveTimer);
+  _autosaveTimer = setTimeout(async () => {
+    await persistClients();
+    if(el){ el.textContent = 'Salvato'; setTimeout(()=>{ el.style.opacity = '0.5'; }, 1200); }
+  }, 1500);
+}
 
 /* ============================================================
    LOGIN
@@ -1705,11 +1740,41 @@ function renderGym(){
       <label class="field-label">Giorno</label>
       <select id="gymDaySel">${giorniSett.map((g,i)=>`<option value="${i}" ${i===dayIdx?'selected':''}>${g.nome}</option>`).join('')}</select>
     </div>
+    ${bannerRipristino(client, wIdx, dayIdx)}
     <div id="gymDayBody">${renderGymDayBody(client, day)}</div>
     <div class="card" style="margin-top:18px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <span id="autosaveHint" style="font-size:11px; color:var(--ink-soft); opacity:0.5;">Salvataggio automatico attivo</span>
+      </div>
       <button class="btn" id="finishSessionBtn">Chiudi sessione e salva</button>
+      <button class="btn danger" id="cancelSessionBtn" style="margin-top:8px;">Annulla sessione</button>
     </div>
   `;
+}
+
+// Se esiste una sessione salvata a metà che NON è quella aperta ora, propone il recupero.
+function bannerRipristino(client, wIdx, dayIdx){
+  const s = client._sessioneInCorso;
+  if(!s || !s.log || Object.keys(s.log).length === 0) return '';
+  const haDati = Object.values(s.log).some(sets => sets.some(x => x.peso || x.reps || x.sforzo));
+  if(!haDati) return '';
+  if(s.settimana === wIdx && s.giorno === dayIdx) return '';
+  const settimane = getSettimane(client.programma_attivo);
+  const nomeGiorno = (settimane[s.settimana] && settimane[s.settimana].giorni[s.giorno])
+    ? settimane[s.settimana].giorni[s.giorno].nome : 'sessione';
+  return `
+    <div class="resume-banner">
+      <div>
+        <div style="font-weight:600; font-size:14px;">Hai una sessione non conclusa</div>
+        <div style="font-size:12px; color:var(--ink-soft); margin-top:2px;">
+          ${nomeGiorno} · Settimana ${s.settimana+1} · ${new Date(s.aggiornata).toLocaleString('it-IT',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
+        </div>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn small" id="resumeSessionBtn" style="width:auto;">Riprendi</button>
+        <button class="btn secondary small" id="discardSessionBtn" style="width:auto;">Scarta</button>
+      </div>
+    </div>`;
 }
 
 // Retrocompatibile: programmi assegnati prima del multi-settimana hanno solo .giorni
@@ -1804,6 +1869,7 @@ function finishSetTimer(secondiFatti){
   if(client && client._gymLog[key]){
     client._gymLog[key][si].reps = secondiFatti;
     client._gymLog[key][si].done = true;
+    autosaveSessione();
     const day = getGiornoCorrente(client);
     const exIdx = day.esercizi.findIndex((ex,i) => (ex.esercizio+'_'+i) === key);
     if(exIdx >= 0) startRestTimer(day.esercizi[exIdx].riposo_sec);
@@ -1916,6 +1982,7 @@ function openCloseSessionModal(){
     if(!client.logs) client.logs = [];
     client.logs.push({data: Date.now(), giorno_nome: day.nome, esercizi, durata_min: durata, sRPE: sRPE, ua: durata*sRPE});
     client._gymLog = {};
+    client._sessioneInCorso = null;
     resetWorkoutTimer();
     await persistClients();
     closeModal();
@@ -2893,6 +2960,7 @@ function attachPageHandlers(){
     const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
     const [key, si, field] = inp.dataset.set.split('.');
     client._gymLog[key][+si][field] = e.target.value;
+    autosaveSessione();
   });
   document.querySelectorAll('[data-settimer]').forEach(btn => btn.onclick = () => {
     const [key, si, target] = btn.dataset.settimer.split('.');
@@ -2911,6 +2979,7 @@ function attachPageHandlers(){
     const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
     const [key, si, code] = btn.dataset.scaleSet.split('.');
     client._gymLog[key][+si].sforzo = code;
+    autosaveSessione();
     document.getElementById('gymDayBody').innerHTML = renderGymDayBody(client, getGiornoCorrente(client));
     attachPageHandlers();
   });
@@ -2925,11 +2994,47 @@ function attachPageHandlers(){
       const exIdx = day.esercizi.findIndex((ex,i) => (ex.esercizio+'_'+i) === key);
       if(exIdx >= 0) startRestTimer(day.esercizi[exIdx].riposo_sec);
     }
+    autosaveSessione();
     document.getElementById('gymDayBody').innerHTML = renderGymDayBody(client, day);
     attachPageHandlers();
   });
   const finishBtn = document.getElementById('finishSessionBtn');
   if(finishBtn) finishBtn.onclick = () => openCloseSessionModal();
+
+  const cancelBtn = document.getElementById('cancelSessionBtn');
+  if(cancelBtn) cancelBtn.onclick = async () => {
+    const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    const haDati = Object.values(client._gymLog||{}).some(sets => sets.some(x => x.peso || x.reps || x.sforzo));
+    if(haDati && !confirm('Annullare la sessione? Tutto quello che hai registrato finora andrà perso e non sarà recuperabile.')) return;
+    client._gymLog = {};
+    client._sessioneInCorso = null;
+    resetWorkoutTimer();
+    clearInterval(_setTimerInterval);
+    document.getElementById('setTimerBar').style.display = 'none';
+    document.getElementById('restTimerBar').style.display = 'none';
+    await persistClients();
+    render();
+  };
+
+  const resumeBtn = document.getElementById('resumeSessionBtn');
+  if(resumeBtn) resumeBtn.onclick = () => {
+    const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    const s = client._sessioneInCorso;
+    client.settimana_corrente = s.settimana;
+    client._gymDayIdx = s.giorno;
+    client._gymLog = s.log;
+    if(s.secondi){ _wtSeconds = s.secondi; startWorkoutTimer(); }
+    render();
+  };
+
+  const discardBtn = document.getElementById('discardSessionBtn');
+  if(discardBtn) discardBtn.onclick = async () => {
+    if(!confirm('Scartare definitivamente la sessione non conclusa?')) return;
+    const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    client._sessioneInCorso = null;
+    await persistClients();
+    render();
+  };
 
   // I miei programmi (atleta autonomo)
   const newMioBtn = document.getElementById('newMioProgrammaBtn');
