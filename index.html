@@ -159,7 +159,14 @@
     /* Nascondo tutto tranne il foglio di stampa. Usare :not e' piu' robusto
        che affidarsi alla sola specificita' del selettore #printSheet. */
     body > *:not(#printSheet){display:none!important;}
-    #printSheet{display:block!important;position:static!important;color:#000;font-family:'Inter',sans-serif;background:white!important;padding:0!important;margin:0!important;width:auto!important;}
+    /* Su iPhone Safari alcuni contenitori con position:fixed potrebbero comunque
+       apparire. Li nascondo esplicitamente. */
+    body > .app{display:none!important;}
+    body > #root{display:none!important;}
+    /* Nessun elemento generato dinamicamente deve sopravvivere alla stampa */
+    body > div:not(#printSheet), body > section:not(#printSheet){display:none!important;}
+    #printSheet{display:block!important;position:static!important;color:#000;font-family:'Inter',sans-serif;background:white!important;padding:0!important;margin:0!important;width:auto!important;visibility:visible!important;opacity:1!important;}
+    #printSheet *{visibility:visible!important;}
     #printSheet .ps-head{border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-end;}
     #printSheet h1{font-family:'Oswald',sans-serif;font-size:20pt;margin:0;letter-spacing:0.02em;}
     #printSheet .ps-date{font-size:10pt;text-align:right;}
@@ -279,7 +286,7 @@ const TEAM_ID = 'alense';
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '1.7';
+const APP_VERSION = '1.9';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -1204,7 +1211,14 @@ function logout(){
   render();
 }
 
-function setPage(p){ STATE.page = p; render(); }
+function setPage(p){
+  /* Rimuovo eventuali modali aperti sul body prima di cambiare pagina.
+     Senza questo, se apri il modale di un allenamento/partita/differenziato
+     e poi navighi via, il modale resta visibile sopra la nuova schermata. */
+  document.querySelectorAll('#diffModal, #allenamentoModal, #matchModal, #hooperEditModal, #playerRpeModal, #rpeEntryModal, #painHistoryModal, #addPainModal, #infortunioModal, #playerReportModal, #staffModal, #tileDetailModal').forEach(m => m.remove());
+  STATE.page = p;
+  render();
+}
 function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 /* ============================================================
@@ -1473,7 +1487,12 @@ function serieWellnessGiocatore(playerId, days){
 
 function serieWellnessSquadra(days){
   const dates = _analyticsDateRange(days || 60);
-  const rosa = STATE.players.filter(p => !isPortiere(p) && countsInTeamStats(p));
+  /* Rosa: tutti i giocatori di movimento (portieri esclusi). NON filtro per stato attuale,
+     altrimenti i dati storici di chi ora è infortunato/RTP escono dalla media, e il grafico
+     appare praticamente vuoto. Non filtro nemmeno per statusAtEntry: nella media di squadra
+     entrano tutti i wellness registrati dai giocatori di movimento, indipendentemente dallo
+     stato al momento della compilazione. Cosi' il grafico ha piu' dati. */
+  const rosa = STATE.players.filter(p => !isPortiere(p));
   return dates.map(dateStr => {
     const scores = [];
     rosa.forEach(p => {
@@ -1506,6 +1525,11 @@ function serieRPESquadra(days){
     if(!bySession[key]) bySession[key] = {date: r.date, rpes: []};
     bySession[key].rpes.push(Number(r.rpe || 0));
   });
+  /* Un punto per ogni sessione (o data se non c'e' sessionId). Nessuna soglia minima:
+     se una sessione ha solo 1-2 RPE, il punto lo mostro comunque, cosi' l'utente vede
+     tutti i dati raccolti. Il grafico "pochi dati" tipicamente riflette una realta':
+     non tutti compilano l'RPE, soprattutto delle partite (per cui il flusso di
+     inserimento e' comparso solo dalla v1.7). */
   return Object.values(bySession)
     .map(g => ({x: g.date, y: Math.round(g.rpes.reduce((s,v)=>s+v,0) / g.rpes.length * 10) / 10}))
     .sort((a,b) => String(a.x).localeCompare(String(b.x)));
@@ -2604,6 +2628,299 @@ function printDailyReport(){
     window.print();
     setTimeout(cleanup, 1500);
   }, 300);
+}
+
+/* Helper generico: prepara un foglio stampabile con contenuto libero e stampa. */
+function printGenericSheet(htmlContent){
+  const old = document.getElementById('printSheet');
+  if(old) old.remove();
+  const sheet = document.createElement('div');
+  sheet.id = 'printSheet';
+  sheet.innerHTML = htmlContent;
+  document.body.appendChild(sheet);
+  const cleanup = ()=>{
+    const el = document.getElementById('printSheet');
+    if(el) el.remove();
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+  setTimeout(()=>{
+    window.print();
+    setTimeout(cleanup, 1500);
+  }, 300);
+}
+
+/* --- RECAP AREA PERFORMANCE ---
+   ACWR di squadra, RPE medi ultimi 7/28 giorni, elenco chi rischia,
+   test recenti, statistiche stagione condensate. */
+function printAreaPerformance(){
+  const dayNames = ['Domenica','Lunedi','Martedi','Mercoledi','Giovedi','Venerdi','Sabato'];
+  const oggi = new Date(todayStr()+'T00:00:00');
+
+  const acwrAll = STATE.players.filter(countsInTeamAggregate)
+    .map(p => ({player:p, acwr:getACWR(p.id)}))
+    .filter(x => x.acwr && !x.acwr.insufficient);
+  const acwrRisk = acwrAll.filter(x => x.acwr.zone === 'high' || x.acwr.zone === 'warn')
+    .sort((a,b) => b.acwr.ratio - a.acwr.ratio);
+  const acwrMedio = acwrAll.length ? acwrAll.reduce((s,x)=>s+x.acwr.ratio,0)/acwrAll.length : null;
+
+  const rpe7 = STATE.rpeLog.filter(r => r.source !== 'plan' && daysSince(r.date) <= 7);
+  const rpe28 = STATE.rpeLog.filter(r => r.source !== 'plan' && daysSince(r.date) <= 28);
+  const avgRpe7 = rpe7.length ? rpe7.reduce((s,r)=>s+Number(r.rpe||0),0)/rpe7.length : null;
+  const load7 = rpe7.reduce((s,r)=>s + sessionLoad(r), 0);
+  const avgRpe28 = rpe28.length ? rpe28.reduce((s,r)=>s+Number(r.rpe||0),0)/rpe28.length : null;
+
+  const stagione = STATE.players.filter(p => !isPortiere(p))
+    .map(p => ({p, s: getSeasonStats(p.id)}))
+    .filter(x => x.s.matches > 0)
+    .sort((a,b) => b.s.minutes - a.s.minutes);
+
+  const testRecenti = STATE.tests.slice()
+    .sort((a,b) => String(b.date).localeCompare(String(a.date)))
+    .slice(0, 5);
+
+  printGenericSheet(`
+    <div class="ps-head">
+      <div>
+        <h1>${esc(STATE.teamConfig.name || 'Squadra')}</h1>
+        <div style="font-size:9pt;letter-spacing:0.08em;text-transform:uppercase;">Recap Area Performance</div>
+      </div>
+      <div class="ps-date"><strong>${dayNames[oggi.getDay()]} ${fmtDate(todayStr())}</strong></div>
+    </div>
+
+    <div class="ps-kpi avoid">
+      <div class="ps-box"><div class="l">ACWR medio</div><div class="n">${acwrMedio !== null ? Math.round(acwrMedio*100)/100 : '-'}</div><div class="s">${acwrAll.length} monitorati</div></div>
+      <div class="ps-box"><div class="l">In rischio</div><div class="n">${acwrRisk.length}</div><div class="s">ACWR &gt; 1.3</div></div>
+      <div class="ps-box"><div class="l">RPE 7 giorni</div><div class="n">${avgRpe7 !== null ? Math.round(avgRpe7*10)/10 : '-'}</div><div class="s">${rpe7.length} sess.</div></div>
+      <div class="ps-box"><div class="l">Carico 7 gg</div><div class="n">${Math.round(load7)}</div><div class="s">UA totali</div></div>
+    </div>
+
+    ${acwrRisk.length ? `
+      <h2>Giocatori in zona di rischio</h2>
+      <table>
+        <thead><tr><th>Giocatore</th><th>Ruolo</th><th>ACWR</th><th>Zona</th><th>Carico settimana</th></tr></thead>
+        <tbody>
+          ${acwrRisk.map(x => `<tr><td>${esc(x.player.name)}</td><td>${esc(x.player.role||'-')}</td><td><strong>${x.acwr.ratio}</strong></td><td>${esc(x.acwr.label)}</td><td>${x.acwr.acute} UA</td></tr>`).join('')}
+        </tbody>
+      </table>
+    ` : ''}
+
+    <h2>Minuti stagione (top 15)</h2>
+    <table>
+      <thead><tr><th>Giocatore</th><th>Ruolo</th><th>Minuti</th><th>Partite</th><th>Da titolare</th><th>Gol</th><th>Assist</th></tr></thead>
+      <tbody>
+        ${stagione.slice(0,15).map(x => `<tr><td>${esc(x.p.name)}</td><td>${esc(x.p.role||'-')}</td><td><strong>${x.s.minutes}</strong></td><td>${x.s.matches}</td><td>${x.s.starts}</td><td>${x.s.goals}</td><td>${x.s.assists}</td></tr>`).join('')}
+      </tbody>
+    </table>
+
+    ${testRecenti.length ? `
+      <h2>Test recenti</h2>
+      <table>
+        <thead><tr><th>Data</th><th>Tipo</th><th>Nome</th><th>Risultati</th></tr></thead>
+        <tbody>
+          ${testRecenti.map(t => `<tr><td>${fmtDate(t.date)}</td><td>${esc(t.type||'-')}</td><td>${esc(t.name||'-')}</td><td>${(t.results||[]).length}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    ` : ''}
+  `);
+}
+
+/* --- RECAP AREA MEDICA ---
+   Infortunati, dolori attivi, RTP, rientri programmati. */
+function printAreaMedica(){
+  const dayNames = ['Domenica','Lunedi','Martedi','Mercoledi','Giovedi','Venerdi','Sabato'];
+  const oggi = new Date(todayStr()+'T00:00:00');
+
+  const infortunati = STATE.players.filter(p => p.status === 'Infortunato');
+  const inRientro = STATE.players.filter(p => p.status === 'In rientro' || p.status === 'RTP' || p.status === 'In valutazione');
+
+  const doloriAperti = [];
+  STATE.players.forEach(p => {
+    const aperti = getOpenPainIssues(p.id);
+    if(aperti && aperti.length){
+      aperti.forEach(d => doloriAperti.push({player: p, dolore: d}));
+    }
+  });
+
+  const rientriProgrammati = STATE.players
+    .filter(p => p.returnDate && (p.status === 'RTP' || p.status === 'In rientro' || p.status === 'In valutazione'))
+    .sort((a,b) => String(a.returnDate).localeCompare(String(b.returnDate)));
+
+  printGenericSheet(`
+    <div class="ps-head">
+      <div>
+        <h1>${esc(STATE.teamConfig.name || 'Squadra')}</h1>
+        <div style="font-size:9pt;letter-spacing:0.08em;text-transform:uppercase;">Recap Area Medica</div>
+      </div>
+      <div class="ps-date"><strong>${dayNames[oggi.getDay()]} ${fmtDate(todayStr())}</strong></div>
+    </div>
+
+    <div class="ps-kpi avoid">
+      <div class="ps-box"><div class="l">Infortunati</div><div class="n">${infortunati.length}</div><div class="s">in cura</div></div>
+      <div class="ps-box"><div class="l">In rientro / RTP</div><div class="n">${inRientro.length}</div><div class="s">carico ridotto</div></div>
+      <div class="ps-box"><div class="l">Dolori aperti</div><div class="n">${doloriAperti.length}</div><div class="s">da monitorare</div></div>
+      <div class="ps-box"><div class="l">Rientri prev.</div><div class="n">${rientriProgrammati.length}</div><div class="s">con data</div></div>
+    </div>
+
+    ${infortunati.length ? `
+      <h2>Infortunati</h2>
+      <table>
+        <thead><tr><th>Giocatore</th><th>Ruolo</th><th>Diagnosi</th><th>Fase</th><th>Rientro</th></tr></thead>
+        <tbody>
+          ${infortunati.map(p => {
+            const inj = getOpenInjuries ? (getOpenInjuries(p.id)||[]) : [];
+            const ultimo = inj[0];
+            return `<tr><td>${esc(p.name)}</td><td>${esc(p.role||'-')}</td><td>${ultimo && ultimo.diagnosi ? esc(ultimo.diagnosi) : '-'}</td><td>${ultimo && ultimo.fase ? esc(ultimo.fase) : '-'}</td><td>${p.returnDate ? fmtDate(p.returnDate) : '-'}</td></tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    ` : ''}
+
+    ${rientriProgrammati.length ? `
+      <h2>Rientri programmati</h2>
+      <table>
+        <thead><tr><th>Giocatore</th><th>Stato</th><th>Data rientro</th><th>Giorni</th></tr></thead>
+        <tbody>
+          ${rientriProgrammati.map(p => {
+            const gg = daysSince(p.returnDate);
+            const info = gg < 0 ? 'fra ' + (-gg) + ' giorni' : gg === 0 ? 'oggi' : 'scaduto ' + gg + 'gg';
+            return `<tr><td>${esc(p.name)}</td><td>${esc(statusMeta(p.status).label)}</td><td>${fmtDate(p.returnDate)}</td><td>${info}</td></tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    ` : ''}
+
+    ${doloriAperti.length ? `
+      <h2>Dolori aperti (${doloriAperti.length})</h2>
+      <table>
+        <thead><tr><th>Giocatore</th><th>Zona</th><th>Intensità</th><th>Dal</th></tr></thead>
+        <tbody>
+          ${doloriAperti.map(({player:p, dolore:d}) => `<tr><td>${esc(p.name)}</td><td>${esc(d.zone||'-')}</td><td>${d.intensity ? d.intensity+'/10' : '-'}</td><td>${d.date ? fmtDate(d.date) : '-'}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    ` : ''}
+  `);
+}
+
+/* --- RECAP SINGOLA SESSIONE ---
+   Allenamento: presenti, RPE per giocatore, esercitazioni, durata, differenziato.
+   Partita: risultato, formazione, minuti, marcatori, sostituzioni, RPE. */
+function printSessionRecap(eventId){
+  const ev = STATE.events.find(e => e.id === eventId);
+  if(!ev){ showToast('Sessione non trovata'); return; }
+  const isMatch = ev.type === 'Partita';
+  const rpes = STATE.rpeLog.filter(r => r.sessionId === ev.id && r.source !== 'plan');
+  const avgRpe = rpes.length ? rpes.reduce((s,r)=>s+Number(r.rpe||0),0)/rpes.length : null;
+  const load = rpes.reduce((s,r)=>s+Number(r.rpe||0)*Number(r.minutes||0),0);
+
+  let bodyHtml = '';
+  if(isMatch){
+    /* PARTITA */
+    const calc = (Array.isArray(ev.starters) && ev.starters.length) ? computeMatchMinutes(ev) : {};
+    const lineup = Object.keys(calc).map(pid => {
+      const p = STATE.players.find(x => String(x.id) === pid);
+      return p ? {p, minutes: calc[pid].minutes, status: calc[pid].status} : null;
+    }).filter(Boolean).sort((a,b) => b.minutes - a.minutes);
+
+    const goals = (ev.events||[]).filter(x => x.type === 'goal');
+    const assists = (ev.events||[]).filter(x => x.type === 'assist');
+
+    bodyHtml = `
+      <div class="ps-kpi avoid">
+        <div class="ps-box"><div class="l">Risultato</div><div class="n">${ev.result ? ev.result.goalsFor + '-' + ev.result.goalsAgainst : '-'}</div><div class="s">${esc(ev.matchType||'')}</div></div>
+        <div class="ps-box"><div class="l">Modulo</div><div class="n" style="font-size:16pt;">${esc(ev.modulo||'-')}</div><div class="s">${lineup.filter(l=>l.status==='starter').length}/11 titolari</div></div>
+        <div class="ps-box"><div class="l">RPE medio</div><div class="n">${avgRpe !== null ? Math.round(avgRpe*10)/10 : '-'}</div><div class="s">${rpes.length} risp.</div></div>
+        <div class="ps-box"><div class="l">Carico</div><div class="n">${Math.round(load)}</div><div class="s">UA</div></div>
+      </div>
+
+      ${lineup.length ? `
+        <h2>Formazione e minuti</h2>
+        <table>
+          <thead><tr><th>Giocatore</th><th>Ruolo</th><th>Ingresso</th><th>Minuti</th></tr></thead>
+          <tbody>
+            ${lineup.map(l => `<tr><td>${esc(l.p.name)}</td><td>${esc(l.p.role||'-')}</td><td>${l.status === 'starter' ? 'Titolare' : 'Subentrato'}</td><td><strong>${l.minutes}</strong></td></tr>`).join('')}
+          </tbody>
+        </table>
+      ` : ''}
+
+      ${goals.length || assists.length ? `
+        <h2>Marcatori e assist</h2>
+        <table>
+          <thead><tr><th>Min</th><th>Tipo</th><th>Giocatore</th></tr></thead>
+          <tbody>
+            ${(ev.events||[]).slice().sort((a,b)=>Number(a.minute)-Number(b.minute)).map(e => {
+              const p = STATE.players.find(x => String(x.id) === String(e.playerId));
+              return `<tr><td>${e.minute}'</td><td>${e.type === 'goal' ? 'Gol' : 'Assist'}</td><td>${p ? esc(p.name) : '-'}</td></tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      ` : ''}
+
+      ${(ev.substitutions||[]).length || (ev.redCards||[]).length ? `
+        <h2>Cambi ed espulsioni</h2>
+        <table>
+          <thead><tr><th>Min</th><th>Evento</th></tr></thead>
+          <tbody>
+            ${[
+              ...((ev.substitutions||[]).map(s => ({minute: s.minute, txt: 'Esce ' + (STATE.players.find(x=>String(x.id)===String(s.outPlayerId))||{name:'-'}).name + ', entra ' + (STATE.players.find(x=>String(x.id)===String(s.inPlayerId))||{name:'-'}).name}))),
+              ...((ev.redCards||[]).map(r => ({minute: r.minute, txt: 'Rosso: ' + (STATE.players.find(x=>String(x.id)===String(r.playerId))||{name:'-'}).name})))
+            ].sort((a,b)=>Number(a.minute)-Number(b.minute)).map(i => `<tr><td>${i.minute}'</td><td>${esc(i.txt)}</td></tr>`).join('')}
+          </tbody>
+        </table>
+      ` : ''}
+    `;
+  } else {
+    /* ALLENAMENTO */
+    const durata = getSessionDuration(ev);
+    const presenti = Array.isArray(ev.presentPlayers) ? ev.presentPlayers : [];
+    const eserc = (ev.workoutIds || []).map(wid => STATE.workouts.find(w => w.id === wid)).filter(Boolean);
+
+    bodyHtml = `
+      <div class="ps-kpi avoid">
+        <div class="ps-box"><div class="l">Durata</div><div class="n">${durata || '-'}</div><div class="s">minuti</div></div>
+        <div class="ps-box"><div class="l">Presenti</div><div class="n">${presenti.length}</div><div class="s">${ev.md ? esc(ev.md) : ''}</div></div>
+        <div class="ps-box"><div class="l">RPE medio</div><div class="n">${avgRpe !== null ? Math.round(avgRpe*10)/10 : '-'}</div><div class="s">${rpes.length} risp.</div></div>
+        <div class="ps-box"><div class="l">Carico</div><div class="n">${Math.round(load)}</div><div class="s">UA</div></div>
+      </div>
+
+      ${eserc.length ? `
+        <h2>Esercitazioni (${eserc.length})</h2>
+        <table>
+          <thead><tr><th>Nome</th><th>Tipo</th><th>Durata</th></tr></thead>
+          <tbody>
+            ${eserc.map(w => `<tr><td>${esc(w.name)}</td><td>${esc(w.type||'-')}</td><td>${calcWorkoutDuration(w)} min</td></tr>`).join('')}
+          </tbody>
+        </table>
+      ` : ''}
+
+      ${rpes.length ? `
+        <h2>RPE per giocatore</h2>
+        <table>
+          <thead><tr><th>Giocatore</th><th>Minuti</th><th>RPE</th><th>Carico</th></tr></thead>
+          <tbody>
+            ${rpes.map(r => {
+              const p = STATE.players.find(x => String(x.id) === String(r.playerId));
+              return `<tr><td>${p ? esc(p.name) : '-'}</td><td>${r.minutes||0}</td><td><strong>${r.rpe}/10</strong></td><td>${Math.round(Number(r.rpe||0)*Number(r.minutes||0))}</td></tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      ` : ''}
+    `;
+  }
+
+  const dayNames = ['Domenica','Lunedi','Martedi','Mercoledi','Giovedi','Venerdi','Sabato'];
+  const evDate = new Date(ev.date + 'T00:00:00');
+
+  printGenericSheet(`
+    <div class="ps-head">
+      <div>
+        <h1>${esc(ev.title || ev.type)}</h1>
+        <div style="font-size:9pt;letter-spacing:0.08em;text-transform:uppercase;">${esc(ev.type)} · ${esc(STATE.teamConfig.name || 'Squadra')}</div>
+      </div>
+      <div class="ps-date"><strong>${dayNames[evDate.getDay()]} ${fmtDate(ev.date)}</strong>${ev.time ? '<br>' + esc(ev.time) : ''}</div>
+    </div>
+    ${bodyHtml}
+  `);
 }
 
 function renderDashboard(el){
@@ -4431,7 +4748,43 @@ function renderGiocatori(el){
   `;
 
   const tbody = document.getElementById('playersTableBody');
-  STATE.players.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name))).forEach(p=>{
+
+  /* Ordinamento: raggruppamento per reparto (Portiere → Difensore → Centrocampista → Attaccante),
+     alfabetico dentro ogni reparto. I ruoli sconosciuti vanno in fondo.
+     Uso i reparti macro invece dei singoli ruoli, cosi' i separatori sono piu' leggibili. */
+  const reparti = [
+    {nome:'Portieri',      ruoli:['Portiere']},
+    {nome:'Difensori',     ruoli:['Difensore centrale','Terzino']},
+    {nome:'Centrocampisti',ruoli:['Mediano','Mezzala','Trequartista','Esterno']},
+    {nome:'Attaccanti',    ruoli:['Punta']}
+  ];
+  const repartoDiRuolo = (ruolo) => {
+    for(const r of reparti){ if(r.ruoli.indexOf(ruolo) !== -1) return r.nome; }
+    return 'Altri';
+  };
+  const ordineReparto = (nome) => {
+    const i = reparti.findIndex(r => r.nome === nome);
+    return i === -1 ? 99 : i;
+  };
+
+  const orderedPlayers = STATE.players.slice().sort((a,b)=>{
+    const ra = repartoDiRuolo(a.role);
+    const rb = repartoDiRuolo(b.role);
+    if(ra !== rb) return ordineReparto(ra) - ordineReparto(rb);
+    return String(a.name).localeCompare(String(b.name));
+  });
+
+  let repartoPrecedente = null;
+  orderedPlayers.forEach(p=>{
+    const repartoAttuale = repartoDiRuolo(p.role);
+    /* Riga separatore quando cambia reparto (non prima del primo) */
+    if(repartoPrecedente !== null && repartoAttuale !== repartoPrecedente){
+      const sep = document.createElement('tr');
+      sep.innerHTML = `<td colspan="6" style="padding:0;border:none;"><div style="border-top:1px solid var(--line);margin:6px 0;"></div></td>`;
+      tbody.appendChild(sep);
+    }
+    repartoPrecedente = repartoAttuale;
+
     const tr = document.createElement('tr');
     tr.className = 'player-row';
     tr.style.cursor = 'pointer';
@@ -4623,7 +4976,10 @@ function renderMedica(el){
     `<button class="med-tab" data-tab="${id}" style="padding:9px 16px;border:none;border-bottom:3px solid ${tab===id?'var(--clay)':'transparent'};background:none;font-size:13px;font-weight:${tab===id?'700':'500'};color:${tab===id?'var(--pitch)':'var(--ink-soft)'};cursor:pointer;">${label}</button>`;
 
   el.innerHTML = `
-    <div class="page-head"><h1>Area Medica</h1><p>Infortuni, rientri e disponibilita</p></div>
+    <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;">
+      <div><h1>Area Medica</h1><p>Infortuni, rientri e disponibilita</p></div>
+      <button class="btn secondary" id="printMedicaBtn" style="font-size:12px;padding:8px 14px;white-space:nowrap;">Recap PDF</button>
+    </div>
     <div style="display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:20px;overflow-x:auto;">
       ${tabBtn('infermeria','Infermeria')}
       ${tabBtn('registro','Registro infortuni')}
@@ -4637,6 +4993,9 @@ function renderMedica(el){
   el.querySelectorAll('.med-tab').forEach(b=>{
     b.addEventListener('click', ()=>{ el.dataset.medTab = b.dataset.tab; renderMedica(el); });
   });
+
+  const printMedBtn = document.getElementById('printMedicaBtn');
+  if(printMedBtn) printMedBtn.addEventListener('click', printAreaMedica);
 
   const c = document.getElementById('medContent');
   if(!c) return;
@@ -5517,7 +5876,10 @@ function renderPerformance(el){
     `<button class="perf-tab" data-tab="${id}" style="padding:9px 16px;border:none;border-bottom:3px solid ${tab===id?'var(--amber)':'transparent'};background:none;font-size:13px;font-weight:${tab===id?'700':'500'};color:${tab===id?'var(--pitch)':'var(--ink-soft)'};cursor:pointer;">${label}</button>`;
 
   el.innerHTML = `
-    <div class="page-head"><h1>Area Performance</h1><p>Test, carico e rendimento</p></div>
+    <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;">
+      <div><h1>Area Performance</h1><p>Test, carico e rendimento</p></div>
+      <button class="btn secondary" id="printPerformanceBtn" style="font-size:12px;padding:8px 14px;white-space:nowrap;">Recap PDF</button>
+    </div>
     <div style="display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:20px;overflow-x:auto;">
       ${tabBtn('test','Test')}
       ${tabBtn('confronti','Confronti')}
@@ -5536,6 +5898,9 @@ function renderPerformance(el){
       renderPerformance(el);
     });
   });
+
+  const printPerfBtn = document.getElementById('printPerformanceBtn');
+  if(printPerfBtn) printPerfBtn.addEventListener('click', printAreaPerformance);
 
   const content = document.getElementById('perfContent');
   if(!content) return;
@@ -5591,7 +5956,42 @@ function renderGrafSquadra(el, days){
   const wellData = serieWellnessSquadra(days);
   const rpeData = serieRPESquadra(days);
 
+  /* Statistica di copertura: quanti RPE / wellness sono stati compilati nel periodo,
+     e da quanti giocatori diversi. Se il grafico ha "pochi dati", tipicamente e' perche'
+     l'adesione dei giocatori e' bassa, non un bug del calcolo. */
+  const soglia = new Date(todayStr() + 'T00:00:00').getTime() - days * 86400000;
+  const rpePeriodo = STATE.rpeLog.filter(r => {
+    if(r.source === 'plan') return false;
+    const t = new Date(r.date + 'T00:00:00').getTime();
+    if(t < soglia) return false;
+    const p = STATE.players.find(x => String(x.id) === String(r.playerId));
+    return p && !isPortiere(p);
+  });
+  const wellPeriodo = STATE.hooperLog.filter(h => {
+    if(isLegacyHooper(h)) return false;
+    const t = new Date(h.date + 'T00:00:00').getTime();
+    if(t < soglia) return false;
+    const p = STATE.players.find(x => String(x.id) === String(h.playerId));
+    return p && !isPortiere(p);
+  });
+  const rosaSize = STATE.players.filter(p => !isPortiere(p)).length;
+  const compilatoriRPE = new Set(rpePeriodo.map(r => r.playerId)).size;
+  const compilatoriWell = new Set(wellPeriodo.map(h => h.playerId)).size;
+
   el.innerHTML = `
+    <div class="card" style="background:#F7F5EC;border-left:3px solid var(--amber);">
+      <h4 style="margin:0 0 8px 0;font-size:12px;color:var(--pitch);">Copertura dati nel periodo (${days} giorni)</h4>
+      <div style="font-size:12px;color:var(--ink);line-height:1.7;">
+        <strong>RPE:</strong> ${rpePeriodo.length} inserimenti da ${compilatoriRPE}/${rosaSize} giocatori<br>
+        <strong>Wellness:</strong> ${wellPeriodo.length} compilazioni da ${compilatoriWell}/${rosaSize} giocatori
+      </div>
+      ${(compilatoriRPE < rosaSize * 0.5 || compilatoriWell < rosaSize * 0.5) ? `
+        <div style="margin-top:8px;font-size:11px;color:var(--clay);">
+          Adesione bassa: se i grafici sotto sembrano vuoti e' perche' meno di meta' della rosa compila regolarmente.
+        </div>
+      ` : ''}
+    </div>
+
     <div class="card">
       <h3>ACWR di squadra</h3>
       <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Rapporto carico settimana / media 4 settimane. Zone: verde ottimale (0.8-1.3), ambra in salita (1.3-1.5), rosso rischio (&gt;1.5).</div>
@@ -7402,9 +7802,15 @@ function apriEditorDifferenziato(eventId, onSave){
   const d = event.differenziato;
 
   const modal = document.createElement('div');
-  modal.className = 'modal';
   modal.id = 'diffModal';
-  modal.style.zIndex = '9999';
+  /* Non uso class="modal" (nel CSS non esiste), applico direttamente lo stile overlay
+     come fanno gli altri modali del file. Senza questo, il modale finiva inline sotto
+     l'ultimo elemento della pagina e restava visibile su tutte le schermate. */
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:flex-start;justify-content:center;z-index:9999;padding:20px;box-sizing:border-box;overflow-y:auto;';
+  /* Click su sfondo chiude il modale (comportamento standard degli altri modali del file) */
+  modal.addEventListener('click', (e)=>{
+    if(e.target === modal) modal.remove();
+  });
 
   /* Render principale dell'editor. Ridisegno tutto il contenuto quando
      l'utente cambia qualcosa che influenza la vista. */
@@ -8168,7 +8574,10 @@ function renderAllenamentoDetails(event){
           <h2 style="margin:0;color:var(--pitch);">${esc(event.title)}</h2>
           <div style="font-size:12px;color:var(--ink-soft);">${fmtDate(event.date)} ${event.time || '-'} ${event.md ? '| ' + esc(event.md) : ''}</div>
         </div>
-        <button id="closeAllenamentoModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">×</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button id="printAllenamentoBtn" class="btn secondary" style="padding:6px 12px;font-size:11px;">PDF recap</button>
+          <button id="closeAllenamentoModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">×</button>
+        </div>
       </div>
       
       <div style="border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:20px;">
@@ -8269,6 +8678,9 @@ function renderAllenamentoDetails(event){
   document.getElementById('closeAllenamentoModal').addEventListener('click', ()=>{
     modal.remove();
   });
+
+  const printBtnAll = document.getElementById('printAllenamentoBtn');
+  if(printBtnAll) printBtnAll.addEventListener('click', ()=> printSessionRecap(event.id));
   
   // Close on backdrop click
   modal.addEventListener('click', (e)=>{
@@ -8434,7 +8846,10 @@ function renderEditAllenamentoModal(event){
     <div style="background:white;border-radius:12px;max-width:640px;width:100%;padding:24px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:18px;">
         <h2 style="margin:0;color:var(--pitch);">Modifica allenamento</h2>
-        <button id="closeAllenamentoModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">&#10005;</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button id="printTrainingBtn" data-event-id="${event.id}" class="btn secondary" style="font-size:11px;padding:6px 12px;">Recap PDF</button>
+          <button id="closeAllenamentoModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">&#10005;</button>
+        </div>
       </div>
 
       <div class="grid2" style="gap:12px;">
@@ -8581,7 +8996,10 @@ function renderMatchDetails(match){
           <h2 style="margin:0;color:var(--pitch);">${esc(match.title)}</h2>
           <div style="font-size:12px;color:var(--ink-soft);">${fmtDate(match.date)} ${match.time || '-'} | ${esc(match.matchType)}</div>
         </div>
-        <button id="closeMatchModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">×</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button id="printMatchBtn" class="btn secondary" style="padding:6px 12px;font-size:11px;">PDF recap</button>
+          <button id="closeMatchModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">×</button>
+        </div>
       </div>
       
       ${isPast ? `
@@ -8839,6 +9257,8 @@ function renderMatchDetails(match){
   
   const closeBtn = document.getElementById('closeMatchModal');
   const closeBtn2 = document.getElementById('closeMatchModal2');
+  const printMatchBtn = document.getElementById('printMatchBtn');
+  if(printMatchBtn) printMatchBtn.addEventListener('click', ()=> printSessionRecap(match.id));
   
   // --- Formazione ed eventi partita ---
   const refreshMatch = ()=>{ modal.remove(); renderMatchDetails(match); };
@@ -9094,6 +9514,9 @@ function renderWellness(el){
 
     const nextMatch = getNextMatchForPlayer(STATE.currentPlayerId);
     const sonoConvocato = nextMatch ? isConvocato(nextMatch, STATE.currentPlayerId) : null;
+    /* Convocazioni ancora aperte: se il mister non ha ancora scelto nessuno,
+       non ha senso dire "Non convocato". Meglio "In attesa di convocazione". */
+    const convocazioniAperte = nextMatch && (!Array.isArray(nextMatch.convocati) || nextMatch.convocati.length === 0);
 
     el.innerHTML = `
     <div class="card" style="background:var(--pitch);color:var(--chalk);border:none;">
@@ -9102,12 +9525,12 @@ function renderWellness(el){
     </div>
 
     ${nextMatch ? `
-      <div class="card" style="border-left:4px solid ${sonoConvocato ? 'var(--ok)' : 'var(--clay)'};">
+      <div class="card" style="border-left:4px solid ${sonoConvocato ? 'var(--ok)' : convocazioniAperte ? 'var(--amber)' : 'var(--clay)'};">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft);font-weight:700;">Prossima partita</div>
         <div style="font-size:15px;font-weight:600;color:var(--pitch);margin:4px 0;">${esc(nextMatch.title)}</div>
         <div style="font-size:12px;color:var(--ink-soft);margin-bottom:10px;">${fmtDate(nextMatch.date)}${nextMatch.time ? ' · ' + esc(nextMatch.time) : ''}${nextMatch.location ? ' · ' + esc(nextMatch.location) : ''}</div>
-        <div style="display:inline-block;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;background:${sonoConvocato ? '#E3EFE7' : 'var(--clay-soft)'};color:${sonoConvocato ? 'var(--ok)' : '#8B3429'};">
-          ${sonoConvocato ? 'SEI CONVOCATO' : 'Non convocato'}
+        <div style="display:inline-block;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;background:${sonoConvocato ? '#E3EFE7' : convocazioniAperte ? '#FDF3E7' : 'var(--clay-soft)'};color:${sonoConvocato ? 'var(--ok)' : convocazioniAperte ? 'var(--amber-dark)' : '#8B3429'};">
+          ${sonoConvocato ? 'SEI CONVOCATO' : convocazioniAperte ? 'In attesa di convocazione' : 'Non convocato'}
         </div>
       </div>
     ` : ''}
@@ -9376,13 +9799,24 @@ function formRpeGiocatore(playerId, evento, onDone){
     const rpe = parseInt(slider.value, 10);
     // Evito doppioni sullo stesso evento
     const gia = STATE.rpeLog.find(r => String(r.playerId)===String(playerId) && r.sessionId===evento.id);
-    if(gia){ gia.rpe = rpe; gia.editedBy = 'giocatore'; }
-    else {
-      STATE.rpeLog.push({
+    /* Se e' una partita calcolo i minuti giocati; per allenamento la durata la stima sessionLoad */
+    let minuti = null;
+    if(evento.type === 'Partita' && Array.isArray(evento.starters) && evento.starters.length > 0){
+      const calc = computeMatchMinutes(evento);
+      if(calc[playerId]) minuti = calc[playerId].minutes;
+    }
+    if(gia){
+      gia.rpe = rpe;
+      gia.editedBy = 'giocatore';
+      if(minuti !== null) gia.minutes = minuti;
+    } else {
+      const entry = {
         id: uid(), playerId: playerId, date: evento.date,
         sessionId: evento.id, rpe: rpe,
         statusAtEntry: currentStatusOf(playerId)
-      });
+      };
+      if(minuti !== null) entry.minutes = minuti;
+      STATE.rpeLog.push(entry);
     }
     await saveKey('rpe-log', STATE.rpeLog);
     showToast('Grazie, RPE registrato');
@@ -9755,13 +10189,36 @@ function renderPlayerCalendario(el){
         <h3>Oggi</h3>
         ${todayEvents.map(e => {
           const isMatch = e.type === 'Partita';
+          const eroPresente = Array.isArray(e.presentPlayers) && e.presentPlayers.includes(playerId);
+          const rpeGia = STATE.rpeLog.find(r => String(r.playerId)===String(playerId) && r.sessionId===e.id);
+          /* Stessa logica di puoRpe usata negli impegni passati: la sessione di
+             oggi puo' essere gia' finita, il giocatore deve poter compilare l'RPE. */
+          let puoRpe = false;
+          if(isMatch){
+            if(Array.isArray(e.starters) && e.starters.length > 0){
+              const calc = computeMatchMinutes(e);
+              puoRpe = calc[playerId] && calc[playerId].minutes > 0;
+            } else {
+              puoRpe = Array.isArray(e.convocati) && e.convocati.map(String).includes(String(playerId));
+            }
+          } else {
+            puoRpe = eroPresente;
+          }
           return `
             <div style="padding:12px;background:var(--chalk);border-radius:6px;margin-bottom:8px;">
-              <div style="font-weight:600;color:var(--pitch);margin-bottom:4px;">${isMatch ? '' : ''} ${esc(e.title)}</div>
-              <div style="font-size:12px;color:var(--ink-soft);">
-                ${e.time || ''} ${e.md ? '· ' + esc(e.md) : ''} ${!isMatch ? '· Durata: ' + getSessionDuration(e) + 'min' : ''}
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+                <div>
+                  <div style="font-weight:600;color:var(--pitch);margin-bottom:4px;">${isMatch ? '' : ''} ${esc(e.title)}</div>
+                  <div style="font-size:12px;color:var(--ink-soft);">
+                    ${e.time || ''} ${e.md ? '· ' + esc(e.md) : ''} ${!isMatch ? '· Durata: ' + getSessionDuration(e) + 'min' : ''}
+                  </div>
+                  ${isMatch && e.result ? `<div style="font-size:12px;color:var(--amber);font-weight:600;margin-top:4px;">${e.result.goalsFor}-${e.result.goalsAgainst}</div>` : ''}
+                </div>
+                ${puoRpe ? (rpeGia
+                  ? `<div style="text-align:right;"><div style="font-size:11px;color:var(--ink-soft);">RPE inserito</div><div style="font-size:18px;font-weight:700;color:var(--amber-dark);">${rpeGia.rpe}/10</div></div>`
+                  : `<button class="player-rpe-btn" data-event-id="${e.id}" style="padding:8px 14px;background:var(--amber);color:var(--pitch);border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap;">Inserisci RPE</button>`)
+                : ''}
               </div>
-              ${isMatch && e.result ? `<div style="font-size:12px;color:var(--amber);font-weight:600;margin-top:4px;">${e.result.goalsFor}-${e.result.goalsAgainst}</div>` : ''}
             </div>
           `;
         }).join('')}
@@ -9779,10 +10236,14 @@ function renderPlayerCalendario(el){
               <div style="font-size:12px;color:var(--ink-soft);">
                 ${fmtDate(e.date)} ${e.time ? '' + e.time : ''} ${e.md ? '· ' + esc(e.md) : ''} ${!isMatch ? '· Durata: ' + getSessionDuration(e) + 'min' : ''}
               </div>
-              ${isMatch && Array.isArray(e.convocati) ? `
-                <div style="margin-top:8px;display:inline-block;padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:700;background:${isConvocato(e, playerId) ? '#E3EFE7' : 'var(--clay-soft)'};color:${isConvocato(e, playerId) ? 'var(--ok)' : '#8B3429'};">
-                  ${isConvocato(e, playerId) ? 'CONVOCATO' : 'Non convocato'}
-                </div>` : ''}
+              ${isMatch ? (()=>{
+                const conv = Array.isArray(e.convocati) ? e.convocati : [];
+                if(conv.length === 0){
+                  return `<div style="margin-top:8px;display:inline-block;padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:700;background:#FDF3E7;color:var(--amber-dark);">In attesa di convocazione</div>`;
+                }
+                const io = isConvocato(e, playerId);
+                return `<div style="margin-top:8px;display:inline-block;padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:700;background:${io ? '#E3EFE7' : 'var(--clay-soft)'};color:${io ? 'var(--ok)' : '#8B3429'};">${io ? 'CONVOCATO' : 'Non convocato'}</div>`;
+              })() : ''}
               ${isMatch ? `<div style="font-size:11px;color:var(--amber);margin-top:4px;">${esc(e.matchType || 'Partita')}</div>` : ''}
             </div>
           `;
@@ -9793,18 +10254,30 @@ function renderPlayerCalendario(el){
     ${pastEvents.length > 0 ? `
       <div class="card">
         <h3>Impegni passati</h3>
-        <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">Dopo un allenamento a cui eri presente, indica quanto e stato faticoso (RPE).</div>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">Dopo un allenamento a cui eri presente o una partita in cui hai giocato, indica quanto e stato faticoso (RPE).</div>
         ${pastEvents.slice(-10).reverse().map(e => {
           const isMatch = e.type === 'Partita';
           const eroPresente = Array.isArray(e.presentPlayers) && e.presentPlayers.includes(playerId);
           const rpeGia = STATE.rpeLog.find(r => String(r.playerId)===String(playerId) && r.sessionId===e.id);
-          const puoRpe = !isMatch && eroPresente;
+          /* Per le partite: puo inserire RPE se ha effettivamente giocato (ha minuti > 0).
+             Se non c'e ancora il lineup, ricado sul fatto che sia stato convocato. */
+          let puoRpe = false;
+          if(isMatch){
+            if(Array.isArray(e.starters) && e.starters.length > 0){
+              const calc = computeMatchMinutes(e);
+              puoRpe = calc[playerId] && calc[playerId].minutes > 0;
+            } else {
+              puoRpe = Array.isArray(e.convocati) && e.convocati.map(String).includes(String(playerId));
+            }
+          } else {
+            puoRpe = eroPresente;
+          }
           return `
             <div style="padding:12px;background:#F9F9F9;border-radius:6px;margin-bottom:8px;">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
                 <div>
                   <div style="font-weight:600;color:var(--pitch);">${esc(e.title)}</div>
-                  <div style="font-size:12px;color:var(--ink-soft);">${fmtDate(e.date)}${e.time ? ' · ' + e.time : ''}</div>
+                  <div style="font-size:12px;color:var(--ink-soft);">${fmtDate(e.date)}${e.time ? ' · ' + e.time : ''}${isMatch ? ' · Partita' : ''}</div>
                   ${isMatch && e.result ? `<div style="font-size:12px;color:var(--amber);font-weight:600;margin-top:4px;">${e.result.goalsFor}-${e.result.goalsAgainst}</div>` : ''}
                 </div>
                 ${puoRpe ? (rpeGia
