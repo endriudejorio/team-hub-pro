@@ -204,6 +204,7 @@ button{font-family:inherit; cursor:pointer;}
 .logout-btn{background:none; border:1px solid var(--line); color:var(--ink-soft); padding:8px 12px; border-radius:var(--radius); font-size:13px; width:100%;}
 
 .main{flex:1; padding:32px 40px; max-width:1100px;}
+body:has(#workoutTimerBar[style*='flex']) .main{padding-top:56px;}
 .page-head{margin-bottom:28px;}
 .page-head h1{font-size:32px;}
 .page-head p{color:var(--ink-soft); font-size:14px; margin-top:4px;}
@@ -250,7 +251,7 @@ button{font-family:inherit; cursor:pointer;}
 .day-block{border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:12px;}
 .day-block-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
 .day-block-head input{background:transparent; border:none; color:var(--ink); font-size:16px; font-weight:700; width:70%;}
-.ex-row{display:grid; grid-template-columns:auto 2fr 1fr 1fr 1fr auto auto; gap:6px; align-items:center; margin-bottom:6px;}
+.ex-row{display:grid; grid-template-columns:auto 2fr 0.8fr 0.8fr 1fr auto auto auto; gap:5px; align-items:center; margin-bottom:6px;}
 .ex-row-wrap{border-radius:6px; padding:6px; margin-bottom:6px; border:1px solid transparent;}
 .ex-row-wrap.in-superset{border-left:3px solid var(--accent); background:var(--accent-soft);}
 .ex-row-wrap.dragging{opacity:.4;}
@@ -258,7 +259,14 @@ button{font-family:inherit; cursor:pointer;}
 .drag-handle{cursor:grab; color:var(--ink-soft); font-size:15px; user-select:none;}
 .ex-note{width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--ink-soft); padding:6px 8px; border-radius:4px; font-size:12px;}
 .icon-btn.ss-on{color:var(--accent);}
+.icon-btn.tt-on{color:#F0B429;}
 .ss-badge{display:inline-block; font-size:10px; padding:2px 6px; border-radius:3px; background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent); margin-left:8px; vertical-align:middle;}
+.media-link{
+  display:inline-block; font-size:12px; color:var(--accent); text-decoration:none;
+  padding:6px 10px; border:1px solid var(--accent); border-radius:4px; margin-bottom:8px;
+}
+.media-link:hover{background:var(--accent-soft);}
+.cue-display{font-size:12px; color:var(--ink-soft); margin-bottom:8px; font-style:italic;}
 .ex-note-display{font-size:12px; color:var(--accent); margin-bottom:8px; padding:6px 10px; background:var(--accent-soft); border-radius:4px;}
 .pr-badge{display:inline-block; font-size:10px; padding:2px 6px; border-radius:3px; background:var(--accent2-soft); color:var(--accent2); border:1px solid var(--accent2); margin-left:6px;}
 .ex-row input{background:var(--surface-2); border:1px solid var(--line); color:var(--ink); padding:8px; border-radius:4px; font-size:13px;}
@@ -281,6 +289,14 @@ button{font-family:inherit; cursor:pointer;}
 .set-type-btn.type-D{background:#2B1B3D; color:#A855F7; border-color:#A855F7;}
 .set-type-btn.type-F{background:var(--danger-soft); color:var(--danger); border-color:var(--danger);}
 .gym-set-num{font-family:'IBM Plex Mono'; color:var(--ink-soft); font-size:13px;}
+.workout-timer-bar{
+  position:fixed; top:0; left:0; right:0; z-index:59;
+  background:var(--surface); border-bottom:1px solid var(--line);
+  padding:8px 20px; display:flex; align-items:center; justify-content:center; gap:12px;
+}
+.wt-dot{width:8px; height:8px; border-radius:50%; background:var(--accent2); animation:wtpulse 2s infinite;}
+.wt-dot.paused{background:var(--ink-soft); animation:none;}
+@keyframes wtpulse{0%,100%{opacity:1;} 50%{opacity:.3;}}
 .rest-timer-bar{
   position:fixed; bottom:0; left:0; right:0; z-index:60;
   background:var(--surface); border-top:1px solid var(--accent);
@@ -288,6 +304,15 @@ button{font-family:inherit; cursor:pointer;}
 }
 .mini-input{width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--ink); padding:9px; border-radius:4px; font-size:14px; text-align:center;}
 .gym-set-row input{background:var(--surface-2); border:1px solid var(--line); color:var(--ink); padding:9px; border-radius:4px; font-family:'IBM Plex Mono'; font-size:15px; text-align:center;}
+.time-btn{
+  background:var(--surface-2); border:1px solid #F0B429; color:#F0B429;
+  padding:9px; border-radius:4px; font-family:'IBM Plex Mono'; font-size:14px; font-weight:600;
+}
+.set-timer-bar{
+  position:fixed; bottom:0; left:0; right:0; z-index:61;
+  background:var(--surface); border-top:2px solid #F0B429;
+  padding:14px 24px; display:flex; align-items:center; justify-content:center; gap:16px;
+}
 .check-btn{background:var(--surface-2); border:1px solid var(--line); color:var(--ink-soft); width:38px; height:38px; border-radius:4px; font-size:16px;}
 .check-btn.done{background:var(--accent2); color:#FFFFFF; border-color:var(--accent2);}
 .gym-scale-row{display:flex; gap:5px; flex-wrap:wrap;}
@@ -415,6 +440,17 @@ textarea{
   <div class="main" id="pageContent"></div>
 </div>
 
+<div class="workout-timer-bar" id="workoutTimerBar" style="display:none;">
+  <span class="wt-dot"></span>
+  <span style="font-size:12px; color:var(--ink-soft);">Sessione</span>
+  <span class="mono" id="workoutTimerValue" style="font-size:18px; font-weight:600;">00:00</span>
+  <button class="btn secondary small" id="workoutTimerToggle" style="width:auto; padding:5px 12px;">Pausa</button>
+</div>
+<div class="set-timer-bar" id="setTimerBar" style="display:none;">
+  <span style="font-size:13px; color:var(--ink-soft);">Esecuzione</span>
+  <span class="mono" id="setTimerValue" style="font-size:26px; font-weight:600; color:#F0B429;">00:00</span>
+  <button class="btn secondary small" id="setTimerStop" style="width:auto;">Stop</button>
+</div>
 <div class="rest-timer-bar" id="restTimerBar" style="display:none;">
   <span style="font-size:13px; color:var(--ink-soft);">Recupero</span>
   <span class="mono" id="restTimerValue" style="font-size:22px; font-weight:600;">00:00</span>
@@ -1053,7 +1089,15 @@ const NAV_CLIENT = [
 ];
 
 function buildNav(){
-  const items = STATE.role === 'admin' ? NAV_ADMIN : (STATE.role === 'coach' ? NAV_COACH : NAV_CLIENT);
+  let items;
+  if(STATE.role === 'admin') items = NAV_ADMIN;
+  else if(STATE.role === 'coach') items = NAV_COACH;
+  else {
+    const cl = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    items = (cl && cl.autonomo)
+      ? [NAV_CLIENT[0], {id:'mieiprogrammi', label:'I miei programmi', icon:'▤'}, ...NAV_CLIENT.slice(1)]
+      : NAV_CLIENT;
+  }
   const nav = document.getElementById('navList');
   nav.innerHTML = items.map(n => `<button class="nav-btn" data-nav="${n.id}"><span>${n.icon}</span>${n.label}</button>`).join('');
   nav.querySelectorAll('.nav-btn').forEach(b => b.onclick = () => goPage(b.dataset.nav));
@@ -1077,6 +1121,7 @@ function render(){
     assign: renderAssign,
     gym: renderGym,
     progressione: renderProgressione,
+    mieiprogrammi: renderMieiProgrammi,
     wellness: renderWellness,
     progress: renderProgress,
     settings: renderSettings,
@@ -1114,7 +1159,7 @@ function renderDashboard(){
           <div class="list-row">
             <div>
               <div class="list-row-title">${c.nome}</div>
-              <div class="list-row-sub">${c.programma_attivo ? c.programma_attivo.nome : 'Nessun programma'}${c.programma_attivo ? ' · Sett. '+((c.settimana_corrente||0)+1)+'/'+getSettimane(c.programma_attivo).length : ''}</div>
+              <div class="list-row-sub">${c.programma_attivo ? c.programma_attivo.nome : 'Nessun programma'}${c.programma_attivo ? ' · Sett. '+((c.settimana_corrente||0)+1)+'/'+getSettimane(c.programma_attivo).length : ''}${c.programma_attivo && c.programma_attivo.origine === 'atleta' ? ' <span style="color:var(--accent);">· autoassegnato</span>' : ''}</div>
             </div>
             <span class="tag" style="color:${col}; border-color:${col};">${ad ? ad.fatte+'/'+ad.previste+' ('+ad.pct+'%)' : '—'}</span>
           </div>`;
@@ -1189,7 +1234,7 @@ function renderClients(){
           <div class="list-row">
             <div>
               <div class="list-row-title">${c.nome}</div>
-              <div class="list-row-sub">${c.obiettivo || '—'} ${c.eta?'· '+c.eta+' anni':''} ${c.livello?'· '+c.livello:''} · codice atleta: <span class="mono">${c.id}</span></div>
+              <div class="list-row-sub">${c.obiettivo || '—'} ${c.eta?'· '+c.eta+' anni':''} ${c.livello?'· '+c.livello:''}${c.autonomo?' · <span style="color:var(--accent);">autonomo</span>':''} · codice: <span class="mono">${c.id}</span></div>
             </div>
             <div style="display:flex; gap:8px;">
               <button class="btn secondary small" data-edit-client="${c.id}">Modifica</button>
@@ -1221,6 +1266,12 @@ function openClientModal(existing){
     <div class="field"><label>Obiettivo</label><input type="text" id="mClObiettivo" value="${c.obiettivo}" placeholder="es. Hyrox, ipertrofia, forza..."></div>
     <div class="field"><label>Note (infortuni, limitazioni)</label><textarea id="mClNote" rows="3">${c.note||''}</textarea></div>
     <div class="field">
+      <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+        <input type="checkbox" id="mClAutonomo" ${c.autonomo?'checked':''} style="width:18px; height:18px; accent-color:var(--accent);">
+        Atleta autonomo &mdash; può creare e assegnarsi programmi da solo
+      </label>
+    </div>
+    <div class="field">
       <label>Codice atleta (per il login)</label>
       <input type="text" id="mClId" value="${c.id}" ${existing?'disabled':''}>
     </div>
@@ -1237,6 +1288,7 @@ function openClientModal(existing){
     c.livello = document.getElementById('mClLivello').value;
     c.obiettivo = document.getElementById('mClObiettivo').value.trim();
     c.note = document.getElementById('mClNote').value.trim();
+    c.autonomo = document.getElementById('mClAutonomo').checked;
     if(!c.nome){ alert('Il nome è obbligatorio'); return; }
     if(!existing) STATE.clients.push(c);
     await persistClients();
@@ -1290,7 +1342,7 @@ function renderExerciseListInner(search, categoriaFilter, attrezzoFilter){
       <div class="list-row">
         <div>
           <div class="list-row-title">${e.nome}</div>
-          <div class="list-row-sub">${tipoLabel[e.tipo]||e.tipo}${e.attrezzo?' · '+e.attrezzo:''}</div>
+          <div class="list-row-sub">${tipoLabel[e.tipo]||e.tipo}${e.attrezzo?' · '+e.attrezzo:''}${e.media?' · <span style="color:var(--accent);">▶ media</span>':''}</div>
         </div>
         <div style="display:flex; gap:8px;">
           <button class="btn secondary small" data-edit-exercise="${e.id}">Modifica</button>
@@ -1322,6 +1374,14 @@ function openExerciseModal(existing){
       <input type="text" id="mExAttrezzo" value="${e.attrezzo||''}" list="attrezziList" placeholder="es. bilanciere, manubri...">
       <datalist id="attrezziList">${attrezziEsistenti.map(q=>`<option value="${q}">`).join('')}</datalist>
     </div>
+    <div class="field">
+      <label>Link video o immagine (opzionale)</label>
+      <input type="text" id="mExMedia" value="${e.media||''}" placeholder="URL YouTube, video o foto tua">
+    </div>
+    <div class="field">
+      <label>Cue tecnici (opzionale)</label>
+      <textarea id="mExCue" rows="2" placeholder="Es. scapole retratte, non far cadere i gomiti...">${e.cue||''}</textarea>
+    </div>
     <div class="modal-actions">
       <button class="btn secondary" id="modalCancel">Annulla</button>
       <button class="btn" id="modalSaveExercise">Salva</button>
@@ -1334,6 +1394,8 @@ function openExerciseModal(existing){
     e.categoria = document.getElementById('mExCategoria').value.trim() || 'Senza categoria';
     e.tipo = document.getElementById('mExTipo').value;
     e.attrezzo = document.getElementById('mExAttrezzo').value.trim() || 'altro';
+    e.media = document.getElementById('mExMedia').value.trim();
+    e.cue = document.getElementById('mExCue').value.trim();
     if(!e.nome){ alert('Il nome è obbligatorio'); return; }
     const idx = STATE.exercises.findIndex(x=>x.id===e.id);
     if(idx>=0) STATE.exercises[idx] = e; else STATE.exercises.push(e);
@@ -1370,11 +1432,11 @@ function renderTemplates(){
   `;
 }
 
-function openTemplateModal(existing){
-  const t = existing ? JSON.parse(JSON.stringify(existing)) : {id: uid('tpl'), nome:'Nuovo template', giorni:[]};
-  renderTemplateModalBody(t, !existing);
+function openTemplateModal(existing, owner){
+  const t = existing ? JSON.parse(JSON.stringify(existing)) : {id: uid('tpl'), nome:'Nuovo programma', giorni:[]};
+  renderTemplateModalBody(t, !existing, owner || 'coach');
 }
-function renderTemplateModalBody(t, isNew){
+function renderTemplateModalBody(t, isNew, owner){
   document.getElementById('modalBody').innerHTML = `
     <h2>${isNew ? 'Nuovo template' : 'Modifica template'}</h2>
     <div class="field"><label>Nome template</label><input type="text" id="mTplNome" value="${t.nome}"></div>
@@ -1405,8 +1467,9 @@ function renderTemplateModalBody(t, isNew){
               <span class="drag-handle" title="Trascina per riordinare">⠿</span>
               <input type="text" placeholder="Esercizio" value="${e.esercizio}" list="exerciseNamesList" data-ex-field="${gi}.${ei}.esercizio">
               <input type="number" placeholder="Serie" value="${e.serie}" data-ex-field="${gi}.${ei}.serie">
-              <input type="number" placeholder="Reps" value="${e.reps}" data-ex-field="${gi}.${ei}.reps">
+              <input type="number" placeholder="${e.a_tempo?'Sec':'Reps'}" value="${e.reps}" data-ex-field="${gi}.${ei}.reps">
               <input type="text" class="mono-field" placeholder="Target" value="${e.target}" data-ex-field="${gi}.${ei}.target">
+              <button class="icon-btn ${e.a_tempo?'tt-on':''}" data-toggle-tt="${gi}.${ei}" title="Esercizio a tempo (secondi invece di reps)">⏱</button>
               <button class="icon-btn ${e.superset?'ss-on':''}" data-toggle-ss="${gi}.${ei}" title="Superset con il precedente">⇄</button>
               <button class="icon-btn" data-del-ex="${gi}.${ei}">✕</button>
             </div>
@@ -1432,6 +1495,13 @@ function renderTemplateModalBody(t, isNew){
     document.querySelectorAll('[data-del-ex]').forEach(b => b.onclick = () => {
       const [gi,ei] = b.dataset.delEx.split('.');
       t.giorni[+gi].esercizi.splice(+ei,1); renderGiorni();
+    });
+    document.querySelectorAll('[data-toggle-tt]').forEach(b => b.onclick = () => {
+      const [gi,ei] = b.dataset.toggleTt.split('.');
+      const exo = t.giorni[+gi].esercizi[+ei];
+      exo.a_tempo = !exo.a_tempo;
+      if(exo.a_tempo && (!exo.reps || exo.reps < 5)) exo.reps = 30;
+      renderGiorni();
     });
     document.querySelectorAll('[data-toggle-ss]').forEach(b => b.onclick = () => {
       const [gi,ei] = b.dataset.toggleSs.split('.');
@@ -1476,7 +1546,7 @@ function renderTemplateModalBody(t, isNew){
       };
     });
     document.querySelectorAll('[data-add-ex]').forEach(b => b.onclick = () => {
-      t.giorni[+b.dataset.addEx].esercizi.push({esercizio:'', serie:3, reps:10, target:'RIR2', riposo_sec:90, note:'', superset:false});
+      t.giorni[+b.dataset.addEx].esercizi.push({esercizio:'', serie:3, reps:10, target:'RIR2', riposo_sec:90, note:'', superset:false, a_tempo:false});
       renderGiorni();
     });
   }
@@ -1490,12 +1560,70 @@ function renderTemplateModalBody(t, isNew){
   document.getElementById('modalSaveTemplate').onclick = async () => {
     t.nome = document.getElementById('mTplNome').value.trim() || t.nome;
     t.durata_settimane = parseInt(document.getElementById('mTplSettimane').value) || 4;
-    const idx = STATE.templates.findIndex(x=>x.id===t.id);
-    if(idx>=0) STATE.templates[idx] = t; else STATE.templates.push(t);
-    await persistTemplates();
+    if(owner === 'atleta'){
+      const cl = STATE.clients.find(x=>x.id===STATE.activeClientId);
+      if(!cl.templates_propri) cl.templates_propri = [];
+      const i = cl.templates_propri.findIndex(x=>x.id===t.id);
+      if(i>=0) cl.templates_propri[i] = t; else cl.templates_propri.push(t);
+      await persistClients();
+    }else{
+      const idx = STATE.templates.findIndex(x=>x.id===t.id);
+      if(idx>=0) STATE.templates[idx] = t; else STATE.templates.push(t);
+      await persistTemplates();
+    }
     closeModal();
     render();
   };
+}
+
+/* ============================================================
+   I MIEI PROGRAMMI — solo per atleti con flag "autonomo".
+   Libreria personale, separata da quella del coach: l'atleta
+   non può modificare i template del coach.
+   ============================================================ */
+function renderMieiProgrammi(){
+  const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+  if(!client) return `<div class="page-head"><h1>I miei programmi</h1></div>`;
+  const miei = client.templates_propri || [];
+  const attivo = client.programma_attivo;
+  return `
+    <div class="page-head">
+      <h1>I miei programmi</h1>
+      <p>Programmi che crei tu. Il tuo coach li vede, ma restano separati dai suoi.</p>
+    </div>
+    ${attivo ? `
+      <div class="card" style="margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <div>
+            <div class="list-row-title">In corso: ${attivo.nome}</div>
+            <div class="list-row-sub">${attivo.origine === 'atleta' ? 'Creato da te' : 'Assegnato dal coach'} · ${getSettimane(attivo).length} settimane</div>
+          </div>
+          <span class="tag" style="color:${attivo.origine === 'atleta' ? 'var(--accent)' : 'var(--accent2)'}; border-color:${attivo.origine === 'atleta' ? 'var(--accent)' : 'var(--accent2)'};">
+            ${attivo.origine === 'atleta' ? 'Tuo' : 'Coach'}
+          </span>
+        </div>
+      </div>` : ''}
+    <button class="btn small" id="newMioProgrammaBtn" style="width:auto; margin-bottom:18px;">+ Nuovo programma</button>
+    <div class="card">
+      ${miei.length === 0 ? emptyState('Nessun programma tuo','Creane uno per allenarti in autonomia.') :
+        miei.map(t => `
+          <div class="list-row">
+            <div>
+              <div class="list-row-title">${t.nome}</div>
+              <div class="list-row-sub">${t.giorni.length} giorni · ${t.durata_settimane||4} settimane</div>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn small" data-usa-mio="${t.id}" style="width:auto;">Usa</button>
+              <button class="btn secondary small" data-edit-mio="${t.id}">Modifica</button>
+              <button class="btn danger small" data-del-mio="${t.id}">Elimina</button>
+            </div>
+          </div>`).join('')}
+    </div>
+    <div class="card" style="margin-top:14px;">
+      <p style="color:var(--ink-soft); font-size:12px; line-height:1.6; margin:0;">
+        Quando usi un programma tuo, sostituisce quello del coach come allenamento attivo. Le sessioni restano tutte registrate e il coach continua a vederle, marcate come programma tuo.
+      </p>
+    </div>`;
 }
 
 /* ============================================================
@@ -1567,7 +1695,7 @@ function renderGym(){
   return `
     <div class="page-head">
       <h1>${prog.nome}</h1>
-      <p>${client.nome} · Settimana ${wIdx+1} di ${settimane.length}</p>
+      <p>${client.nome} · Settimana ${wIdx+1} di ${settimane.length}${prog.origine === 'atleta' ? ' · programma autoassegnato' : ''}</p>
     </div>
     ${clientPicker}
     <div class="week-progress">
@@ -1638,6 +1766,91 @@ function startRestTimer(seconds){
   tick();
   _restTimerInterval = setInterval(tick, 1000);
 }
+/* ---------- countdown esercizi a tempo ---------- */
+let _setTimerInterval = null, _setTimerCtx = null;
+function beep(freq){
+  try{
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    osc.frequency.value = freq || 880;
+    osc.connect(ctx.destination);
+    osc.start();
+    setTimeout(()=>osc.stop(), 350);
+  }catch(e){}
+  try{ if(navigator.vibrate) navigator.vibrate([200,100,200]); }catch(e){}
+}
+function startSetTimer(target, key, si){
+  clearInterval(_setTimerInterval);
+  _setTimerCtx = {key, si:+si, target:+target, elapsed:0};
+  const bar = document.getElementById('setTimerBar');
+  const val = document.getElementById('setTimerValue');
+  bar.style.display = 'flex';
+  startWorkoutTimer();
+  function tick(){
+    const rimasti = _setTimerCtx.target - _setTimerCtx.elapsed;
+    val.textContent = fmtMMSS(Math.max(0, rimasti));
+    if(rimasti <= 0){ finishSetTimer(_setTimerCtx.target); return; }
+    _setTimerCtx.elapsed++;
+  }
+  tick();
+  _setTimerInterval = setInterval(tick, 1000);
+}
+function finishSetTimer(secondiFatti){
+  clearInterval(_setTimerInterval);
+  document.getElementById('setTimerBar').style.display = 'none';
+  if(!_setTimerCtx) return;
+  const {key, si} = _setTimerCtx;
+  const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+  if(client && client._gymLog[key]){
+    client._gymLog[key][si].reps = secondiFatti;
+    client._gymLog[key][si].done = true;
+    const day = getGiornoCorrente(client);
+    const exIdx = day.esercizi.findIndex((ex,i) => (ex.esercizio+'_'+i) === key);
+    if(exIdx >= 0) startRestTimer(day.esercizi[exIdx].riposo_sec);
+    document.getElementById('gymDayBody').innerHTML = renderGymDayBody(client, day);
+    attachPageHandlers();
+  }
+  beep(880);
+  _setTimerCtx = null;
+}
+document.getElementById('setTimerStop').onclick = () => {
+  if(_setTimerCtx) finishSetTimer(_setTimerCtx.elapsed);
+};
+
+/* ---------- timer sessione: parte al primo set spuntato, precompila la durata ---------- */
+let _wtSeconds = 0, _wtInterval = null, _wtRunning = false;
+function fmtMMSS(s){
+  const m = Math.floor(s/60).toString().padStart(2,'0');
+  return m + ':' + (s%60).toString().padStart(2,'0');
+}
+function startWorkoutTimer(){
+  if(_wtRunning) return;
+  document.getElementById('workoutTimerBar').style.display = 'flex';
+  document.querySelector('.wt-dot').classList.remove('paused');
+  document.getElementById('workoutTimerToggle').textContent = 'Pausa';
+  _wtRunning = true;
+  clearInterval(_wtInterval);
+  _wtInterval = setInterval(() => {
+    _wtSeconds++;
+    document.getElementById('workoutTimerValue').textContent = fmtMMSS(_wtSeconds);
+  }, 1000);
+}
+function pauseWorkoutTimer(){
+  clearInterval(_wtInterval);
+  _wtRunning = false;
+  document.querySelector('.wt-dot').classList.add('paused');
+  document.getElementById('workoutTimerToggle').textContent = 'Riprendi';
+}
+function resetWorkoutTimer(){
+  clearInterval(_wtInterval);
+  _wtSeconds = 0; _wtRunning = false;
+  document.getElementById('workoutTimerBar').style.display = 'none';
+  document.getElementById('workoutTimerValue').textContent = '00:00';
+}
+document.getElementById('workoutTimerToggle').onclick = () => {
+  if(_wtRunning) pauseWorkoutTimer(); else startWorkoutTimer();
+};
+
 /* ---------- tema chiaro / scuro ---------- */
 function applyTheme(theme){
   document.body.setAttribute('data-theme', theme);
@@ -1669,7 +1882,11 @@ function openCloseSessionModal(){
   const day = getGiornoCorrente(client);
   document.getElementById('modalBody').innerHTML = `
     <h2>Chiudi sessione</h2>
-    <div class="field"><label>Durata sessione (minuti)</label><input type="number" id="mSessDurata" placeholder="es. 60"></div>
+    <div class="field">
+      <label>Durata sessione (minuti)</label>
+      <input type="number" id="mSessDurata" value="${_wtSeconds > 0 ? Math.max(1, Math.round(_wtSeconds/60)) : ''}" placeholder="es. 60">
+      ${_wtSeconds > 0 ? `<div style="font-size:11px; color:var(--ink-soft); margin-top:4px;">Cronometrata: ${fmtMMSS(_wtSeconds)} — puoi correggerla</div>` : ''}
+    </div>
     <div class="field">
       <label>Sforzo percepito dell'intera sessione (1-10)</label>
       <div class="wellness-scale" id="sessRpeScale" style="flex-wrap:wrap;">
@@ -1694,11 +1911,12 @@ function openCloseSessionModal(){
     if(!durata || !sRPE){ alert('Inserisci sia la durata che lo sforzo percepito'); return; }
     const esercizi = day.esercizi.map((ex,exi) => {
       const key = ex.esercizio + '_' + exi;
-      return {esercizio: ex.esercizio, sets: (client._gymLog[key]||[]).map(s=>({peso:s.peso,reps:s.reps,sforzo:s.sforzo,tipo:s.tipo||'N',timestamp:Date.now()}))};
+      return {esercizio: ex.esercizio, sets: (client._gymLog[key]||[]).map(s=>({peso:s.peso,reps:s.reps,sforzo:s.sforzo,tipo:s.tipo||'N',a_tempo:!!ex.a_tempo,timestamp:Date.now()}))};
     });
     if(!client.logs) client.logs = [];
     client.logs.push({data: Date.now(), giorno_nome: day.nome, esercizi, durata_min: durata, sRPE: sRPE, ua: durata*sRPE});
     client._gymLog = {};
+    resetWorkoutTimer();
     await persistClients();
     closeModal();
     alert('Sessione salvata.');
@@ -1771,7 +1989,7 @@ function getE1RMHistory(client, esercizioNome){
     if(!found) return;
     let best = 0;
     (found.sets||[]).forEach(s => {
-      if((s.tipo||'N') === 'W') return;
+      if((s.tipo||'N') === 'W' || s.a_tempo) return;
       const v = calcE1RM(s.peso, s.reps);
       if(v > best) best = v;
     });
@@ -1784,7 +2002,7 @@ function getPRs(client){
   const prs = {};
   (client.logs||[]).forEach(l => (l.esercizi||[]).forEach(exl => {
     (exl.sets||[]).forEach(s => {
-      if((s.tipo||'N') === 'W') return;
+      if((s.tipo||'N') === 'W' || s.a_tempo) return;
       const v = calcE1RM(s.peso, s.reps);
       if(v <= 0) return;
       if(!prs[exl.esercizio] || v > prs[exl.esercizio].e1rm){
@@ -1922,7 +2140,14 @@ function renderGymDayBody(client, day){
     const sets = client._gymLog[key];
     return `
       <h3 class="ex-header">${ex.esercizio}${ex.superset?'<span class="ss-badge">SUPERSET</span>':''}</h3>
-      <div class="target-line">Target: ${ex.target} · ${ex.serie} serie x ${ex.reps} reps · riposo ${ex.riposo_sec}s</div>
+      <div class="target-line">Target: ${ex.target} · ${ex.serie} serie x ${ex.reps}${ex.a_tempo?' secondi':' reps'} · riposo ${ex.riposo_sec}s</div>
+      ${(() => {
+        const lib = STATE.exercises.find(x => x.nome === ex.esercizio);
+        let out = '';
+        if(lib && lib.media) out += `<a href="${lib.media}" target="_blank" rel="noopener" class="media-link">▶ Guarda l'esecuzione</a>`;
+        if(lib && lib.cue) out += `<div class="cue-display">${lib.cue}</div>`;
+        return out;
+      })()}
       ${ex.note ? `<div class="ex-note-display">${ex.note}</div>` : ''}
       ${(() => {
         const perf = formatLastPerf(getLastPerformance(client, ex.esercizio));
@@ -2304,7 +2529,9 @@ function computeWeeklyVolume(logs){
     const monday = new Date(d); monday.setDate(d.getDate()+diffToMonday); monday.setHours(0,0,0,0);
     const key = monday.toISOString().slice(0,10);
     let vol = 0;
+    // gli esercizi a tempo registrano secondi, non ripetizioni: fuori dal volume load
     (l.esercizi||[]).forEach(ex => (ex.sets||[]).forEach(s => {
+      if(s.a_tempo) return;
       vol += (parseFloat(s.peso)||0) * (parseFloat(s.reps)||0);
     }));
     buckets[key] = (buckets[key]||0) + vol;
@@ -2623,6 +2850,7 @@ function attachPageHandlers(){
       client.programma_attivo = {
         nome: tpl.nome,
         durata_settimane: nSett,
+        origine: 'coach',
         origine_template: tpl.id,
         settimane: Array.from({length:nSett}, (_,i)=>({
           nome: 'Settimana ' + (i+1),
@@ -2666,6 +2894,10 @@ function attachPageHandlers(){
     const [key, si, field] = inp.dataset.set.split('.');
     client._gymLog[key][+si][field] = e.target.value;
   });
+  document.querySelectorAll('[data-settimer]').forEach(btn => btn.onclick = () => {
+    const [key, si, target] = btn.dataset.settimer.split('.');
+    startSetTimer(target, key, si);
+  });
   document.querySelectorAll('[data-settype]').forEach(btn => btn.onclick = () => {
     const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
     const [key, si] = btn.dataset.settype.split('.');
@@ -2689,6 +2921,7 @@ function attachPageHandlers(){
     const wasDone = client._gymLog[key][+si].done;
     client._gymLog[key][+si].done = !wasDone;
     if(!wasDone){
+      startWorkoutTimer();
       const exIdx = day.esercizi.findIndex((ex,i) => (ex.esercizio+'_'+i) === key);
       if(exIdx >= 0) startRestTimer(day.esercizi[exIdx].riposo_sec);
     }
@@ -2697,6 +2930,43 @@ function attachPageHandlers(){
   });
   const finishBtn = document.getElementById('finishSessionBtn');
   if(finishBtn) finishBtn.onclick = () => openCloseSessionModal();
+
+  // I miei programmi (atleta autonomo)
+  const newMioBtn = document.getElementById('newMioProgrammaBtn');
+  if(newMioBtn) newMioBtn.onclick = () => openTemplateModal(null, 'atleta');
+  document.querySelectorAll('[data-edit-mio]').forEach(b => b.onclick = () => {
+    const cl = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    openTemplateModal((cl.templates_propri||[]).find(t=>t.id===b.dataset.editMio), 'atleta');
+  });
+  document.querySelectorAll('[data-del-mio]').forEach(b => b.onclick = async () => {
+    if(!confirm('Eliminare questo programma?')) return;
+    const cl = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    cl.templates_propri = (cl.templates_propri||[]).filter(t=>t.id!==b.dataset.delMio);
+    await persistClients();
+    render();
+  });
+  document.querySelectorAll('[data-usa-mio]').forEach(b => b.onclick = async () => {
+    const cl = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    const tpl = (cl.templates_propri||[]).find(t=>t.id===b.dataset.usaMio);
+    if(!tpl.giorni.length){ alert('Aggiungi almeno un giorno con esercizi prima di usarlo'); return; }
+    if(cl.programma_attivo && !confirm('Questo sostituisce il programma attivo. Continuare?')) return;
+    const nSett = tpl.durata_settimane || 4;
+    cl.programma_attivo = {
+      nome: tpl.nome,
+      durata_settimane: nSett,
+      origine: 'atleta',
+      origine_template: tpl.id,
+      settimane: Array.from({length:nSett}, (_,i)=>({
+        nome: 'Settimana ' + (i+1),
+        giorni: JSON.parse(JSON.stringify(tpl.giorni))
+      }))
+    };
+    cl.settimana_corrente = 0;
+    cl._gymDayIdx = 0;
+    cl._gymLog = {};
+    await persistClients();
+    goPage('gym');
+  });
 
   // Progressione
   const progrClientSel = document.getElementById('progrClientSel');
