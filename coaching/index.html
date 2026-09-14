@@ -254,6 +254,33 @@ body:has(#workoutTimerBar[style*='flex']) .main{padding-top:56px;}
 .day-block-head input{background:transparent; border:none; color:var(--ink); font-size:16px; font-weight:700; width:70%;}
 .ex-head{display:flex; align-items:center; gap:6px; margin-bottom:6px;}
 .ex-nome{flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--line); color:var(--ink); padding:9px 10px; border-radius:4px; font-size:13px; font-weight:500;}
+.ex-nome-btn{text-align:left; cursor:pointer; font-family:'Inter',sans-serif;}
+.ex-nome-btn.vuoto{color:var(--ink-soft); font-style:italic;}
+.ex-nome-btn:hover{border-color:var(--accent);}
+.pick-search{
+  width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--ink);
+  padding:11px 12px; border-radius:6px; font-size:15px; margin-bottom:10px;
+}
+.pick-search:focus{outline:none; border-color:var(--accent);}
+.pick-chip{
+  background:var(--surface-2); border:1px solid var(--line); color:var(--ink-soft);
+  padding:5px 10px; border-radius:20px; font-size:11px; white-space:nowrap;
+}
+.pick-chip.active{background:var(--accent); color:#FFF; border-color:var(--accent);}
+.pick-list{max-height:44vh; overflow-y:auto; border:1px solid var(--line); border-radius:6px;}
+.pick-sep{
+  padding:6px 12px; font-size:11px; font-weight:700; color:var(--accent);
+  background:var(--surface-2); position:sticky; top:0; letter-spacing:0.05em;
+}
+.pick-item{
+  display:flex; flex-direction:column; gap:2px; width:100%; text-align:left;
+  background:none; border:none; border-bottom:1px solid var(--line); padding:10px 12px; color:var(--ink);
+}
+.pick-item:last-child{border-bottom:none;}
+.pick-item:hover{background:var(--surface-2);}
+.pick-item.sel{background:var(--accent-soft);}
+.pick-nome{font-size:13.5px; font-weight:500;}
+.pick-meta{font-size:10.5px; color:var(--ink-soft);}
 .ex-params{display:grid; grid-template-columns:72px 72px 1fr; gap:6px; align-items:end;}
 .ex-f{display:flex; flex-direction:column; gap:3px; min-width:0;}
 .ex-f > span{font-size:9.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.04em; padding-left:2px;}
@@ -361,6 +388,21 @@ body:has(#workoutTimerBar[style*='flex']) .main{padding-top:56px;}
 .scale-btn.active{background:var(--accent); color:#FFFFFF; border-color:var(--accent); font-weight:600;}
 .ex-header{font-size:20px; margin:22px 0 10px;}
 .ex-header:first-child{margin-top:0;}
+.step-box{
+  display:flex; gap:12px; padding:14px; margin-bottom:14px;
+  border:1px solid var(--line); border-radius:8px; background:var(--surface-2);
+}
+.step-box.bloccato{opacity:.6;}
+.step-num{
+  width:24px; height:24px; flex-shrink:0; border-radius:50%;
+  background:var(--accent); color:#FFF; font-size:12px; font-weight:700;
+  display:flex; align-items:center; justify-content:center;
+}
+.step-box.bloccato .step-num{background:var(--line); color:var(--ink-soft);}
+.step-blocco{
+  font-size:12px; color:var(--ink-soft); font-style:italic;
+  padding:10px; border:1px dashed var(--line); border-radius:6px;
+}
 .sett-grid{width:100%; border-collapse:collapse;}
 .sett-grid th{
   font-size:10.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.03em;
@@ -1776,6 +1818,78 @@ function targetLeggibile(e){
   return base + p;
 }
 
+// Normalizza per la ricerca: minuscole e senza accenti, cosi' "affondi" trova "Affondi"
+function normalizza(s){
+  return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+function apriSelettoreEsercizio(valoreCorrente, onPick){
+  const host = document.getElementById('advBackdrop');
+  host.innerHTML = `
+    <div class="modal" style="max-width:520px;">
+      <h2>Scegli esercizio</h2>
+      <input type="text" id="pickSearch" class="pick-search" placeholder="Scrivi le prime lettere…" autocomplete="off" value="">
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;" id="pickCats"></div>
+      <div id="pickList" class="pick-list"></div>
+      <div class="modal-actions">
+        <button class="btn secondary" id="pickCancel">Annulla</button>
+      </div>
+    </div>`;
+  host.classList.add('active');
+
+  const categorie = [...new Set(STATE.exercises.map(e=>e.categoria))].sort();
+  let catAttiva = '';
+  document.getElementById('pickCats').innerHTML =
+    `<button class="pick-chip active" data-cat="">Tutti</button>` +
+    categorie.map(k=>`<button class="pick-chip" data-cat="${k}">${k}</button>`).join('');
+
+  function disegna(){
+    const q = normalizza(document.getElementById('pickSearch').value.trim());
+    let list = STATE.exercises.slice().sort((a,b)=>a.nome.localeCompare(b.nome,'it'));
+    if(catAttiva) list = list.filter(e=>e.categoria===catAttiva);
+    if(q) list = list.filter(e => normalizza(e.nome).includes(q));
+
+    const el = document.getElementById('pickList');
+    if(list.length === 0){
+      const testo = document.getElementById('pickSearch').value.trim();
+      el.innerHTML = `<div style="padding:18px; text-align:center; color:var(--ink-soft); font-size:13px;">
+        Nessun esercizio trovato.
+        ${testo ? `<br><button class="btn small" id="pickCustom" style="width:auto; margin-top:10px;">Usa comunque «${testo}»</button>` : ''}
+      </div>`;
+      const cb = document.getElementById('pickCustom');
+      if(cb) cb.onclick = () => { host.classList.remove('active'); onPick(testo); };
+      return;
+    }
+    // raggruppo per iniziale quando non sto filtrando per categoria
+    let out = '', ultimaIniziale = '';
+    list.forEach(e => {
+      const ini = e.nome.charAt(0).toUpperCase();
+      if(!catAttiva && ini !== ultimaIniziale){
+        out += `<div class="pick-sep">${ini}</div>`;
+        ultimaIniziale = ini;
+      }
+      out += `<button class="pick-item ${e.nome===valoreCorrente?'sel':''}" data-pick="${e.nome.replace(/"/g,'&quot;')}">
+        <span class="pick-nome">${e.nome}</span>
+        <span class="pick-meta">${e.categoria}${e.attrezzo?' · '+e.attrezzo:''}</span>
+      </button>`;
+    });
+    el.innerHTML = out;
+    el.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => {
+      host.classList.remove('active');
+      onPick(b.dataset.pick);
+    });
+  }
+  disegna();
+  document.getElementById('pickSearch').oninput = disegna;
+  document.querySelectorAll('.pick-chip').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.pick-chip').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    catAttiva = b.dataset.cat;
+    disegna();
+  });
+  document.getElementById('pickCancel').onclick = () => host.classList.remove('active');
+  setTimeout(()=>{ const s = document.getElementById('pickSearch'); if(s) s.focus(); }, 60);
+}
+
 function apriPannelloAvanzato(t, gi, ei, onSave){
   const e = t.giorni[gi].esercizi[ei];
   const tipo = e.target_tipo || 'scala';
@@ -1954,21 +2068,54 @@ function openTemplateModal(existing, owner){
   renderTemplateModalBody(t, !existing, owner || 'coach');
 }
 function renderTemplateModalBody(t, isNew, owner){
+  const nomeVuoto = !t.nome || t.nome === 'Nuovo template' || t.nome === 'Nuovo programma';
   document.getElementById('modalBody').innerHTML = `
-    <h2>${isNew ? 'Nuovo template' : 'Modifica template'}</h2>
-    <div class="field"><label>Nome template</label><input type="text" id="mTplNome" value="${t.nome}"></div>
-    <div class="field"><label>Durata (settimane)</label><input type="number" min="1" max="52" id="mTplSettimane" value="${t.durata_settimane||4}"></div>
-    <div id="tplGiorni"></div>
-    <datalist id="exerciseNamesList">
-      ${STATE.exercises.map(e=>`<option value="${e.nome}">`).join('')}
-    </datalist>
-    <button class="btn secondary small" id="addGiornoBtn" style="width:auto; margin-bottom:10px;">+ Aggiungi giorno</button>
+    <h2>${isNew ? 'Nuovo programma' : 'Modifica programma'}</h2>
+
+    <div class="step-box">
+      <div class="step-num">1</div>
+      <div style="flex:1;">
+        <div class="field" style="margin-bottom:10px;">
+          <label>Nome del programma</label>
+          <input type="text" id="mTplNome" value="${nomeVuoto ? '' : t.nome}" placeholder="es. Ipertrofia 4gg - Marco">
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>Durata (settimane)</label>
+          <input type="number" min="1" max="52" id="mTplSettimane" value="${t.durata_settimane||4}">
+        </div>
+      </div>
+    </div>
+
+    <div class="step-box" id="step2Box">
+      <div class="step-num">2</div>
+      <div style="flex:1;">
+        <label class="field-label" style="margin-bottom:8px;">Giorni di allenamento</label>
+        <div id="tplGiorni"></div>
+        <button class="btn secondary small" id="addGiornoBtn" style="width:auto;">+ Aggiungi giorno</button>
+        <div id="step2Blocco" class="step-blocco" style="display:none;">
+          Dai prima un nome al programma, poi potrai aggiungere i giorni.
+        </div>
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button class="btn secondary" id="modalCancel">Annulla</button>
-      <button class="btn" id="modalSaveTemplate">Salva template</button>
+      <button class="btn" id="modalSaveTemplate">Salva programma</button>
     </div>
   `;
   document.getElementById('modalBackdrop').classList.add('active');
+
+  // Passo 2 sbloccato solo dopo aver dato un nome al programma
+  function aggiornaStep2(){
+    const nome = document.getElementById('mTplNome').value.trim();
+    const ok = nome.length > 0;
+    document.getElementById('step2Box').classList.toggle('bloccato', !ok);
+    document.getElementById('addGiornoBtn').style.display = ok ? '' : 'none';
+    document.getElementById('step2Blocco').style.display = ok ? 'none' : 'block';
+    document.getElementById('tplGiorni').style.display = ok ? '' : 'none';
+  }
+  document.getElementById('mTplNome').oninput = aggiornaStep2;
+  setTimeout(aggiornaStep2, 0);
 
   function renderGiorni(){
     document.getElementById('tplGiorni').innerHTML = t.giorni.map((g,gi) => `
@@ -1982,7 +2129,7 @@ function renderTemplateModalBody(t, isNew, owner){
           <div class="ex-row-wrap ${e.superset?'in-superset':''}" draggable="true" data-drag-ex="${gi}.${ei}">
             <div class="ex-head">
               <span class="drag-handle" title="Trascina per riordinare">⠿</span>
-              <input type="text" class="ex-nome" placeholder="Nome esercizio" value="${e.esercizio}" list="exerciseNamesList" data-ex-field="${gi}.${ei}.esercizio">
+              <button type="button" class="ex-nome ex-nome-btn ${e.esercizio?'':'vuoto'}" data-pick-ex="${gi}.${ei}">${e.esercizio || 'Scegli esercizio…'}</button>
               <button class="icon-btn ${e.superset?'ss-on':''}" data-toggle-ss="${gi}.${ei}" title="Superset con il precedente">⇄</button>
               <button class="icon-btn" data-del-ex="${gi}.${ei}" title="Elimina">✕</button>
             </div>
@@ -2022,6 +2169,13 @@ function renderTemplateModalBody(t, isNew, owner){
       exo.a_tempo = !exo.a_tempo;
       if(exo.a_tempo && (!exo.reps || exo.reps < 5)) exo.reps = 30;
       renderGiorni();
+    });
+    document.querySelectorAll('[data-pick-ex]').forEach(b => b.onclick = () => {
+      const [gi,ei] = b.dataset.pickEx.split('.').map(Number);
+      apriSelettoreEsercizio(t.giorni[gi].esercizi[ei].esercizio, nome => {
+        t.giorni[gi].esercizi[ei].esercizio = nome;
+        renderGiorni();
+      });
     });
     document.querySelectorAll('[data-open-adv]').forEach(b => b.onclick = () => {
       const [gi,ei] = b.dataset.openAdv.split('.').map(Number);
