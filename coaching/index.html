@@ -273,6 +273,15 @@ body:has(#workoutTimerBar[style*='flex']) .main{padding-top:56px;}
 }
 .media-link:hover{background:var(--accent-soft);}
 .cue-display{font-size:12px; color:var(--ink-soft); margin-bottom:8px; font-style:italic;}
+.nota-atleta{
+  width:100%; background:var(--surface-2); border:1px dashed var(--line); color:var(--ink);
+  padding:8px 10px; border-radius:4px; font-size:12px; margin-bottom:10px;
+}
+.nota-atleta:focus{border-style:solid; border-color:var(--accent); outline:none;}
+.nota-atleta-display{
+  font-size:12px; color:var(--ink); margin-top:6px; padding:7px 10px;
+  background:var(--surface-2); border-left:2px solid var(--accent2); border-radius:3px;
+}
 .ex-note-display{font-size:12px; color:var(--accent); margin-bottom:8px; padding:6px 10px; background:var(--accent-soft); border-radius:4px;}
 .pr-badge{display:inline-block; font-size:10px; padding:2px 6px; border-radius:3px; background:var(--accent2-soft); color:var(--accent2); border:1px solid var(--accent2); margin-left:6px;}
 .ex-row input{background:var(--surface-2); border:1px solid var(--line); color:var(--ink); padding:8px; border-radius:4px; font-size:13px;}
@@ -286,7 +295,7 @@ body:has(#workoutTimerBar[style*='flex']) .main{padding-top:56px;}
   padding:12px; border:1px solid var(--line); border-radius:var(--radius); margin-bottom:8px;
 }
 .gym-set-row.done{border-color:var(--accent2); background:var(--accent2-soft);}
-.gym-set-top{display:grid; grid-template-columns:auto 1fr 1fr auto; gap:10px; align-items:center;}
+.gym-set-top{display:grid; grid-template-columns:auto auto 1fr 1fr auto; gap:8px; align-items:center;}
 .set-type-btn{
   width:32px; height:32px; border-radius:6px; border:1px solid var(--line);
   background:var(--surface-2); color:var(--ink-soft); font-size:12px; font-weight:700;
@@ -295,6 +304,9 @@ body:has(#workoutTimerBar[style*='flex']) .main{padding-top:56px;}
 .set-type-btn.type-D{background:#2B1B3D; color:#A855F7; border-color:#A855F7;}
 .set-type-btn.type-F{background:var(--danger-soft); color:var(--danger); border-color:var(--danger);}
 .gym-set-num{font-family:'IBM Plex Mono'; color:var(--ink-soft); font-size:13px;}
+.set-label{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft); white-space:nowrap;}
+.set-label.drop{color:#A855F7; font-weight:600;}
+.gym-set-row.is-drop{margin-left:16px; border-left:2px solid #A855F7;}
 .workout-timer-bar{
   position:fixed; top:0; left:0; right:0; z-index:59;
   background:var(--surface); border-bottom:1px solid var(--line);
@@ -321,6 +333,18 @@ body:has(#workoutTimerBar[style*='flex']) .main{padding-top:56px;}
 }
 .check-btn{background:var(--surface-2); border:1px solid var(--line); color:var(--ink-soft); width:38px; height:38px; border-radius:4px; font-size:16px;}
 .check-btn.done{background:var(--accent2); color:#FFFFFF; border-color:var(--accent2);}
+.drop-row{
+  display:grid; grid-template-columns:auto 1fr 1fr; gap:8px; align-items:center;
+  margin-top:8px; padding-top:8px; border-top:1px dashed var(--line);
+}
+.drop-lbl{
+  font-size:10px; font-weight:700; letter-spacing:0.05em; color:#A855F7;
+  border:1px solid #A855F7; border-radius:3px; padding:3px 6px;
+}
+.drop-row input{
+  background:var(--surface-2); border:1px solid var(--line); color:var(--ink);
+  padding:7px; border-radius:4px; font-family:'IBM Plex Mono'; font-size:13px; text-align:center;
+}
 .gym-scale-row{display:flex; gap:5px; flex-wrap:wrap;}
 .scale-btn{
   background:var(--surface-2); border:1px solid var(--line); color:var(--ink-soft);
@@ -606,9 +630,37 @@ async function findCoachByCredentials(username, codice){
 async function findClientAcrossCoaches(code){
   const coaches = await getCoachRegistry();
   for(const co of coaches){
-    const clients = await loadKey('clients', [], co.id);
-    const match = clients.find(c => c.id === code);
-    if(match) return {coachId: co.id, client: match};
+    // Struttura attuale: un documento per atleta, l'id del documento E' il codice
+    if(firebaseReady){
+      try{
+        const d = await db.collection('coaches').doc(co.id).collection('clients').doc(code).get();
+        if(d.exists) return {coachId: co.id, client: d.data()};
+      }catch(e){ console.warn('Errore ricerca atleta su', co.id, e); }
+    }
+    // Fallback locale
+    const raw = localStorage.getItem('gtc_'+co.id+'_client_'+code);
+    if(raw) return {coachId: co.id, client: JSON.parse(raw)};
+
+    // Ricerca tollerante: gli id Firestore distinguono maiuscole e minuscole,
+    // il codice viene digitato a mano e un errore di battitura e' normale.
+    if(firebaseReady){
+      try{
+        const meta = await db.collection('coaches').doc(co.id).collection('meta').doc('clients').get();
+        const ids = meta.exists ? (meta.data().ids || []) : [];
+        const trovato = ids.find(id => id.toLowerCase() === code.toLowerCase());
+        if(trovato){
+          const d = await db.collection('coaches').doc(co.id).collection('clients').doc(trovato).get();
+          if(d.exists) return {coachId: co.id, client: d.data()};
+        }
+      }catch(e){ console.warn('Errore ricerca tollerante', e); }
+    }
+
+    // Compatibilita' con dati mai migrati (vecchio documento unico)
+    const vecchi = await loadKey('clients', [], co.id);
+    if(Array.isArray(vecchi)){
+      const match = vecchi.find(c => c.id && c.id.toLowerCase() === code.toLowerCase());
+      if(match) return {coachId: co.id, client: match};
+    }
   }
   return null;
 }
@@ -1036,6 +1088,7 @@ async function loadAll(){
       cl.settimana_corrente = cl._sessioneInCorso.settimana;
       cl._gymDayIdx = cl._sessioneInCorso.giorno;
       cl._gymLog = cl._sessioneInCorso.log;
+      cl._gymNote = cl._sessioneInCorso.note || {};
     }
   });
 }
@@ -1203,6 +1256,7 @@ function autosaveSessione(){
     settimana: client.settimana_corrente || 0,
     giorno: client._gymDayIdx || 0,
     log: client._gymLog || {},
+    note: client._gymNote || {},
     secondi: typeof _wtSeconds !== 'undefined' ? _wtSeconds : 0,
     aggiornata: Date.now()
   };
@@ -1265,7 +1319,7 @@ document.getElementById('loginBtn').onclick = async () => {
   if(!name || !code){ alert('Inserisci nome e codice atleta'); return; }
   const found = await findClientAcrossCoaches(code);
   if(!found){
-    alert('Atleta non trovato. Controlla il codice ricevuto dal tuo coach.');
+    alert('Atleta non trovato.\n\nControlla il codice ricevuto dal coach: va copiato esattamente, senza spazi.\n\nSe il problema resta, chiedi al coach di riaprire la tua scheda e ricontrollare il codice.');
     return;
   }
   COACH_ID = found.coachId;
@@ -1401,10 +1455,11 @@ function buildActivityFeed(limit){
   STATE.clients.forEach(cl => {
     (cl.logs||[]).forEach(l => {
       const nSets = (l.esercizi||[]).reduce((s,e)=>s+(e.sets||[]).filter(x=>x.reps).length,0);
+      const note = (l.esercizi||[]).filter(e=>e.nota_atleta).length;
       items.push({
         tipo:'sessione', data:l.data, atleta:cl.nome,
         testo: l.giorno_nome,
-        extra: `${(l.esercizi||[]).length} esercizi · ${nSets} serie${l.durata_min?' · '+l.durata_min+' min':''}${l.sRPE?' · sRPE '+l.sRPE:''}`
+        extra: `${(l.esercizi||[]).length} esercizi · ${nSets} serie${l.durata_min?' · '+l.durata_min+' min':''}${l.sRPE?' · sRPE '+l.sRPE:''}${note?` · <span style="color:var(--accent2);">✎ ${note} nota${note>1?'e':''}</span>`:''}`
       });
     });
     (cl.misure||[]).forEach(m => items.push({
@@ -1749,6 +1804,15 @@ function apriPannelloAvanzato(t, gi, ei, onSave){
           </label>
         </div>
       </div>
+      <div class="field">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" id="advDrop" ${e.drop_set?'checked':''} style="width:18px; height:18px; accent-color:#A855F7;">
+          Drop set dopo ogni serie
+        </label>
+        <div style="font-size:11px; color:var(--ink-soft); margin-top:4px;">
+          Aggiunge sotto ogni serie una riga con carico e ripetizioni proprie.
+        </div>
+      </div>
 
       <div class="modal-actions">
         <button class="btn secondary" id="advCancel">Annulla</button>
@@ -1853,6 +1917,7 @@ function apriPannelloAvanzato(t, gi, ei, onSave){
     }
     e.riposo_sec = parseInt(document.getElementById('advRiposo').value) || 90;
     e.a_tempo = document.getElementById('advTempo').checked;
+    e.drop_set = document.getElementById('advDrop').checked;
     if(e.a_tempo && (!e.reps || e.reps < 5)) e.reps = 30;
     // la settimana 1 detta il valore base mostrato nella riga
     if(e.settimane_plan && e.settimane_plan[0] && e.settimane_plan[0].reps) e.reps = e.settimane_plan[0].reps;
@@ -2374,12 +2439,17 @@ function openCloseSessionModal(){
     if(!durata || !sRPE){ alert('Inserisci sia la durata che lo sforzo percepito'); return; }
     const esercizi = day.esercizi.map((ex,exi) => {
       const key = ex.esercizio + '_' + exi;
-      return {esercizio: ex.esercizio, sets: (client._gymLog[key]||[]).map(s=>({peso:s.peso,reps:s.reps,sforzo:s.sforzo,tipo:s.tipo||'N',a_tempo:!!ex.a_tempo,timestamp:Date.now()}))};
+      return {
+        esercizio: ex.esercizio,
+        nota_atleta: (client._gymNote && client._gymNote[key]) || '',
+        sets: (client._gymLog[key]||[]).map(s=>({peso:s.peso,reps:s.reps,sforzo:s.sforzo,tipo:s.tipo||'N',a_tempo:!!ex.a_tempo,timestamp:Date.now()}))
+      };
     });
     if(!client.logs) client.logs = [];
     const nuovaSessione = {data: Date.now(), giorno_nome: day.nome, esercizi, durata_min: durata, sRPE: sRPE, ua: durata*sRPE};
     client.logs.push(nuovaSessione);
     client._gymLog = {};
+    client._gymNote = {};
     client._sessioneInCorso = null;
     resetWorkoutTimer();
     await persistClientProfile(client);
@@ -2670,12 +2740,18 @@ function renderGymDayBody(client, day){
   if(!client._gymLog) client._gymLog = {};
   return day.esercizi.map((ex, exi) => {
     const key = ex.esercizio + '_' + exi;
-    if(!client._gymLog[key]) client._gymLog[key] = Array.from({length:ex.serie}, ()=>({
-      peso: (ex.carico_previsto != null && ex.carico_previsto !== '')
+    if(!client._gymLog[key]){
+      const pesoBase = (ex.carico_previsto != null && ex.carico_previsto !== '')
         ? ex.carico_previsto
-        : ((client.carichi_correnti && client.carichi_correnti[ex.esercizio]) ? client.carichi_correnti[ex.esercizio] : ''),
-      reps:'', sforzo:'', tipo:'N', done:false
-    }));
+        : ((client.carichi_correnti && client.carichi_correnti[ex.esercizio]) ? client.carichi_correnti[ex.esercizio] : '');
+      const righe = [];
+      for(let n=0; n<ex.serie; n++){
+        righe.push({peso:pesoBase, reps:'', sforzo:'', tipo:'N', done:false});
+        // il drop set e' una riga a se', con carico e reps proprie
+        if(ex.drop_set) righe.push({peso:'', reps:'', sforzo:'', tipo:'D', done:false});
+      }
+      client._gymLog[key] = righe;
+    }
     const sets = client._gymLog[key];
     return `
       <h3 class="ex-header">${ex.esercizio}${ex.superset?'<span class="ss-badge">SUPERSET</span>':''}</h3>
@@ -2710,10 +2786,16 @@ function renderGymDayBody(client, day){
         return `<div class="prev-line"><span class="prev-label">Precedente ${perf.data}</span> ${perf.testo} ${sugg}
           <button class="hist-link" data-vedi-storico="${ex.esercizio}">storico completo</button></div>`;
       })()}
+      ${(() => {
+        if(!client._gymNote) client._gymNote = {};
+        const val = client._gymNote[key] || '';
+        return `<input type="text" class="nota-atleta" placeholder="Nota per il coach su questo esercizio…" value="${val}" data-nota="${key}">`;
+      })()}
       ${sets.map((s,si) => `
-        <div class="gym-set-row ${s.done?'done':''}">
+        <div class="gym-set-row ${s.done?'done':''} ${s.tipo==='D'?'is-drop':''}">
           <div class="gym-set-top">
             <button class="set-type-btn type-${s.tipo||'N'}" data-settype="${key}.${si}" title="Tipo serie">${s.tipo||'N'}</button>
+            <span class="set-label ${s.tipo==='D'?'drop':''}">${s.tipo==='D' ? 'DROP' : '#'+(sets.slice(0,si+1).filter(x=>x.tipo!=='D').length)}</span>
             <input type="number" placeholder="kg" value="${s.peso}" data-set="${key}.${si}.peso">
             <input type="number" placeholder="reps" value="${s.reps}" data-set="${key}.${si}.reps">
             <button class="check-btn ${s.done?'done':''}" data-check="${key}.${si}">✓</button>
@@ -2722,6 +2804,12 @@ function renderGymDayBody(client, day){
           <div class="gym-scale-row">
             ${SFORZO_SCALE.map(sc => `<button class="scale-btn ${s.sforzo===sc.code?'active':''}" data-scale-set="${key}.${si}.${sc.code}">${sc.label}</button>`).join('')}
           </div>
+          ${ex.drop_set ? `
+            <div class="drop-row">
+              <span class="drop-lbl">DROP</span>
+              <input type="number" placeholder="kg" value="${(s.drop&&s.drop.peso)||''}" data-drop="${key}.${si}.peso">
+              <input type="number" placeholder="reps" value="${(s.drop&&s.drop.reps)||''}" data-drop="${key}.${si}.reps">
+            </div>` : ''}
         </div>
       `).join('')}
     `;
@@ -3253,12 +3341,14 @@ function renderProgress(){
                 const sets = (ex.sets||[]).filter(s=>s.peso||s.reps);
                 if(!sets.length) return '';
                 return `<div class="sess-ex">
-                  <div class="sess-ex-nome">${ex.esercizio}</div>
+                  <div class="sess-ex-nome">${ex.esercizio}${ex.nota_atleta?' <span style="color:var(--accent2); font-size:10px;">✎ nota</span>':''}</div>
                   <div>${sets.map(s=>{
                     const sc = s.sforzo ? (SFORZO_SCALE.find(x=>x.code===s.sforzo)||{}).label : '';
                     const unita = s.a_tempo ? 's' : '';
-                    return `<span class="hist-set">${s.peso||'—'}×${s.reps||'—'}${unita}${sc?' <b>'+sc+'</b>':''}</span>`;
+                    const tp = (s.tipo==='D') ? '<sup style="color:#A855F7;">D</sup>' : (s.tipo && s.tipo!=='N' ? `<sup>${s.tipo}</sup>` : '');
+                    return `<span class="hist-set">${s.peso||'—'}×${s.reps||'—'}${unita}${tp}${sc?' <b>'+sc+'</b>':''}</span>`;
                   }).join('')}</div>
+                  ${ex.nota_atleta ? `<div class="nota-atleta-display">${ex.nota_atleta}</div>` : ''}
                 </div>`;
               }).join('')}
             </div>
@@ -3530,6 +3620,12 @@ function attachPageHandlers(){
     client._gymLog[key][+si][field] = e.target.value;
     autosaveSessione();
   });
+  document.querySelectorAll('[data-nota]').forEach(inp => inp.oninput = e => {
+    const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    if(!client._gymNote) client._gymNote = {};
+    client._gymNote[inp.dataset.nota] = e.target.value;
+    autosaveSessione();
+  });
   document.querySelectorAll('[data-vedi-storico]').forEach(b => b.onclick = (ev) => {
     ev.stopPropagation();
     apriStoricoEsercizio(b.dataset.vediStorico);
@@ -3546,6 +3642,13 @@ function attachPageHandlers(){
     client._gymLog[key][+si].tipo = ciclo[(ciclo.indexOf(cur)+1) % ciclo.length];
     document.getElementById('gymDayBody').innerHTML = renderGymDayBody(client, getGiornoCorrente(client));
     attachPageHandlers();
+  });
+  document.querySelectorAll('[data-drop]').forEach(inp => inp.onchange = e => {
+    const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    const [key, si, campo] = inp.dataset.drop.split('.');
+    if(!client._gymLog[key][+si].drop) client._gymLog[key][+si].drop = {peso:'', reps:''};
+    client._gymLog[key][+si].drop[campo] = e.target.value;
+    autosaveSessione();
   });
   document.querySelectorAll('[data-scale-set]').forEach(btn => btn.onclick = () => {
     const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
@@ -3579,6 +3682,7 @@ function attachPageHandlers(){
     const haDati = Object.values(client._gymLog||{}).some(sets => sets.some(x => x.peso || x.reps || x.sforzo));
     if(haDati && !confirm('Annullare la sessione? Tutto quello che hai registrato finora andrà perso e non sarà recuperabile.')) return;
     client._gymLog = {};
+    client._gymNote = {};
     client._sessioneInCorso = null;
     resetWorkoutTimer();
     clearInterval(_setTimerInterval);
@@ -3595,6 +3699,7 @@ function attachPageHandlers(){
     client.settimana_corrente = s.settimana;
     client._gymDayIdx = s.giorno;
     client._gymLog = s.log;
+    client._gymNote = s.note || {};
     if(s.secondi){ _wtSeconds = s.secondi; startWorkoutTimer(); }
     render();
   };
