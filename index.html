@@ -286,7 +286,7 @@ const TEAM_ID = 'alense';
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '1.9';
+const APP_VERSION = '2.0';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -812,6 +812,33 @@ function infortuniPerZona(){
     zona: z, n: mappa[z].n, giorni: mappa[z].giorni,
     giocatori: Object.keys(mappa[z].giocatori).length
   })).sort((a,b)=> b.n - a.n || b.giorni - a.giorni);
+}
+
+/* Conteggio per zona COMPLETA (con lato, es. "Ginocchio Destro"), non semplificata.
+   Serve per la mappa del corpo, che ha un hotspot per ogni zona di BODY_MAP_COORDS. */
+function infortuniPerZonaCompleta(soloAperti){
+  const mappa = {};
+  getInjuries().forEach(i=>{
+    if(soloAperti && i.status === 'risolto') return;
+    const z = i.zone || '';
+    if(!BODY_MAP_COORDS[z]) return;   // zona non mappata sulla silhouette: la ignoro qui
+    mappa[z] = (mappa[z] || 0) + 1;
+  });
+  return mappa;
+}
+
+/* Stessa cosa ma per i dolori (non infortuni conclamati): utile per vedere dove
+   la squadra segnala fastidi prima che diventino infortuni veri. */
+function doloriPerZonaCompleta(){
+  const mappa = {};
+  STATE.players.forEach(p=>{
+    getOpenPainIssues(p.id).forEach(issue=>{
+      const z = issue.zone || '';
+      if(!BODY_MAP_COORDS[z]) return;
+      mappa[z] = (mappa[z] || 0) + 1;
+    });
+  });
+  return mappa;
 }
 
 /* Ricadute: stessa zona, stesso giocatore, piu' di una volta */
@@ -1435,15 +1462,27 @@ function serieACWRGiocatore(playerId, days){
   const dates = _analyticsDateRange(days || 60);
   const pid = String(playerId);
   const entries = STATE.rpeLog.filter(r => String(r.playerId) === pid);
+  if(entries.length === 0) return [];
+  const day = 86400000;
   return dates.map(dateStr => {
     const target = new Date(dateStr + 'T00:00:00').getTime();
-    const day = 86400000;
-    const acuto = entries
-      .filter(r => { const t = new Date(r.date + 'T00:00:00').getTime(); return t <= target && t > target - 7*day; })
-      .reduce((s,r)=>s + Number(r.rpe||0)*Number(r.minutes||0), 0);
-    const cronico28 = entries
-      .filter(r => { const t = new Date(r.date + 'T00:00:00').getTime(); return t <= target && t > target - 28*day; })
-      .reduce((s,r)=>s + Number(r.rpe||0)*Number(r.minutes||0), 0);
+    /* Uso sessionLoad(), non r.minutes direttamente: se l'RPE storico non ha
+       i minuti salvati, sessionLoad recupera la durata dalla sessione collegata
+       (o stima 65min). Senza questo, molti punti risultavano a 0 e falsavano
+       il grafico. Stessa logica di getACWR, cosi' i due numeri coincidono. */
+    let acuto = 0, cronico28 = 0, cronicoN = 0, oldestDays = 0;
+    entries.forEach(r => {
+      const t = new Date(r.date + 'T00:00:00').getTime();
+      if(t > target) return;                       // sessione futura rispetto a questo punto
+      const daysDiff = Math.round((target - t) / day);
+      const load = sessionLoad(r);
+      if(daysDiff < 7) acuto += load;
+      if(daysDiff < 28){ cronico28 += load; cronicoN++; }
+      if(daysDiff > oldestDays) oldestDays = daysDiff;
+    });
+    /* Stessa soglia minima di getACWR: senza abbastanza storico il numero
+       non significa nulla e va escluso, non mostrato come se fosse valido. */
+    if(cronicoN < 4 || oldestDays < 21) return {x: dateStr, y: null};
     const cronico = cronico28 / 4;
     if(cronico === 0) return {x: dateStr, y: null};
     return {x: dateStr, y: Math.round((acuto / cronico) * 100) / 100};
@@ -1452,19 +1491,29 @@ function serieACWRGiocatore(playerId, days){
 
 function serieACWRSquadra(days){
   const dates = _analyticsDateRange(days || 60);
-  const rosa = STATE.players.filter(p => !isPortiere(p));
+  /* Stessa rosa usata nelle altre aggregate di squadra: disponibili, no portieri. */
+  const rosa = STATE.players.filter(countsInTeamAggregate);
+  const day = 86400000;
+  const entriesByPlayer = {};
+  rosa.forEach(p => { entriesByPlayer[p.id] = STATE.rpeLog.filter(r => String(r.playerId) === String(p.id)); });
+
   return dates.map(dateStr => {
+    const target = new Date(dateStr + 'T00:00:00').getTime();
     const acwrs = [];
     rosa.forEach(p => {
-      const target = new Date(dateStr + 'T00:00:00').getTime();
-      const day = 86400000;
-      const entries = STATE.rpeLog.filter(r => String(r.playerId) === String(p.id));
-      const acuto = entries
-        .filter(r => { const t = new Date(r.date + 'T00:00:00').getTime(); return t <= target && t > target - 7*day; })
-        .reduce((s,r)=>s + Number(r.rpe||0)*Number(r.minutes||0), 0);
-      const cronico28 = entries
-        .filter(r => { const t = new Date(r.date + 'T00:00:00').getTime(); return t <= target && t > target - 28*day; })
-        .reduce((s,r)=>s + Number(r.rpe||0)*Number(r.minutes||0), 0);
+      const entries = entriesByPlayer[p.id];
+      if(!entries || entries.length === 0) return;
+      let acuto = 0, cronico28 = 0, cronicoN = 0, oldestDays = 0;
+      entries.forEach(r => {
+        const t = new Date(r.date + 'T00:00:00').getTime();
+        if(t > target) return;
+        const daysDiff = Math.round((target - t) / day);
+        const load = sessionLoad(r);
+        if(daysDiff < 7) acuto += load;
+        if(daysDiff < 28){ cronico28 += load; cronicoN++; }
+        if(daysDiff > oldestDays) oldestDays = daysDiff;
+      });
+      if(cronicoN < 4 || oldestDays < 21) return;   // dati insufficienti: escluso dalla media, non forzato a 0
       const cronico = cronico28 / 4;
       if(cronico > 0) acwrs.push(acuto / cronico);
     });
@@ -5246,7 +5295,53 @@ function renderMedDolori(el){
 }
 
 /* --- Analisi: dove e quanto ci facciamo male --- */
+/* ============================================================
+   SERIE TEMPORALI AREA MEDICA
+   ============================================================ */
+
+/* Nuovi infortuni per settimana, ultime N settimane. Un punto per settimana
+   (non per giorno, altrimenti il grafico e' quasi sempre a zero: gli infortuni
+   sono eventi rari rispetto a wellness/RPE). */
+function serieNuoviInfortuni(weeks){
+  const n = weeks || 26;
+  const today = new Date(todayStr() + 'T00:00:00');
+  const buckets = [];
+  for(let i = n - 1; i >= 0; i--){
+    const end = new Date(today);
+    end.setDate(end.getDate() - i*7);
+    const start = new Date(end);
+    start.setDate(start.getDate() - 6);
+    const startStr = start.toISOString().slice(0,10);
+    const endStr = end.toISOString().slice(0,10);
+    const count = getInjuries().filter(inj => inj.dateStart >= startStr && inj.dateStart <= endStr).length;
+    buckets.push({x: endStr, y: count});
+  }
+  return buckets;
+}
+
+/* Casi aperti (non risolti) ad ogni settimana: quanti infortuni erano "in corso"
+   in quel momento, indipendentemente da quando sono iniziati o finiti. */
+function serieCasiAperti(weeks){
+  const n = weeks || 26;
+  const today = new Date(todayStr() + 'T00:00:00');
+  const buckets = [];
+  const all = getInjuries();
+  for(let i = n - 1; i >= 0; i--){
+    const asOf = new Date(today);
+    asOf.setDate(asOf.getDate() - i*7);
+    const asOfStr = asOf.toISOString().slice(0,10);
+    const count = all.filter(inj => {
+      const startOk = inj.dateStart && inj.dateStart <= asOfStr;
+      const endOk = !inj.dateEnd || inj.dateEnd >= asOfStr;
+      return startOk && endOk;
+    }).length;
+    buckets.push({x: asOfStr, y: count});
+  }
+  return buckets;
+}
+
 function renderMedAnalisi(el){
+  const mapMode = el.dataset.mapMode || 'tutti';   // 'tutti' | 'aperti' | 'dolori'
   const zone = infortuniPerZona();
   const ric = ricadute();
   const perContesto = {};
@@ -5263,9 +5358,49 @@ function renderMedAnalisi(el){
     return {p, n: inj.length, giorni: inj.reduce((a,i)=>a+injuryDaysLost(i),0)};
   }).filter(x=>x.n>0).sort((a,b)=>b.giorni-a.giorni);
 
+  /* Dati per la mappa, in base alla modalita' scelta */
+  const mapData = mapMode === 'aperti' ? infortuniPerZonaCompleta(true)
+                 : mapMode === 'dolori' ? doloriPerZonaCompleta()
+                 : infortuniPerZonaCompleta(false);
+  const mapModeBtn = (id, label) => `<button class="mm-btn" data-mm="${id}" style="padding:6px 12px;border-radius:5px;border:1px solid ${mapMode===id?'var(--clay)':'var(--line)'};background:${mapMode===id?'var(--clay)':'white'};color:${mapMode===id?'white':'var(--ink)'};font-size:11.5px;font-weight:600;cursor:pointer;">${label}</button>`;
+
+  const mapSectionHtml = `
+    <div class="card">
+      <h3>Mappa del corpo</h3>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+        ${mapModeBtn('tutti', 'Tutti gli infortuni')}
+        ${mapModeBtn('aperti', 'Solo casi aperti')}
+        ${mapModeBtn('dolori', 'Dolori segnalati')}
+      </div>
+      ${Object.keys(mapData).length === 0
+        ? '<div style="padding:30px;text-align:center;color:var(--ink-soft);font-size:12.5px;">Nessun dato per questa vista.</div>'
+        : bodyMapSVG(mapData, {interactive:true})
+      }
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Nuovi infortuni per settimana</h3>
+        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Ultime 26 settimane.</div>
+        ${lineChartSVG({
+          series:[{name:'Nuovi casi', color:'#B5473A', data: serieNuoviInfortuni(26)}],
+          yLabel:'Casi', yMin:0
+        })}
+      </div>
+      <div class="card">
+        <h3>Casi aperti nel tempo</h3>
+        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Quanti infortuni erano in corso in ogni momento.</div>
+        ${lineChartSVG({
+          series:[{name:'Casi aperti', color:'#C9922B', data: serieCasiAperti(26)}],
+          yLabel:'Casi', yMin:0
+        })}
+      </div>
+    </div>
+  `;
+
   el.innerHTML = getInjuries().length === 0
-    ? '<div class="card"><div class="empty">Nessun dato da analizzare. Registra gli infortuni, anche quelli passati, per vedere dove si concentrano.</div></div>'
-    : `
+    ? mapSectionHtml + '<div class="card"><div class="empty">Nessun infortunio registrato ancora. Registra i casi, anche passati, per vedere dove si concentrano.</div></div>'
+    : mapSectionHtml + `
     <div class="card">
       <h3>Zone piu colpite</h3>
       <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">Se piu giocatori si fanno male nella stessa zona, spesso non e sfortuna.</div>
@@ -5318,6 +5453,32 @@ function renderMedAnalisi(el){
 
   el.querySelectorAll('.med-row').forEach(r=>{
     r.addEventListener('click', ()=>{ if(r.dataset.playerId) showPlayerReport(r.dataset.playerId); });
+  });
+
+  el.querySelectorAll('.mm-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{ el.dataset.mapMode = b.dataset.mm; renderMedAnalisi(el); });
+  });
+
+  /* Click su un hotspot della mappa: mostra un elenco rapido di chi ha
+     avuto problemi in quella zona, con link alla scheda giocatore. */
+  el.querySelectorAll('.body-hotspot').forEach(g=>{
+    g.addEventListener('click', ()=>{
+      const zona = g.dataset.zone;
+      if(!zona) return;
+      let elenco;
+      if(mapMode === 'dolori'){
+        elenco = STATE.players
+          .map(p => ({p, issue: getOpenPainIssues(p.id).find(i => i.zone === zona)}))
+          .filter(x => x.issue);
+      } else {
+        elenco = getInjuries()
+          .filter(i => i.zone === zona && (mapMode !== 'aperti' || i.status !== 'risolto'))
+          .map(i => ({p: STATE.players.find(pp => String(pp.id) === String(i.playerId)), issue: i}));
+      }
+      if(elenco.length === 0){ showToast('Nessun caso in questa zona'); return; }
+      const testo = elenco.map(x => (x.p ? x.p.name : 'giocatore rimosso')).join(', ');
+      showToast(esc(zona) + ': ' + testo);
+    });
   });
 }
 
