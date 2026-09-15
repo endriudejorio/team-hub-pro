@@ -428,6 +428,17 @@ body:has(#workoutTimerBar[style*='flex']) .main{padding-top:56px;}
 .gym-scale-row{display:flex; gap:5px; flex-wrap:wrap;}
 .serie-extra{display:flex; gap:8px; margin:4px 0 8px;}
 .ex-azioni{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px;}
+.gym-head{margin-bottom:16px;}
+.gym-head-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px;}
+.gym-prog{font-size:17px; font-weight:700; line-height:1.25;}
+.gym-sub{font-size:12px; color:var(--ink-soft); margin-top:2px;}
+.gym-day-sel{margin-top:8px;}
+.target-line.compatta{font-size:11.5px; margin-bottom:8px;}
+.sforzo-chip.vuoto{background:var(--surface-2); color:var(--ink-soft); border-color:var(--line);}
+.sforzo-chip{
+  background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent);
+  border-radius:4px; padding:4px 7px; font-size:11px; font-family:'IBM Plex Mono',monospace; font-weight:600;
+}
 .az-btn{
   background:none; border:1px solid var(--line); color:var(--ink-soft);
   padding:5px 10px; border-radius:5px; font-size:11.5px;
@@ -1653,7 +1664,7 @@ function renderDashboard(){
       <div class="card"><div class="stat-num">${totalClients}</div><div class="stat-label">Atleti totali</div></div>
       <div class="card"><div class="stat-num">${activePrograms}</div><div class="stat-label">Programmi attivi</div></div>
       <div class="card"><div class="stat-num">${totalSessions}</div><div class="stat-label">Sessioni loggate (tutte)</div></div>
-      <div class="card"><div class="stat-num">${STATE.templates.length}</div><div class="stat-label">Template in libreria</div></div>
+      <div class="card"><div class="stat-num">${STATE.templates.length}</div><div class="stat-label">Programmi in libreria</div></div>
     </div>
     <div class="card" style="margin-top:20px;">
       <h3 style="font-size:18px; margin-bottom:4px;">Aderenza ultimi 7 giorni</h3><p style="color:var(--ink-soft); font-size:12px; margin-bottom:12px;">Sessioni loggate rispetto a quelle previste nella settimana corrente</p>
@@ -1920,8 +1931,8 @@ function openExerciseModal(existing){
 function renderTemplates(){
   return `
     <div class="page-head">
-      <h1>Libreria template</h1>
-      <p>Struttura riutilizzabile: modificarla non tocca gli atleti già assegnati</p>
+      <h1>Libreria programmi</h1>
+      <p>I tuoi programmi riutilizzabili: modificarli non tocca gli atleti già assegnati</p>
     </div>
     <button class="btn small" id="newTemplateBtn" style="width:auto; margin-bottom:18px;">+ Nuovo programma</button>
     <div class="card">${renderAlberoProgrammi()}</div>
@@ -2295,7 +2306,7 @@ function openTemplateModal(existing, owner){
   renderTemplateModalBody(t, !existing, owner || 'coach');
 }
 function renderTemplateModalBody(t, isNew, owner){
-  const nomeVuoto = !t.nome || t.nome === 'Nuovo template' || t.nome === 'Nuovo programma';
+  const nomeVuoto = !t.nome || t.nome === 'Nuovo programma' || t.nome === 'Nuovo programma';
   document.getElementById('modalBody').innerHTML = `
     <h2>${isNew ? 'Nuovo programma' : 'Modifica programma'}</h2>
 
@@ -2570,11 +2581,11 @@ function renderMieiProgrammi(){
    ============================================================ */
 function renderAssign(){
   if(STATE.clients.length === 0) return `<div class="page-head"><h1>Assegna programma</h1></div><div class="card">${emptyState('Nessun atleta','Crea prima un atleta nella sezione Atleti.')}</div>`;
-  if(STATE.templates.length === 0) return `<div class="page-head"><h1>Assegna programma</h1></div><div class="card">${emptyState('Nessun template','Crea prima un template nella Libreria.')}</div>`;
+  if(STATE.templates.length === 0) return `<div class="page-head"><h1>Assegna programma</h1></div><div class="card">${emptyState('Nessun programma','Crea prima un programma nella Libreria.')}</div>`;
   return `
     <div class="page-head">
       <h1>Assegna programma</h1>
-      <p>Il template viene copiato: modificarlo dopo non tocca l'originale né altri atleti</p>
+      <p>Il programma viene copiato: modificarlo dopo non tocca l'originale né altri atleti</p>
     </div>
     <div class="card">
       <label class="field-label">Atleti (puoi sceglierne più di uno)</label>
@@ -2586,7 +2597,7 @@ function renderAssign(){
           </label>`).join('')}
       </div>
       <div style="height:14px;"></div>
-      <label class="field-label">Template</label>
+      <label class="field-label">Programma</label>
       <select id="assignTplSel">
         ${STATE.templates.map(t=>`<option value="${t.id}">${t.nome}</option>`).join('')}
       </select>
@@ -2632,17 +2643,19 @@ function renderGym(){
   const day = giorniSett[dayIdx];
 
   return `
-    <div class="page-head">
-      <h1>${prog.nome}</h1>
-      <p>${client.nome} · Settimana ${wIdx+1} di ${settimane.length}${prog.origine === 'atleta' ? ' · programma autoassegnato' : ''}</p>
-    </div>
-    ${clientPicker}
-    <div class="week-progress">
-      ${settimane.map((s,i)=>`<button class="week-dot ${i===wIdx?'active':''} ${i<wIdx?'past':''}" data-week="${i}">${i+1}</button>`).join('')}
-    </div>
-    <div class="field" style="max-width:320px;">
-      <label class="field-label">Giorno</label>
-      <select id="gymDaySel">${giorniSett.map((g,i)=>`<option value="${i}" ${i===dayIdx?'selected':''}>${g.nome}</option>`).join('')}</select>
+    <div class="gym-head">
+      <div class="gym-head-top">
+        <div>
+          <div class="gym-prog">${prog.nome}</div>
+          <div class="gym-sub">${client.nome} · Sett. ${wIdx+1}/${settimane.length}${prog.origine === 'atleta' ? ' · autoassegnato' : ''}</div>
+        </div>
+        <button class="az-btn" id="gymCambiaSett">Settimana ▾</button>
+      </div>
+      <div class="week-progress" id="weekDots" style="display:none;">
+        ${settimane.map((s,i)=>`<button class="week-dot ${i===wIdx?'active':''} ${i<wIdx?'past':''}" data-week="${i}">${i+1}</button>`).join('')}
+      </div>
+      ${clientPicker}
+      <select id="gymDaySel" class="gym-day-sel">${giorniSett.map((g,i)=>`<option value="${i}" ${i===dayIdx?'selected':''}>${g.nome}</option>`).join('')}</select>
     </div>
     ${bannerRipristino(client, wIdx, dayIdx)}
     <div id="gymDayBody">${renderGymDayBody(client, day)}</div>
@@ -3300,20 +3313,20 @@ function renderGymDayBody(client, day){
           sost ? `<span class="sost-badge" title="Al posto di ${ex.esercizio}">sostituito</span>` : ''
         }${
           puoModificareProgramma() ? `<button class="edit-ex-btn" data-edit-live="${exi}" title="Modifica nel programma">✎</button>` : ''
-        }</h3>
-        <div class="ex-azioni">
+        }<button class="edit-ex-btn" data-menu-ex="${exi}" title="Altre azioni">⋯</button></h3>
+        <div class="ex-azioni" id="az_${exi}" style="display:${(sost||saltato)?'flex':'none'};">
           <button class="az-btn" data-sostituisci="${key}">${sost ? 'Cambia di nuovo' : 'Sostituisci'}</button>
           ${sost ? `<button class="az-btn" data-ripristina="${key}">Torna a «${ex.esercizio}»</button>` : ''}
-          <button class="az-btn ${saltato?'attivo':''}" data-salta="${key}">${saltato ? 'Riprendi esercizio' : 'Salta'}</button>
+          <button class="az-btn ${saltato?'attivo':''}" data-salta="${key}">${saltato ? 'Riprendi' : 'Salta'}</button>
         </div>`;
       })()}
-      <div class="target-line">Target: ${descrizioneTarget(ex)}${(() => {
+      <div class="target-line compatta">${descrizioneTarget(ex)}${(() => {
         if(ex.target_tipo !== 'perc1rm' || !ex.target_val) return '';
         const h = getE1RMHistory(client, ex.esercizio);
         if(!h.length) return ' <span style="color:var(--danger);">(nessun massimale stimato: logga qualche serie prima)</span>';
         const kg = arrotondaCarico(h[h.length-1].e1rm * (parseFloat(ex.target_val)/100));
         return ` <b style="color:var(--accent);">≈ ${kg} kg</b>`;
-      })()} · ${ex.serie} serie x ${ex.reps}${ex.a_tempo?' secondi':' reps'} · riposo ${ex.riposo_sec}s</div>
+      })()} · ${ex.serie}×${ex.reps}${ex.a_tempo?'s':''} · rec ${ex.riposo_sec}s</div>
       ${(() => {
         const lib = STATE.exercises.find(x => x.nome === ex.esercizio);
         let out = '';
@@ -3327,7 +3340,7 @@ function renderGymDayBody(client, day){
         : ''}
       ${(() => {
         const perf = formatLastPerf(getLastPerformance(client, ex.esercizio));
-        if(!perf) return '<div class="prev-line">Nessun dato precedente per questo esercizio</div>';
+        if(!perf) return '';
         let sugg = '';
         const prop = computeProgressionProposal(client, ex);
         if(prop && prop.pesoBase > 0){
@@ -3342,7 +3355,9 @@ function renderGymDayBody(client, day){
       ${client._gymSkip && client._gymSkip[key] ? '' : (() => {
         if(!client._gymNote) client._gymNote = {};
         const val = client._gymNote[key] || '';
-        return `<input type="text" class="nota-atleta" placeholder="Nota per il coach su questo esercizio…" value="${val}" data-nota="${key}">`;
+        if(!val && !client._notaAperta?.[key])
+          return `<button class="az-btn" data-apri-nota="${key}" style="margin-bottom:10px;">+ Nota</button>`;
+        return `<input type="text" class="nota-atleta" placeholder="Nota per il coach…" value="${val}" data-nota="${key}">`;
       })()}
       ${client._gymSkip && client._gymSkip[key] ? '' : sets.map((s,si) => `
         <div class="gym-set-row ${s.done?'done':''} ${s.tipo==='D'?'is-drop':''}">
@@ -3352,13 +3367,26 @@ function renderGymDayBody(client, day){
             <input type="number" placeholder="${(ex.carico_previsto!=null && ex.carico_previsto!=='') ? ex.carico_previsto : 'kg'}" value="${s.peso}" data-set="${key}.${si}.peso">
             <input type="number" placeholder="${ex.a_tempo ? (ex.reps+'s') : (ex.reps||'reps')}" value="${s.reps}" data-set="${key}.${si}.reps">
             <div class="check-wrap">
+              ${(() => {
+                const primaDaFare = sets.findIndex(x => !x.done);
+                const attiva = s._apri || si === primaDaFare || (s.done && !s.sforzo);
+                if(attiva) return '';
+                const lbl = s.sforzo ? (SFORZO_SCALE.find(x=>x.code===s.sforzo)||{}).label : '···';
+                return `<button class="sforzo-chip ${s.sforzo?'':'vuoto'}" data-riapri="${key}.${si}">${lbl}</button>`;
+              })()}
               <button class="check-btn ${s.done?'done':''}" data-check="${key}.${si}">✓</button>
               ${(s.peso && s.reps && (s.tipo||'N')!=='W' && isPRSet(client, ex.esercizio, s.peso, s.reps, key, si)) ? '<span class="pr-badge">PR</span>' : ''}
             </div>
           </div>
+          ${(() => {
+            const primaDaFare = sets.findIndex(x => !x.done);
+            // resta aperta anche dopo la spunta, finche' non le dai un voto
+            const attiva = s._apri || si === primaDaFare || (s.done && !s.sforzo);
+            return !attiva ? '' : `
           <div class="gym-scale-row">
             ${SFORZO_SCALE.map(sc => `<button class="scale-btn ${s.sforzo===sc.code?'active':''}" data-scale-set="${key}.${si}.${sc.code}">${sc.label}</button>`).join('')}
-          </div>
+          </div>`;
+          })()}
           ${ex.drop_set ? `
             <div class="drop-row">
               <span class="drop-lbl">DROP</span>
@@ -4435,7 +4463,7 @@ function attachPageHandlers(){
     render();
   });
   document.querySelectorAll('[data-del-template]').forEach(b => b.onclick = async () => {
-    if(!confirm('Eliminare questo template dalla libreria?')) return;
+    if(!confirm('Eliminare questo programma dalla libreria?')) return;
     STATE.templates = STATE.templates.filter(x=>x.id!==b.dataset.delTemplate);
     await persistTemplates();
     render();
@@ -4451,7 +4479,7 @@ function attachPageHandlers(){
     const nSett = tpl.durata_settimane || 4;
     selezionati.forEach(cid => {
       const client = STATE.clients.find(c=>c.id===cid);
-      // copia profonda scollegata dal template originale, una per atleta
+      // copia profonda scollegata dal programma originale, una per atleta
       client.programma_attivo = espandiInSettimane(tpl, 'coach');
       client.settimana_corrente = 0;
       client._gymDayIdx = 0;
@@ -4460,7 +4488,7 @@ function attachPageHandlers(){
     STATE.activeClientId = selezionati[0];
     await persistClients();
     alert(selezionati.length === 1
-      ? 'Programma assegnato. È una copia indipendente: modificarla non tocca il template originale.'
+      ? 'Programma assegnato. È una copia indipendente: modificarla non tocca il programma originale.'
       : 'Programma assegnato a ' + selezionati.length + ' atleti. Ognuno ha la sua copia indipendente.');
     goPage('gym');
   };
@@ -4511,6 +4539,29 @@ function attachPageHandlers(){
     document.getElementById('gymDayBody').innerHTML = renderGymDayBody(client, getGiornoCorrente(client));
     attachPageHandlers();
   }
+  const gymCambiaSett = document.getElementById('gymCambiaSett');
+  if(gymCambiaSett) gymCambiaSett.onclick = () => {
+    const d = document.getElementById('weekDots');
+    d.style.display = d.style.display === 'none' ? 'flex' : 'none';
+  };
+  document.querySelectorAll('[data-menu-ex]').forEach(b => b.onclick = () => {
+    const box = document.getElementById('az_' + b.dataset.menuEx);
+    if(box) box.style.display = box.style.display === 'none' ? 'flex' : 'none';
+  });
+  document.querySelectorAll('[data-apri-nota]').forEach(b => b.onclick = () => {
+    const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    if(!client._notaAperta) client._notaAperta = {};
+    client._notaAperta[b.dataset.apriNota] = true;
+    document.getElementById('gymDayBody').innerHTML = renderGymDayBody(client, getGiornoCorrente(client));
+    attachPageHandlers();
+  });
+  document.querySelectorAll('[data-riapri]').forEach(b => b.onclick = () => {
+    const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
+    const [key, si] = b.dataset.riapri.split('.');
+    client._gymLog[key][+si]._apri = true;
+    document.getElementById('gymDayBody').innerHTML = renderGymDayBody(client, getGiornoCorrente(client));
+    attachPageHandlers();
+  });
   document.querySelectorAll('[data-sostituisci]').forEach(btn => btn.onclick = () => {
     const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
     const key = btn.dataset.sostituisci;
@@ -4577,6 +4628,7 @@ function attachPageHandlers(){
     const client = STATE.clients.find(c=>c.id===STATE.activeClientId);
     const [key, si, code] = btn.dataset.scaleSet.split('.');
     client._gymLog[key][+si].sforzo = code;
+    client._gymLog[key][+si]._apri = false;
     autosaveSessione();
     document.getElementById('gymDayBody').innerHTML = renderGymDayBody(client, getGiornoCorrente(client));
     attachPageHandlers();
