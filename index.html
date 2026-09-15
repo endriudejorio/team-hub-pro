@@ -286,7 +286,7 @@ const TEAM_ID = 'alense';
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '2.1';
+const APP_VERSION = '2.2';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -3676,7 +3676,15 @@ function showPresenceModal(workoutId){
   modal.innerHTML = `
     <div style="background:white;border-radius:12px;max-width:760px;width:100%;padding:24px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h2 style="margin:0;color:var(--pitch);">Presenze</h2>
+        <div>
+          <h2 style="margin:0;color:var(--pitch);">Presenze</h2>
+          ${(()=>{
+            const ev = STATE.events.find(e => e.id === workoutId);
+            if(!ev) return '';
+            const quando = ev.date < todayStr() ? 'passato' : ev.date > todayStr() ? 'futuro' : 'oggi';
+            return `<div style="font-size:12px;color:var(--ink-soft);">${esc(ev.title || 'Allenamento')} · ${fmtDate(ev.date)}${quando !== 'oggi' ? ' (' + quando + ')' : ''}</div>`;
+          })()}
+        </div>
         <button id="closeModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">&#10005;</button>
       </div>
 
@@ -3717,7 +3725,6 @@ function showPresenceModal(workoutId){
       const nowPresent = btn.dataset.present === '1';
       await setPlayerPresence(workoutId, pid, !nowPresent);
       modal.remove();
-      render();
       showPresenceModal(workoutId);
     });
   });
@@ -7632,6 +7639,32 @@ function canMarkPresence(player){
   return player && player.status === 'Disponibile';
 }
 
+/* Puo' questo giocatore inserire l'RPE per questo evento?
+   - Partita: solo se ha effettivamente giocato (minuti > 0) o, in mancanza di
+     formazione registrata, se era convocato. Chi non gioca non ha carico.
+   - Allenamento: chiunque possa allenarsi, anche se non risulta gia' segnato
+     presente. Se inserisce l'RPE viene segnato presente in automatico: e' la
+     prova piu' affidabile che c'era davvero.
+   In entrambi i casi, chi e' Infortunato non compila: il suo carico passa dai
+   piani individuali di riabilitazione, non dalla sessione di squadra. */
+function canEnterRPE(event, playerId){
+  if(!event) return false;
+  const player = STATE.players.find(p => String(p.id) === String(playerId));
+  if(!player) return false;
+  if(player.status === 'Infortunato') return false;
+
+  if(event.type === 'Partita'){
+    if(Array.isArray(event.starters) && event.starters.length > 0){
+      const calc = computeMatchMinutes(event);
+      return !!(calc[playerId] && calc[playerId].minutes > 0);
+    }
+    return Array.isArray(event.convocati) && event.convocati.map(String).includes(String(playerId));
+  }
+  /* Allenamento: aperto a tutti quelli che possono allenarsi, presenti o no.
+     RTP e In valutazione inclusi: si allenano a carico ridotto ma un carico ce l'hanno. */
+  return true;
+}
+
 /* Riepilogo completo della presenza per un evento */
 function getPresenceBreakdown(eventId){
   const event = STATE.events.find(e => e.id === eventId);
@@ -9013,6 +9046,7 @@ function renderAllenamentoDetails(event){
           <div style="font-size:12px;color:var(--ink-soft);">${fmtDate(event.date)} ${event.time || '-'} ${event.md ? '| ' + esc(event.md) : ''}</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
+          <button id="presenzeAllenamentoBtn" class="btn secondary" style="padding:6px 12px;font-size:11px;">Presenze (${Array.isArray(event.presentPlayers) ? event.presentPlayers.length : 0})</button>
           <button id="printAllenamentoBtn" class="btn secondary" style="padding:6px 12px;font-size:11px;">PDF recap</button>
           <button id="closeAllenamentoModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">×</button>
         </div>
@@ -9119,6 +9153,14 @@ function renderAllenamentoDetails(event){
 
   const printBtnAll = document.getElementById('printAllenamentoBtn');
   if(printBtnAll) printBtnAll.addEventListener('click', ()=> printSessionRecap(event.id));
+
+  /* Presenze: apre il modale presenze per QUESTO allenamento, che sia passato,
+     odierno o futuro. Lo staff puo' correggere le presenze in qualunque momento. */
+  const presBtnAll = document.getElementById('presenzeAllenamentoBtn');
+  if(presBtnAll) presBtnAll.addEventListener('click', ()=>{
+    modal.remove();
+    showPresenceModal(event.id);
+  });
   
   // Close on backdrop click
   modal.addEventListener('click', (e)=>{
@@ -10257,7 +10299,20 @@ function formRpeGiocatore(playerId, evento, onDone){
       STATE.rpeLog.push(entry);
     }
     await saveKey('rpe-log', STATE.rpeLog);
-    showToast('Grazie, RPE registrato');
+
+    /* Auto-presenza: se il giocatore compila l'RPE di un allenamento, c'era.
+       Lo segno presente se non lo era gia'. Sulle partite non serve: la presenza
+       in partita e' data dalla formazione e dai minuti, non dall'elenco presenze. */
+    let segnatoPresente = false;
+    if(evento.type !== 'Partita'){
+      const gia = Array.isArray(evento.presentPlayers) && evento.presentPlayers.includes(playerId);
+      if(!gia){
+        await setPlayerPresence(evento.id, playerId, true);
+        segnatoPresente = true;
+      }
+    }
+
+    showToast(segnatoPresente ? 'RPE registrato, sei segnato presente' : 'Grazie, RPE registrato');
     modal.remove();
     if(onDone) onDone();
   });
@@ -10630,19 +10685,9 @@ function renderPlayerCalendario(el){
           const isMatch = e.type === 'Partita';
           const eroPresente = Array.isArray(e.presentPlayers) && e.presentPlayers.includes(playerId);
           const rpeGia = STATE.rpeLog.find(r => String(r.playerId)===String(playerId) && r.sessionId===e.id);
-          /* Stessa logica di puoRpe usata negli impegni passati: la sessione di
-             oggi puo' essere gia' finita, il giocatore deve poter compilare l'RPE. */
-          let puoRpe = false;
-          if(isMatch){
-            if(Array.isArray(e.starters) && e.starters.length > 0){
-              const calc = computeMatchMinutes(e);
-              puoRpe = calc[playerId] && calc[playerId].minutes > 0;
-            } else {
-              puoRpe = Array.isArray(e.convocati) && e.convocati.map(String).includes(String(playerId));
-            }
-          } else {
-            puoRpe = eroPresente;
-          }
+          /* Regola centralizzata: vedi canEnterRPE. Per gli allenamenti non serve
+             essere gia' segnati presenti, la presenza si registra inserendo l'RPE. */
+          const puoRpe = canEnterRPE(e, playerId);
           return `
             <div style="padding:12px;background:var(--chalk);border-radius:6px;margin-bottom:8px;">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -10693,24 +10738,13 @@ function renderPlayerCalendario(el){
     ${pastEvents.length > 0 ? `
       <div class="card">
         <h3>Impegni passati</h3>
-        <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">Dopo un allenamento a cui eri presente o una partita in cui hai giocato, indica quanto e stato faticoso (RPE).</div>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">Dopo un allenamento o una partita in cui hai giocato, indica quanto e stato faticoso (RPE). Se inserisci l''RPE di un allenamento vieni segnato presente in automatico.</div>
         ${pastEvents.slice(-10).reverse().map(e => {
           const isMatch = e.type === 'Partita';
           const eroPresente = Array.isArray(e.presentPlayers) && e.presentPlayers.includes(playerId);
           const rpeGia = STATE.rpeLog.find(r => String(r.playerId)===String(playerId) && r.sessionId===e.id);
-          /* Per le partite: puo inserire RPE se ha effettivamente giocato (ha minuti > 0).
-             Se non c'e ancora il lineup, ricado sul fatto che sia stato convocato. */
-          let puoRpe = false;
-          if(isMatch){
-            if(Array.isArray(e.starters) && e.starters.length > 0){
-              const calc = computeMatchMinutes(e);
-              puoRpe = calc[playerId] && calc[playerId].minutes > 0;
-            } else {
-              puoRpe = Array.isArray(e.convocati) && e.convocati.map(String).includes(String(playerId));
-            }
-          } else {
-            puoRpe = eroPresente;
-          }
+          /* Regola centralizzata: vedi canEnterRPE. */
+          const puoRpe = canEnterRPE(e, playerId);
           return `
             <div style="padding:12px;background:#F9F9F9;border-radius:6px;margin-bottom:8px;">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
