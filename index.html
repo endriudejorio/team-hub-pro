@@ -242,6 +242,25 @@
   function mostraErrore(testo){
     var r = document.getElementById('root');
     if(!r) return;
+    /* Se l'app e' gia' partita (login o interfaccia a schermo), un errore in una
+       singola funzione non deve cancellare tutto: avviso in alto e l'app resta
+       utilizzabile. La schermata di errore completa resta solo per l'avvio. */
+    if(r.querySelector('.app, .login-screen')){
+      if(window.console) console.error(testo);
+      var b = document.getElementById('erroreBanner');
+      if(!b){
+        b = document.createElement('div');
+        b.id = 'erroreBanner';
+        b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:20000;background:#B5473A;color:#fff;' +
+          'font-family:-apple-system,sans-serif;font-size:12.5px;padding:10px 44px 10px 14px;line-height:1.4;';
+        document.body.appendChild(b);
+      }
+      b.innerHTML = 'Errore in questa funzione: il resto dell\'app continua a funzionare. ' +
+        '<span style="opacity:.8">(' + String(testo).replace(/</g,'&lt;').slice(0,220) + ')</span>' +
+        '<button onclick="this.parentNode.remove()" style="position:absolute;right:10px;top:6px;background:none;' +
+        'border:none;color:#fff;font-size:20px;cursor:pointer;">&times;</button>';
+      return;
+    }
     if(r.getAttribute('data-errore')) return;   // solo il primo
     r.setAttribute('data-errore','1');
     r.innerHTML =
@@ -286,7 +305,7 @@ const TEAM_ID = 'alense';
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '2.3';
+const APP_VERSION = '2.4';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -523,6 +542,7 @@ function cmjFatica(playerId){
 
 const TEST_SPECS = {
   '30-15 Intermittent': {unit: 'km/h', description: 'Boucheit – Velocità massima raggiunta'},
+  'VAM': {unit: 'km/h', description: 'Velocita aerobica massima – test in linea (es. Vameval, Gacon)'},
   'Yo-Yo IR1': {unit: 'm', description: 'Distanza totale percorsa'},
   'Yo-Yo IR2': {unit: 'm', description: 'Distanza totale percorsa'},
   'Sprint 20m': {unit: 's', description: 'Tempo al decimo'},
@@ -7272,19 +7292,17 @@ function renderAllenamenti(el){
         `;
         
         setTimeout(()=>{
-          // Load tests for auto-grouping
-          (async ()=>{
-            const tests = await window.storage.get('tests').catch(()=>null);
-            let testOptions = '<option value="">-- Oppure: scegli test per auto-grouping --</option>';
-            if(tests && tests.value){
-              try{
-                const testsData = JSON.parse(tests.value);
-                testsData.forEach(t=>{
-                  testOptions += `<option value='${JSON.stringify(t)}'>${t.name} (${t.date})</option>`;
-                });
-              }catch(e){}
-            }
-            document.getElementById('wTestSelect').innerHTML = testOptions;
+          /* Elenco test per l'auto-grouping. Legge da STATE.tests: window.storage esiste
+             solo nell'anteprima di Claude, sul sito pubblicato non c'e' e faceva crashare
+             l'app appena si creava un'esercitazione con gruppi. Solo test in km/h. */
+          (function(){
+            const kmh = (STATE.tests || [])
+              .filter(t => (TEST_SPECS[t.type] || {}).unit === 'km/h' && (t.results || []).some(r => typeof r.value === 'number'))
+              .sort((a,b) => String(b.date).localeCompare(String(a.date)));
+            const sel = document.getElementById('wTestSelect');
+            if(sel) sel.innerHTML =
+              '<option value="">' + (kmh.length ? '-- Scegli un test (VAM o 30-15) --' : '-- Nessun test in km/h registrato --') + '</option>' +
+              kmh.map(t => `<option value="${esc(String(t.id))}">${esc(t.name || t.type)} (${fmtDate(t.date)})</option>`).join('');
           })();
 
           const testSelect = document.getElementById('wTestSelect');
@@ -7317,73 +7335,40 @@ function renderAllenamenti(el){
           };
 
           autoGroupBtn.addEventListener('click', ()=>{
-            const testData = testSelect.value;
-            if(!testData){
-              showToast('Seleziona un test');
-              return;
-            }
-            try{
-              const test = JSON.parse(testData);
-              const results = test.results || [];
-              
-              // Sort by vift descending
-              results.sort((a, b) => (b.vift || 0) - (a.vift || 0));
-              
-              // Divide in 3 groups
-              const groupSize = Math.ceil(results.length / 3);
-              const groups = {
-                red: results.slice(0, groupSize),
-                yellow: results.slice(groupSize, groupSize*2),
-                blue: results.slice(groupSize*2)
-              };
-
-              // Calculate Bucheit ranges (simplified)
-              const bucketSize = 5; // meters
-              const colors = {red: 'ROSSO (Veloce)', yellow: 'GIALLO (Medio)', blue: 'BLU (Lento)'};
-              const colorBg = {red: '#FEE2E2', yellow: '#FEF3C7', blue: '#DBEAFE'};
-              
-              let html = '';
-              Object.entries(groups).forEach(([color, players])=>{
-                const avgVift = players.reduce((s, p) => s + (p.vift || 0), 0) / players.length;
-                const coneRange = `${Math.max(0, Math.round(avgVift*10-bucketSize))}-${Math.round(avgVift*10+bucketSize)}m`;
-                
-                html += `
-                  <div style="margin-bottom:12px;padding:12px;background:${colorBg[color]};border-left:4px solid;border-left-color:${color==='red'?'#EF4444':color==='yellow'?'#FBBF24':'#3B82F6'};border-radius:4px;">
-                    <h5 style="margin:0 0 8px 0;font-size:12px;font-weight:600;">${colors[color]}</h5>
-                    <div style="font-size:11px;margin-bottom:8px;color:var(--ink-soft);">
-                      <strong>Coni:</strong> ${coneRange} | <strong>Giocatori:</strong> ${players.length}
-                    </div>
-                    <div style="font-size:11px;display:flex;flex-wrap:wrap;gap:6px;">
-                      ${players.map(p=>{
-                        const playerName = STATE.players.find(pl=>pl.id==p.playerId)?.name||'Unknown';
-                        return `<span style="background:white;padding:4px 8px;border-radius:3px;">${playerName}</span>`;
-                      }).join('')}
-                    </div>
-                  </div>
-                `;
-                
-                // Check these in wGroupPlayer
-                setTimeout(()=>{
-                  players.forEach(p=>{
-                    const chk = document.querySelector(`.wGroupPlayer[data-group="0"][value="${p.playerId}"]`);
-                    if(chk && color==='red') chk.checked = true;
-                    else if(chk && color==='yellow'){
-                      const chk2 = document.querySelector(`.wGroupPlayer[data-group="1"][value="${p.playerId}"]`);
-                      if(chk2) chk2.checked = true;
-                    }else if(chk && color==='blue'){
-                      const chk3 = document.querySelector(`.wGroupPlayer[data-group="2"][value="${p.playerId}"]`);
-                      if(chk3) chk3.checked = true;
-                    }
-                  });
-                }, 100);
-              });
-              
-              autoGroupDisplay.innerHTML = html;
-              numGroupsInput.value = 3;
-              updateGroupsConfig();
-            }catch(e){
-              showToast('Errore parsing test');
-            }
+            const test = (STATE.tests || []).find(t => String(t.id) === String(testSelect.value));
+            if(!test){ showToast('Seleziona un test'); return; }
+            /* Dal piu' veloce al piu' lento, portieri esclusi come negli altri raggruppamenti */
+            const risultati = (test.results || [])
+              .filter(r => typeof r.value === 'number' && r.value > 0)
+              .filter(r => { const p = STATE.players.find(pl => String(pl.id) === String(r.playerId)); return p && !isPortiere(p); })
+              .sort((x,y) => y.value - x.value);
+            if(risultati.length === 0){ showToast('Nessun risultato valido in questo test'); return; }
+            const dim = Math.ceil(risultati.length / 3);
+            const gruppi = [
+              {nome:'Rosso', colore:'#EF4444', bg:'#FEE2E2', righe: risultati.slice(0, dim)},
+              {nome:'Giallo', colore:'#D4A017', bg:'#FEF3C7', righe: risultati.slice(dim, dim*2)},
+              {nome:'Blu', colore:'#3B82F6', bg:'#DBEAFE', righe: risultati.slice(dim*2)}
+            ].filter(g => g.righe.length);
+            const coni = v => Math.round((v / 3.6) * 15 / 5) * 5;   // metri in 15" al 100%, arrotondati a 5 m
+            autoGroupDisplay.innerHTML = gruppi.map(g => {
+              const vMax = g.righe[0].value, vMin = g.righe[g.righe.length-1].value;
+              return `<div style="margin-bottom:10px;padding:10px;background:${g.bg};border-left:4px solid ${g.colore};border-radius:4px;">
+                <div style="font-size:12px;font-weight:700;margin-bottom:4px;">${g.nome} · ${g.righe.length}</div>
+                <div style="font-size:11px;color:var(--ink-soft);margin-bottom:6px;">${vMin.toFixed(1)}–${vMax.toFixed(1)} km/h · 15" al 100%: ${coni(vMin)}–${coni(vMax)} m</div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px;">${g.righe.map(r => {
+                  const p = STATE.players.find(pl => String(pl.id) === String(r.playerId));
+                  return `<span style="background:white;padding:3px 7px;border-radius:3px;font-size:11px;">${esc(p ? p.name : '?')} ${r.value.toFixed(1)}</span>`;
+                }).join('')}</div>
+              </div>`;
+            }).join('');
+            /* Ricreo i gruppi manuali e spunto subito i giocatori nel gruppo giusto */
+            numGroupsInput.value = gruppi.length;
+            updateGroupsConfig();
+            document.querySelectorAll('.wGroupName').forEach((inp, i) => { if(gruppi[i]) inp.value = gruppi[i].nome; });
+            gruppi.forEach((g, i) => g.righe.forEach(r => {
+              const chk = Array.from(document.querySelectorAll('.wGroupPlayer[data-group="' + i + '"]')).find(x => x.value === String(r.playerId));
+              if(chk) chk.checked = true;
+            }));
           });
           
           numGroupsInput.addEventListener('change', updateGroupsConfig);
@@ -8189,383 +8174,453 @@ function calcolaAutoSplitDifferenziato(dateStr, sogliaMinuti){
 }
 
 /* Crea la configurazione differenziata di default per una sessione. */
+/* ============================================================
+   LAVORO DIFFERENZIATO — formato dati v2 (dalla 2.4)
+   event.differenziato = {
+     attivo, sogliaMinuti, autoSplitDaPartitaId, autoSplitDaPartitaData, note,
+     recupero: GRUPPO, intensivo: GRUPPO, creatoIl
+   }
+   GRUPPO = {
+     giocatoriIds: [id...],
+     modalita: 'VAM' | 'VIFT',          // test da cui si leggono le velocita'
+     percentuale: n,                    // % della velocita' del test
+     lavoroSec: n,                      // secondi per ripetuta; 0 = corsa continua
+     durataCorsaMin: n,                 // minuti del blocco di corsa
+     nSottogruppi: 'auto' | 1 | 2 | 3,
+     esercitazioniIds: [workoutId...],  // dall'archivio Allenamenti
+     extra: [{nome, durataMinuti}],     // formato precedente: mostrato e rimovibile
+     note: ''
+   }
+   Le sessioni salvate col formato precedente vengono convertite al volo da
+   normalizzaDifferenziato, senza perdere dati. Tutto vive dentro l'evento del
+   calendario: l'archivio esercitazioni non viene mai modificato.
+   ============================================================ */
+
+/* Da quale tipo di test si legge la velocita' del giocatore */
+const DIFF_TEST_PER_MODALITA = { VAM: 'VAM', VIFT: '30-15 Intermittent' };
+
+/* Sottogruppi di velocita': Rosso = piu' veloci, Blu = piu' lenti (convenzione dell'app) */
+const DIFF_SOTTOGRUPPI = {
+  1: [{nome:'Gruppo unico', colore:'#3F7A5C', bg:'#E3EFE7'}],
+  2: [{nome:'Rosso', colore:'#EF4444', bg:'#FEE2E2'}, {nome:'Blu', colore:'#3B82F6', bg:'#DBEAFE'}],
+  3: [{nome:'Rosso', colore:'#EF4444', bg:'#FEE2E2'}, {nome:'Giallo', colore:'#D4A017', bg:'#FEF3C7'}, {nome:'Blu', colore:'#3B82F6', bg:'#DBEAFE'}]
+};
+
+function gruppoDiffDefault(tipo){
+  return tipo === 'recupero'
+    ? {giocatoriIds:[], modalita:'VAM',  percentuale:65, lavoroSec:0,  durataCorsaMin:25, nSottogruppi:'auto', esercitazioniIds:[], extra:[], note:''}
+    : {giocatoriIds:[], modalita:'VIFT', percentuale:95, lavoroSec:15, durataCorsaMin:0,  nSottogruppi:'auto', esercitazioniIds:[], extra:[], note:''};
+}
+
+function normalizzaGruppoDiff(g, tipo){
+  const out = Object.assign({}, gruppoDiffDefault(tipo), g || {});
+  if(g){
+    /* migrazione dal formato precedente */
+    if(g.percentuale == null && g.percentualeIntensita != null) out.percentuale = g.percentualeIntensita;
+    if(g.durataCorsaMin == null && g.durataMinuti != null) out.durataCorsaMin = g.durataMinuti;
+  }
+  ['giocatoriIds','esercitazioniIds','extra'].forEach(k => { if(!Array.isArray(out[k])) out[k] = []; });
+  out.giocatoriIds = out.giocatoriIds.map(String);
+  if(out.modalita !== 'VAM' && out.modalita !== 'VIFT') out.modalita = gruppoDiffDefault(tipo).modalita;
+  delete out.percentualeIntensita;
+  delete out.durataMinuti;
+  return out;
+}
+
+function normalizzaDifferenziato(d){
+  if(!d) return d;
+  d.recupero = normalizzaGruppoDiff(d.recupero, 'recupero');
+  d.intensivo = normalizzaGruppoDiff(d.intensivo, 'intensivo');
+  if(!d.sogliaMinuti) d.sogliaMinuti = DIFF_SOGLIA_MINUTI_DEFAULT;
+  return d;
+}
+
 function creaDifferenziatoDefault(dateStr, sogliaMinuti){
   const split = calcolaAutoSplitDifferenziato(dateStr, sogliaMinuti);
+  const rec = gruppoDiffDefault('recupero');
+  const int = gruppoDiffDefault('intensivo');
+  rec.giocatoriIds = split.recupero.map(String);
+  int.giocatoriIds = split.intensivo.map(String);
   return {
     attivo: true,
     autoSplitDaPartitaId: split.partitaId,
     autoSplitDaPartitaData: split.partitaData,
     sogliaMinuti: split.sogliaMinuti,
-    recupero: {
-      giocatoriIds: split.recupero,
-      modalita: 'VAM',              /* VAM in linea di default; alternativa 'VIFT' con COD */
-      percentualeIntensita: 65,     /* % di VIFT o VAM */
-      durataMinuti: 25,
-      extra: []                     /* [{ nome, durataMinuti, descrizione? }, ...] */
-    },
-    intensivo: {
-      giocatoriIds: split.intensivo,
-      esercitazioniIds: [],         /* pescate dall'archivio */
-      note: ''
-    },
+    note: split.note,
+    recupero: rec,
+    intensivo: int,
     creatoIl: new Date().toISOString()
   };
 }
 
-/* Durata stimata del differenziato per un giocatore in un evento.
-   Serve al calcolo carico (RPE x minuti). */
+/* Ultimo risultato del giocatore nel test della modalita' scelta */
+function velocitaTestGiocatore(playerId, modalita){
+  const tipo = DIFF_TEST_PER_MODALITA[modalita];
+  if(!tipo) return null;
+  const storia = playerTestHistory(playerId, tipo);   // dal piu' recente
+  return storia.length ? {value: storia[0].value, date: storia[0].date} : null;
+}
+
+/* Divide i giocatori di un gruppo in sottogruppi contigui per velocita' di test.
+   Auto: 1 sottogruppo fino a 3 giocatori, 2 fino a 6, poi 3. */
+function sottogruppiDifferenziato(g){
+  const arrot5 = m => Math.round(m / 5) * 5;
+  const conTest = [], senzaTest = [];
+  g.giocatoriIds.forEach(pid => {
+    const p = STATE.players.find(x => String(x.id) === String(pid));
+    if(!p) return;
+    const t = velocitaTestGiocatore(p.id, g.modalita);
+    if(t && t.value > 0) conTest.push({p, v: t.value, testDate: t.date});
+    else senzaTest.push(p);
+  });
+  conTest.sort((a,b) => b.v - a.v);
+  const n = conTest.length;
+  let k = (g.nSottogruppi === 'auto' || !g.nSottogruppi) ? (n >= 7 ? 3 : n >= 4 ? 2 : 1) : parseInt(g.nSottogruppi, 10);
+  k = Math.max(1, Math.min(3, k, n || 1));
+  const pct = (Number(g.percentuale) || 100) / 100;
+  const lavoro = Number(g.lavoroSec) || 0;
+  const corsa = Number(g.durataCorsaMin) || 0;
+  const sotto = [];
+  let start = 0;
+  for(let i = 0; i < k; i++){
+    const size = Math.floor(n / k) + (i < n % k ? 1 : 0);
+    const righe = conTest.slice(start, start + size).map(x => {
+      const vTarget = x.v * pct;                 // km/h
+      const ms = vTarget / 3.6;
+      return Object.assign({}, x, {
+        vTarget,
+        distRep: lavoro > 0 ? arrot5(ms * lavoro) : null,
+        distTot: lavoro === 0 && corsa > 0 ? Math.round(ms * corsa * 60) : null
+      });
+    });
+    start += size;
+    if(righe.length) sotto.push(Object.assign({}, DIFF_SOTTOGRUPPI[k][i], {righe}));
+  }
+  return {sotto, senzaTest, tipoTest: DIFF_TEST_PER_MODALITA[g.modalita]};
+}
+
+function durataGruppoDiff(g){
+  let tot = Number(g.durataCorsaMin) || 0;
+  (g.extra || []).forEach(x => { tot += Number(x.durataMinuti) || 0; });
+  (g.esercitazioniIds || []).forEach(wid => {
+    const w = STATE.workouts.find(x => x.id === wid);
+    if(w) tot += Number(calcWorkoutDuration(w)) || 0;
+  });
+  return tot;
+}
+
+/* Durata del lavoro differenziato per un giocatore (minuti), per il calcolo del carico */
 function durataDifferenziatoPerGiocatore(event, playerId){
   const d = event && event.differenziato;
   if(!d || !d.attivo) return 0;
+  normalizzaDifferenziato(d);
   const pid = String(playerId);
-  if(d.recupero && d.recupero.giocatoriIds && d.recupero.giocatoriIds.map(String).includes(pid)){
-    let tot = d.recupero.durataMinuti || 0;
-    (d.recupero.extra || []).forEach(x => { tot += (x.durataMinuti || 0); });
-    return tot;
-  }
-  if(d.intensivo && d.intensivo.giocatoriIds && d.intensivo.giocatoriIds.map(String).includes(pid)){
-    let tot = 0;
-    (d.intensivo.esercitazioniIds || []).forEach(wid=>{
-      const w = STATE.workouts.find(x => x.id === wid);
-      if(w) tot += calcWorkoutDuration(w);
-    });
-    return tot;
-  }
+  if(d.recupero.giocatoriIds.includes(pid)) return durataGruppoDiff(d.recupero);
+  if(d.intensivo.giocatoriIds.includes(pid)) return durataGruppoDiff(d.intensivo);
   return 0;
 }
 
-/* Editor del differenziato: modale con auto-split, due colonne (recupero/intensivo),
-   configurazione dettagliata di ciascun gruppo. */
-function apriEditorDifferenziato(eventId, onSave){
-  const event = STATE.events.find(e => e.id === eventId);
-  if(!event){ showToast('Sessione non trovata'); return; }
-  if(!event.differenziato){
-    event.differenziato = creaDifferenziatoDefault(event.date, DIFF_SOGLIA_MINUTI_DEFAULT);
-  }
-  const d = event.differenziato;
+function fmtKmh(v){ return (Math.round(v * 10) / 10).toFixed(1); }
+function passoKm(vKmh){
+  if(!vKmh) return '—';
+  const sec = Math.round(3600 / vKmh);
+  return Math.floor(sec / 60) + "'" + String(sec % 60).padStart(2, '0') + '"';
+}
 
-  const modal = document.createElement('div');
-  modal.id = 'diffModal';
-  /* Non uso class="modal" (nel CSS non esiste), applico direttamente lo stile overlay
-     come fanno gli altri modali del file. Senza questo, il modale finiva inline sotto
-     l'ultimo elemento della pagina e restava visibile su tutte le schermate. */
-  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:flex-start;justify-content:center;z-index:9999;padding:20px;box-sizing:border-box;overflow-y:auto;';
-  /* Click su sfondo chiude il modale (comportamento standard degli altri modali del file) */
-  modal.addEventListener('click', (e)=>{
-    if(e.target === modal) modal.remove();
+/* Opzioni del menu "aggiungi esercitazione": prima quelle gia' nella sessione,
+   poi tutto l'archivio raggruppato per categoria. */
+function opzioniEsercitazioniDiff(event, g){
+  const nelGruppo = new Set(g.esercitazioniIds);
+  const inSessione = new Set(event.workoutIds || []);
+  const disponibili = STATE.workouts.filter(w => !nelGruppo.has(w.id));
+  const opt = w => `<option value="${esc(w.id)}">${esc(w.name)} · ${calcWorkoutDuration(w)}'</option>`;
+  const sessione = disponibili.filter(w => inSessione.has(w.id));
+  const perCat = {};
+  disponibili.filter(w => !inSessione.has(w.id)).forEach(w => {
+    const c = w.category || w.type || 'Altro';
+    (perCat[c] = perCat[c] || []).push(w);
   });
+  let html = `<option value="">+ Aggiungi esercitazione (${disponibili.length} disponibili)</option>`;
+  if(sessione.length) html += `<optgroup label="In questa sessione">${sessione.map(opt).join('')}</optgroup>`;
+  Object.keys(perCat).sort().forEach(c => {
+    html += `<optgroup label="${esc(c)}">${perCat[c].sort((a,b) => String(a.name).localeCompare(String(b.name))).map(opt).join('')}</optgroup>`;
+  });
+  return html;
+}
 
-  /* Render principale dell'editor. Ridisegno tutto il contenuto quando
-     l'utente cambia qualcosa che influenza la vista. */
-  const rerender = ()=>{
-    const recIds = new Set((d.recupero.giocatoriIds || []).map(String));
-    const intIds = new Set((d.intensivo.giocatoriIds || []).map(String));
-    const rosaMovimento = STATE.players.filter(p => !isPortiere(p));
-    const nonAssegnati = rosaMovimento.filter(p=>{
-      const id = String(p.id);
-      return !recIds.has(id) && !intIds.has(id);
-    });
+function colonnaGruppoDiff(event, chiave){
+  const g = event.differenziato[chiave];
+  const isRec = chiave === 'recupero';
+  const accent = isRec ? 'var(--ok)' : 'var(--clay)';
+  const bg = isRec ? '#F0F7F1' : '#FDF3E7';
+  const freccia = isRec ? '→ Int' : '← Rec';
+  const sg = sottogruppiDifferenziato(g);
+  const lavoro = Number(g.lavoroSec) || 0;
+  const corsa = Number(g.durataCorsaMin) || 0;
+  const inputNum = (campo, val, min, max, step, w) =>
+    `<input type="number" data-diff-field="${campo}" data-diff-g="${chiave}" value="${val}" min="${min}" max="${max}" step="${step}" style="width:${w}px;padding:4px 5px;font-size:11.5px;border:1px solid var(--line);border-radius:4px;">`;
+  const lab = t => `<span style="font-size:10.5px;color:var(--ink-soft);">${t}</span>`;
 
-    /* Info sulla partita da cui e' derivato lo split */
-    const partitaInfo = d.autoSplitDaPartitaData
-      ? 'Auto-split calcolato dalla partita del <strong>' + fmtDate(d.autoSplitDaPartitaData) + '</strong> · soglia <strong>' + d.sogliaMinuti + '\'</strong>'
-      : 'Nessuna partita recente entro ' + DIFF_GIORNI_LOOKBACK + ' giorni: split iniziale a mano.';
-
-    /* Elenco esercitazioni pescabili per il gruppo intensivo, con filtro */
-    const filtroTipo = d._filtroTipo || '';
-    const filtroCat  = d._filtroCat  || '';
-    const eseSelezionate = new Set((d.intensivo.esercitazioniIds || []));
-    const eseFiltrate = STATE.workouts.filter(w=>{
-      if(filtroTipo && w.type !== filtroTipo) return false;
-      if(filtroCat && w.category !== filtroCat) return false;
-      return true;
-    });
-    const tipiUnici  = [...new Set(STATE.workouts.map(w=>w.type).filter(Boolean))].sort();
-    const catUniche  = [...new Set(STATE.workouts.map(w=>w.category).filter(Boolean))].sort();
-
-    /* Elenco portieri: sempre fuori */
-    const portieri = STATE.players.filter(isPortiere);
-
-    modal.innerHTML = `
-      <div class="modal-content" style="max-width:900px;max-height:90vh;overflow-y:auto;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-          <h2 style="margin:0;">Lavoro differenziato · ${fmtDate(event.date)}</h2>
-          <button class="btn secondary" id="diffCloseTop" style="font-size:12px;padding:6px 12px;">Chiudi</button>
-        </div>
-
-        <div style="background:#F7F5EC;padding:10px 12px;border-radius:6px;margin-bottom:14px;font-size:12px;">
-          ${partitaInfo}
-          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            <label style="font-size:11px;">Soglia minuti</label>
-            <input type="number" id="diffSoglia" value="${d.sogliaMinuti}" min="10" max="120" style="width:70px;padding:4px 6px;font-size:12px;">
-            <button type="button" class="btn secondary" id="diffRecalc" style="font-size:11px;padding:4px 10px;">Ricalcola split automatico</button>
-          </div>
-        </div>
-
-        ${portieri.length > 0 ? `
-          <div style="font-size:11px;color:var(--ink-soft);margin-bottom:12px;padding:8px 10px;background:#F7F5EC;border-radius:6px;">
-            <strong>Portieri (esclusi dal differenziato):</strong> ${portieri.map(p=>esc(p.name)).join(', ')}
-          </div>
-        ` : ''}
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-
-          <!-- ========== GRUPPO RECUPERO ========== -->
-          <div style="border:1px solid var(--line);border-radius:8px;padding:12px;background:#F0F7F1;">
-            <h3 style="margin:0 0 10px 0;color:var(--ok);font-size:14px;">Recupero (${recIds.size})</h3>
-            <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Aerobico blando, tipicamente chi ha giocato molto in partita.</div>
-
-            <label style="font-size:11px;">Modalità</label>
-            <select id="diffRecModalita" style="width:100%;padding:6px;font-size:12px;margin-bottom:8px;">
-              <option value="VAM"  ${d.recupero.modalita==='VAM'?'selected':''}>VAM in linea</option>
-              <option value="VIFT" ${d.recupero.modalita==='VIFT'?'selected':''}>VIFT con cambio direzione (COD ×1.15)</option>
-            </select>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-              <div>
-                <label style="font-size:11px;">% intensità</label>
-                <input type="number" id="diffRecPct" value="${d.recupero.percentualeIntensita}" min="50" max="100" style="width:100%;padding:6px;font-size:12px;">
-              </div>
-              <div>
-                <label style="font-size:11px;">Durata (min)</label>
-                <input type="number" id="diffRecDur" value="${d.recupero.durataMinuti}" min="5" max="90" style="width:100%;padding:6px;font-size:12px;">
-              </div>
-            </div>
-
-            <label style="font-size:11px;">Attività extra</label>
-            <div id="diffRecExtra" style="margin-bottom:6px;">
-              ${(d.recupero.extra || []).map((x,i)=>`
-                <div style="display:grid;grid-template-columns:1fr 60px auto;gap:4px;align-items:center;margin-bottom:4px;">
-                  <input type="text" data-extra-nome="${i}" value="${esc(x.nome)}" placeholder="Nome" style="padding:5px;font-size:11px;">
-                  <input type="number" data-extra-dur="${i}" value="${x.durataMinuti}" min="1" max="60" style="padding:5px;font-size:11px;">
-                  <button type="button" class="btn secondary" data-extra-del="${i}" style="padding:2px 8px;font-size:11px;color:var(--clay);">×</button>
-                </div>
-              `).join('')}
-            </div>
-            <button type="button" class="btn secondary" id="diffAddExtra" style="width:100%;padding:5px;font-size:11px;">+ Aggiungi attività</button>
-
-            <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px;">
-              <div style="font-size:11px;font-weight:700;margin-bottom:6px;">Giocatori in questo gruppo:</div>
-              <div style="max-height:180px;overflow-y:auto;">
-                ${Array.from(recIds).length === 0 ? '<div style="font-size:11px;color:var(--ink-soft);padding:4px;">Nessuno</div>' : Array.from(recIds).map(pid=>{
-                  const p = STATE.players.find(x=>String(x.id)===pid);
-                  if(!p) return '';
-                  return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:white;border-radius:4px;margin-bottom:3px;font-size:11.5px;">
-                    <span>${esc(p.name)}</span>
-                    <div>
-                      <button type="button" class="diff-move-int" data-pid="${pid}" style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:11px;">→ Int.</button>
-                      <button type="button" class="diff-move-out" data-pid="${pid}" style="background:none;border:none;color:var(--ink-soft);cursor:pointer;font-size:11px;">×</button>
-                    </div>
-                  </div>`;
-                }).join('')}
-              </div>
-            </div>
-          </div>
-
-          <!-- ========== GRUPPO INTENSIVO ========== -->
-          <div style="border:1px solid var(--line);border-radius:8px;padding:12px;background:#FDF3E7;">
-            <h3 style="margin:0 0 10px 0;color:var(--clay);font-size:14px;">Intensivo / SSG (${intIds.size})</h3>
-            <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Chi ha giocato poco o è entrato dalla panchina.</div>
-
-            <label style="font-size:11px;">Esercitazioni dall'archivio</label>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
-              <select id="diffFilterCat" style="padding:6px;font-size:11px;">
-                <option value="">Tutte le categorie</option>
-                ${catUniche.map(c=>`<option value="${esc(c)}" ${filtroCat===c?'selected':''}>${esc(c)}</option>`).join('')}
-              </select>
-              <select id="diffFilterTipo" style="padding:6px;font-size:11px;">
-                <option value="">Tutti i tipi</option>
-                ${tipiUnici.map(t=>`<option value="${esc(t)}" ${filtroTipo===t?'selected':''}>${esc(t)}</option>`).join('')}
-              </select>
-            </div>
-
-            <div style="max-height:150px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:4px;background:white;margin-bottom:8px;">
-              ${eseFiltrate.length === 0 ? '<div style="font-size:11px;color:var(--ink-soft);padding:8px;text-align:center;">Nessuna esercitazione</div>' : eseFiltrate.map(w=>`
-                <label style="display:flex;align-items:center;gap:6px;padding:4px;font-size:11.5px;cursor:pointer;">
-                  <input type="checkbox" class="diff-ese-chk" value="${w.id}" ${eseSelezionate.has(w.id)?'checked':''}>
-                  <span style="flex:1;">${esc(w.name)} <span style="color:var(--ink-soft);font-size:10px;">· ${esc(w.type || '')}</span></span>
-                  <span style="font-size:10px;color:var(--ink-soft);">${calcWorkoutDuration(w)}'</span>
-                </label>
-              `).join('')}
-            </div>
-
-            <label style="font-size:11px;">Note</label>
-            <textarea id="diffIntNote" rows="2" style="width:100%;padding:6px;font-size:12px;margin-bottom:8px;">${esc(d.intensivo.note || '')}</textarea>
-
-            <div style="margin-top:8px;border-top:1px solid var(--line);padding-top:10px;">
-              <div style="font-size:11px;font-weight:700;margin-bottom:6px;">Giocatori in questo gruppo:</div>
-              <div style="max-height:180px;overflow-y:auto;">
-                ${Array.from(intIds).length === 0 ? '<div style="font-size:11px;color:var(--ink-soft);padding:4px;">Nessuno</div>' : Array.from(intIds).map(pid=>{
-                  const p = STATE.players.find(x=>String(x.id)===pid);
-                  if(!p) return '';
-                  return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:white;border-radius:4px;margin-bottom:3px;font-size:11.5px;">
-                    <span>${esc(p.name)}</span>
-                    <div>
-                      <button type="button" class="diff-move-rec" data-pid="${pid}" style="background:none;border:none;color:var(--ok);cursor:pointer;font-size:11px;">← Rec.</button>
-                      <button type="button" class="diff-move-out" data-pid="${pid}" style="background:none;border:none;color:var(--ink-soft);cursor:pointer;font-size:11px;">×</button>
-                    </div>
-                  </div>`;
-                }).join('')}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        ${nonAssegnati.length > 0 ? `
-          <div style="border:1px dashed var(--line);border-radius:8px;padding:10px;margin-top:14px;background:#FAFAFA;">
-            <h4 style="margin:0 0 8px 0;color:var(--ink-soft);font-size:12px;">Non assegnati (${nonAssegnati.length})</h4>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;">
-              ${nonAssegnati.map(p=>`
-                <div style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;background:white;border:1px solid var(--line);border-radius:12px;font-size:11px;">
-                  ${esc(p.name)}
-                  <button type="button" class="diff-add-rec" data-pid="${p.id}" style="background:none;border:1px solid var(--ok);color:var(--ok);border-radius:3px;padding:0 6px;font-size:10px;cursor:pointer;">+Rec</button>
-                  <button type="button" class="diff-add-int" data-pid="${p.id}" style="background:none;border:1px solid var(--clay);color:var(--clay);border-radius:3px;padding:0 6px;font-size:10px;cursor:pointer;">+Int</button>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        ` : ''}
-
-        <div style="display:flex;gap:8px;margin-top:16px;">
-          <button class="btn" id="diffSave" style="flex:1;">Salva differenziato</button>
-          <button class="btn secondary" id="diffRemove" style="color:var(--clay);">Rimuovi differenziato</button>
-          <button class="btn secondary" id="diffCloseBottom">Chiudi</button>
-        </div>
-      </div>
-    `;
-
-    /* Binding degli handler */
-    const close = ()=>{ modal.remove(); };
-    modal.querySelector('#diffCloseTop').addEventListener('click', close);
-    modal.querySelector('#diffCloseBottom').addEventListener('click', close);
-
-    modal.querySelector('#diffRecalc').addEventListener('click', ()=>{
-      const soglia = parseInt(document.getElementById('diffSoglia').value, 10) || DIFF_SOGLIA_MINUTI_DEFAULT;
-      if(!confirm('Ricalcolare lo split dai minuti giocati nell\'ultima partita? Le assegnazioni manuali verranno sovrascritte.')) return;
-      const nuovo = creaDifferenziatoDefault(event.date, soglia);
-      /* Preservo la configurazione recupero/intensivo (modalità, durate, esercitazioni) */
-      nuovo.recupero.modalita = d.recupero.modalita;
-      nuovo.recupero.percentualeIntensita = d.recupero.percentualeIntensita;
-      nuovo.recupero.durataMinuti = d.recupero.durataMinuti;
-      nuovo.recupero.extra = d.recupero.extra;
-      nuovo.intensivo.esercitazioniIds = d.intensivo.esercitazioniIds;
-      nuovo.intensivo.note = d.intensivo.note;
-      event.differenziato = nuovo;
-      Object.assign(d, nuovo);
-      rerender();
-    });
-
-    /* Movimento giocatori */
-    modal.querySelectorAll('.diff-move-int').forEach(b=> b.addEventListener('click', ()=>{
-      const pid = b.dataset.pid;
-      d.recupero.giocatoriIds = d.recupero.giocatoriIds.filter(x=>String(x)!==pid);
-      if(!d.intensivo.giocatoriIds.map(String).includes(pid)) d.intensivo.giocatoriIds.push(pid);
-      rerender();
-    }));
-    modal.querySelectorAll('.diff-move-rec').forEach(b=> b.addEventListener('click', ()=>{
-      const pid = b.dataset.pid;
-      d.intensivo.giocatoriIds = d.intensivo.giocatoriIds.filter(x=>String(x)!==pid);
-      if(!d.recupero.giocatoriIds.map(String).includes(pid)) d.recupero.giocatoriIds.push(pid);
-      rerender();
-    }));
-    modal.querySelectorAll('.diff-move-out').forEach(b=> b.addEventListener('click', ()=>{
-      const pid = b.dataset.pid;
-      d.recupero.giocatoriIds = d.recupero.giocatoriIds.filter(x=>String(x)!==pid);
-      d.intensivo.giocatoriIds = d.intensivo.giocatoriIds.filter(x=>String(x)!==pid);
-      rerender();
-    }));
-    modal.querySelectorAll('.diff-add-rec').forEach(b=> b.addEventListener('click', ()=>{
-      const pid = b.dataset.pid;
-      if(!d.recupero.giocatoriIds.map(String).includes(pid)) d.recupero.giocatoriIds.push(pid);
-      rerender();
-    }));
-    modal.querySelectorAll('.diff-add-int').forEach(b=> b.addEventListener('click', ()=>{
-      const pid = b.dataset.pid;
-      if(!d.intensivo.giocatoriIds.map(String).includes(pid)) d.intensivo.giocatoriIds.push(pid);
-      rerender();
-    }));
-
-    /* Filtri esercitazioni: memorizzo nel blocco temporaneo per rerender */
-    modal.querySelector('#diffFilterCat').addEventListener('change', (e)=>{
-      d._filtroCat = e.target.value; rerender();
-    });
-    modal.querySelector('#diffFilterTipo').addEventListener('change', (e)=>{
-      d._filtroTipo = e.target.value; rerender();
-    });
-
-    /* Selezione esercitazioni intensivo */
-    modal.querySelectorAll('.diff-ese-chk').forEach(chk=>{
-      chk.addEventListener('change', ()=>{
-        const set = new Set(d.intensivo.esercitazioniIds || []);
-        if(chk.checked) set.add(chk.value); else set.delete(chk.value);
-        d.intensivo.esercitazioniIds = Array.from(set);
-      });
-    });
-
-    /* Configurazione recupero */
-    const bindNum = (id, target)=> modal.querySelector(id).addEventListener('change', (e)=>{
-      const v = parseInt(e.target.value, 10);
-      if(!isNaN(v)) target(v);
-    });
-    bindNum('#diffRecPct', v=> d.recupero.percentualeIntensita = Math.max(50, Math.min(100, v)));
-    bindNum('#diffRecDur', v=> d.recupero.durataMinuti = Math.max(5, Math.min(90, v)));
-    modal.querySelector('#diffRecModalita').addEventListener('change', (e)=>{
-      d.recupero.modalita = e.target.value;
-    });
-    modal.querySelector('#diffIntNote').addEventListener('input', (e)=>{
-      d.intensivo.note = e.target.value;
-    });
-
-    /* Extra recupero */
-    modal.querySelectorAll('[data-extra-nome]').forEach(inp=>{
-      inp.addEventListener('input', (e)=>{
-        const i = parseInt(inp.dataset.extraNome, 10);
-        if(d.recupero.extra[i]) d.recupero.extra[i].nome = e.target.value;
-      });
-    });
-    modal.querySelectorAll('[data-extra-dur]').forEach(inp=>{
-      inp.addEventListener('input', (e)=>{
-        const i = parseInt(inp.dataset.extraDur, 10);
-        const v = parseInt(e.target.value, 10);
-        if(d.recupero.extra[i] && !isNaN(v)) d.recupero.extra[i].durataMinuti = v;
-      });
-    });
-    modal.querySelectorAll('[data-extra-del]').forEach(b=>{
-      b.addEventListener('click', ()=>{
-        const i = parseInt(b.dataset.extraDel, 10);
-        d.recupero.extra.splice(i, 1);
-        rerender();
-      });
-    });
-    modal.querySelector('#diffAddExtra').addEventListener('click', ()=>{
-      if(!Array.isArray(d.recupero.extra)) d.recupero.extra = [];
-      d.recupero.extra.push({ nome:'', durataMinuti: 10 });
-      rerender();
-    });
-
-    /* Salva e chiudi */
-    modal.querySelector('#diffSave').addEventListener('click', async ()=>{
-      /* Pulizia dei campi temporanei prima di salvare */
-      delete d._filtroCat;
-      delete d._filtroTipo;
-      await saveKey('events', STATE.events);
-      showToast('Differenziato salvato');
-      close();
-      if(onSave) onSave();
-    });
-
-    modal.querySelector('#diffRemove').addEventListener('click', async ()=>{
-      if(!confirm('Rimuovere il differenziato da questa sessione? Il resto della sessione resta intatto.')) return;
-      delete event.differenziato;
-      await saveKey('events', STATE.events);
-      showToast('Differenziato rimosso');
-      close();
-      if(onSave) onSave();
-    });
+  const rigaGiocatore = (p, info) => {
+    const meta = statusMeta(p.status);
+    return `
+    <div style="display:flex;align-items:center;gap:5px;padding:3px 6px;background:white;border-radius:4px;margin-bottom:3px;font-size:11.5px;">
+      <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(p.name)}${p.status !== 'Disponibile' ? ` <span style="font-size:9.5px;color:${meta.color};font-weight:700;">${esc(meta.label)}</span>` : ''}</span>
+      ${info ? `<span style="font-size:10.5px;color:var(--ink-soft);white-space:nowrap;">${info}</span>` : ''}
+      <button type="button" data-diff-act="sposta" data-diff-g="${chiave}" data-pid="${esc(p.id)}" style="background:none;border:1px solid var(--line);border-radius:3px;padding:0 5px;font-size:10px;cursor:pointer;color:var(--pitch);white-space:nowrap;">${freccia}</button>
+      <button type="button" data-diff-act="togli" data-diff-g="${chiave}" data-pid="${esc(p.id)}" title="Togli dal differenziato" style="background:none;border:none;font-size:14px;cursor:pointer;color:var(--ink-soft);line-height:1;padding:0 2px;">×</button>
+    </div>`;
   };
 
-  document.body.appendChild(modal);
-  rerender();
+  const blocchiSotto = sg.sotto.map(s => {
+    const vMax = s.righe[0].vTarget, vMin = s.righe[s.righe.length - 1].vTarget;
+    let target = `${fmtKmh(vMin)}–${fmtKmh(vMax)} km/h`;
+    if(lavoro > 0) target += ` · coni ${s.righe[s.righe.length - 1].distRep}–${s.righe[0].distRep} m`;
+    else target += ` · ${passoKm(vMax)}–${passoKm(vMin)}/km`;
+    return `
+      <div style="border-left:3px solid ${s.colore};background:${s.bg};border-radius:4px;padding:6px;margin-bottom:6px;">
+        <div style="font-size:11px;font-weight:700;color:var(--ink);margin-bottom:4px;">${s.nome} · ${s.righe.length}
+          <span style="font-weight:500;color:var(--ink-soft);"> · ${target}</span></div>
+        ${s.righe.map(x => rigaGiocatore(x.p, `${g.modalita} ${fmtKmh(x.v)} · ` + (lavoro > 0 ? `${x.distRep} m` : (x.distTot ? `${(x.distTot/1000).toFixed(1)} km` : `${fmtKmh(x.vTarget)} km/h`)))).join('')}
+      </div>`;
+  }).join('');
+
+  const nessunTestTipo = !(STATE.tests || []).some(t => t.type === sg.tipoTest);
+  const bloccoSenzaTest = sg.senzaTest.length ? `
+      <div style="border-left:3px solid var(--line);background:#F7F5EC;border-radius:4px;padding:6px;margin-bottom:6px;">
+        <div style="font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:4px;">Senza test ${g.modalita} · ${sg.senzaTest.length}</div>
+        ${sg.senzaTest.map(p => rigaGiocatore(p, '')).join('')}
+        ${nessunTestTipo ? `<div style="font-size:10.5px;color:var(--ink-soft);margin-top:4px;">Nessun test "${esc(sg.tipoTest)}" registrato: aggiungilo in Performance → Test${g.modalita === 'VAM' ? ', oppure passa a VIFT' : ''}.</div>` : ''}
+      </div>` : '';
+
+  const esercitazioni = g.esercitazioniIds.map(wid => {
+    const w = STATE.workouts.find(x => x.id === wid);
+    return `<div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:white;border-radius:4px;margin-bottom:3px;font-size:11.5px;">
+      <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w ? esc(w.name) : 'esercitazione eliminata dall\'archivio'}</span>
+      <span style="font-size:10.5px;color:var(--ink-soft);">${w ? calcWorkoutDuration(w) + "'" : ''}</span>
+      <button type="button" data-diff-act="togliEse" data-diff-g="${chiave}" data-wid="${esc(wid)}" style="background:none;border:none;font-size:14px;cursor:pointer;color:var(--clay);line-height:1;padding:0 2px;">×</button>
+    </div>`;
+  }).join('') + (g.extra || []).map((x, i) => `
+    <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:white;border-radius:4px;margin-bottom:3px;font-size:11.5px;">
+      <span style="flex:1;min-width:0;">${esc(x.nome || 'attivita extra')}</span>
+      <span style="font-size:10.5px;color:var(--ink-soft);">${Number(x.durataMinuti) || 0}'</span>
+      <button type="button" data-diff-act="togliExtra" data-diff-g="${chiave}" data-idx="${i}" style="background:none;border:none;font-size:14px;cursor:pointer;color:var(--clay);line-height:1;padding:0 2px;">×</button>
+    </div>`).join('');
+
+  return `
+    <div style="border:1px solid var(--line);border-top:3px solid ${accent};border-radius:8px;padding:10px;background:${bg};min-width:0;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+        <h4 style="margin:0;color:${accent};font-size:13px;">${isRec ? 'Recupero' : 'Intensivo / SSG'} (${g.giocatoriIds.length})</h4>
+        <span style="font-size:11px;color:var(--ink-soft);">Durata ${durataGruppoDiff(g)}'</span>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:4px;">
+        <select data-diff-field="modalita" data-diff-g="${chiave}" style="padding:4px;font-size:11.5px;border:1px solid var(--line);border-radius:4px;">
+          <option value="VAM" ${g.modalita === 'VAM' ? 'selected' : ''}>VAM (in linea)</option>
+          <option value="VIFT" ${g.modalita === 'VIFT' ? 'selected' : ''}>VIFT (30-15, cambi di direzione)</option>
+        </select>
+        ${inputNum('percentuale', g.percentuale, 40, 130, 1, 50)}${lab('%')}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-bottom:4px;">
+        ${lab('Lavoro')}${inputNum('lavoroSec', lavoro, 0, 600, 5, 50)}${lab('"')}
+        ${lab('Corsa')}${inputNum('durataCorsaMin', corsa, 0, 120, 1, 46)}${lab("'")}
+        ${lab('Sottogruppi')}
+        <select data-diff-field="nSottogruppi" data-diff-g="${chiave}" style="padding:4px;font-size:11.5px;border:1px solid var(--line);border-radius:4px;">
+          ${['auto', 1, 2, 3].map(v => `<option value="${v}" ${String(g.nSottogruppi) === String(v) ? 'selected' : ''}>${v === 'auto' ? 'Auto' : v}</option>`).join('')}
+        </select>
+      </div>
+      <div style="font-size:10px;color:var(--ink-soft);margin-bottom:8px;">Lavoro = secondi per ripetuta (0 = corsa continua). Coni arrotondati a 5 m.</div>
+
+      ${blocchiSotto}${bloccoSenzaTest}
+      ${g.giocatoriIds.length === 0 ? '<div style="font-size:11px;color:var(--ink-soft);padding:6px;">Nessun giocatore in questo gruppo.</div>' : ''}
+
+      <div style="margin-top:8px;border-top:1px solid var(--line);padding-top:8px;">
+        <div style="font-size:11px;font-weight:700;margin-bottom:4px;">Esercitazioni</div>
+        ${esercitazioni || '<div style="font-size:11px;color:var(--ink-soft);margin-bottom:4px;">Nessuna esercitazione aggiunta.</div>'}
+        <select data-diff-act="aggiungiEse" data-diff-g="${chiave}" style="width:100%;padding:5px;font-size:11.5px;border:1px solid var(--line);border-radius:4px;margin-top:2px;">
+          ${opzioniEsercitazioniDiff(event, g)}
+        </select>
+        <input type="text" data-diff-field="note" data-diff-g="${chiave}" value="${esc(g.note || '')}" placeholder="Note per il gruppo" style="width:100%;padding:5px;font-size:11.5px;border:1px solid var(--line);border-radius:4px;margin-top:6px;box-sizing:border-box;">
+      </div>
+    </div>`;
+}
+
+/* Blocco differenziato dentro la scheda allenamento: tutto visibile e modificabile qui */
+function renderDifferenziatoInline(event){
+  const d = event.differenziato;
+  if(!d || !d.attivo){
+    return `
+      <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;">
+            <h4 style="margin:0 0 4px 0;color:var(--pitch);font-size:13px;">Lavoro differenziato</h4>
+            <div style="font-size:11.5px;color:var(--ink-soft);">Due gruppi dai minuti dell'ultima partita (soglia ${DIFF_SOGLIA_MINUTI_DEFAULT}'), ognuno diviso in sottogruppi dai test VAM o VIFT. Portieri esclusi.</div>
+          </div>
+          <button type="button" class="btn secondary" data-diff-act="attiva" style="font-size:12px;padding:7px 14px;white-space:nowrap;">Attiva differenziato</button>
+        </div>
+      </div>`;
+  }
+  normalizzaDifferenziato(d);
+  const inGruppo = new Set(d.recupero.giocatoriIds.concat(d.intensivo.giocatoriIds));
+  const nonAssegnati = STATE.players
+    .filter(p => !isPortiere(p) && p.status !== 'Infortunato' && !inGruppo.has(String(p.id)))
+    .sort((a,b) => String(a.name).localeCompare(String(b.name)));
+  const infortunati = STATE.players.filter(p => !isPortiere(p) && p.status === 'Infortunato');
+  const portieri = STATE.players.filter(isPortiere);
+  const origine = d.autoSplitDaPartitaData
+    ? `Gruppi dalla partita del <strong>${fmtDate(d.autoSplitDaPartitaData)}</strong>: chi ha giocato almeno ${d.sogliaMinuti}' fa recupero.`
+    : `Nessuna partita nei ${DIFF_GIORNI_LOOKBACK} giorni precedenti: gruppi da sistemare a mano.`;
+
+  return `
+    <div style="border:1px solid var(--amber);border-radius:8px;padding:12px;margin-bottom:20px;background:#FFFCF5;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+        <h4 style="margin:0;color:var(--pitch);font-size:13px;">Lavoro differenziato</h4>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <span style="font-size:10.5px;color:var(--ink-soft);">Soglia</span>
+          <input type="number" data-diff-field="sogliaMinuti" value="${d.sogliaMinuti}" min="10" max="120" style="width:50px;padding:4px 5px;font-size:11.5px;border:1px solid var(--line);border-radius:4px;">
+          <span style="font-size:10.5px;color:var(--ink-soft);">'</span>
+          <button type="button" class="btn secondary" data-diff-act="ricalcola" style="font-size:11px;padding:5px 10px;">Ricalcola gruppi</button>
+          <button type="button" class="btn secondary" data-diff-act="disattiva" style="font-size:11px;padding:5px 10px;color:var(--clay);">Disattiva</button>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">${origine}</div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:10px;">
+        ${colonnaGruppoDiff(event, 'recupero')}
+        ${colonnaGruppoDiff(event, 'intensivo')}
+      </div>
+
+      ${nonAssegnati.length ? `
+        <div style="margin-top:10px;padding:8px;border:1px dashed var(--line);border-radius:6px;background:white;">
+          <div style="font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">Non assegnati (${nonAssegnati.length})</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;">
+            ${nonAssegnati.map(p => `
+              <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;background:#F7F5EC;border-radius:12px;font-size:11px;">
+                ${esc(p.name)}
+                <button type="button" data-diff-act="assegna" data-diff-g="recupero" data-pid="${esc(p.id)}" style="background:none;border:1px solid var(--ok);color:var(--ok);border-radius:3px;padding:0 5px;font-size:10px;cursor:pointer;">+Rec</button>
+                <button type="button" data-diff-act="assegna" data-diff-g="intensivo" data-pid="${esc(p.id)}" style="background:none;border:1px solid var(--clay);color:var(--clay);border-radius:3px;padding:0 5px;font-size:10px;cursor:pointer;">+Int</button>
+              </span>`).join('')}
+          </div>
+        </div>` : ''}
+
+      <div style="font-size:10.5px;color:var(--ink-soft);margin-top:8px;line-height:1.5;">
+        ${portieri.length ? `Portieri, lavoro a parte: ${portieri.map(p => esc(p.name)).join(', ')}.` : ''}
+        ${infortunati.length ? ` Infortunati, esclusi: ${infortunati.map(p => esc(p.name)).join(', ')}.` : ''}
+      </div>
+    </div>`;
+}
+
+/* Ridisegna la scheda allenamento mantenendo la posizione di scorrimento */
+function ridisegnaSchedaAllenamento(eventId){
+  const vecchia = document.getElementById('allenamentoModal');
+  const scroll = vecchia ? vecchia.scrollTop : 0;
+  if(vecchia) vecchia.remove();
+  const ev = STATE.events.find(e => e.id === eventId);
+  if(!ev) return;
+  renderAllenamentoDetails(ev);
+  const nuova = document.getElementById('allenamentoModal');
+  if(nuova) nuova.scrollTop = scroll;
+}
+
+/* Handler delegati del blocco differenziato. Ogni azione rilegge l'evento da STATE
+   e lo modifica in modo sincrono prima di salvare: cosi' la sync Firestore, che puo'
+   sostituire l'oggetto differenziato mentre la scheda e' aperta, non fa perdere modifiche. */
+function bindDifferenziatoInline(modal, eventId){
+  const getEv = () => STATE.events.find(e => e.id === eventId);
+  const salvaERidisegna = async () => {
+    await saveKey('events', STATE.events);
+    ridisegnaSchedaAllenamento(eventId);
+  };
+
+  modal.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-diff-act]');
+    if(!btn || btn.tagName === 'SELECT') return;
+    const act = btn.dataset.diffAct;
+    const ev = getEv();
+    if(!ev) return;
+
+    if(act === 'attiva'){
+      ev.differenziato = creaDifferenziatoDefault(ev.date, DIFF_SOGLIA_MINUTI_DEFAULT);
+      await salvaERidisegna();
+      return;
+    }
+    const d = ev.differenziato;
+    if(!d) return;
+    normalizzaDifferenziato(d);
+
+    if(act === 'disattiva'){
+      if(!confirm('Disattivare il differenziato? Gruppi e impostazioni di questa sessione verranno rimossi.')) return;
+      delete ev.differenziato;
+      await salvaERidisegna();
+      return;
+    }
+    if(act === 'ricalcola'){
+      const inp = modal.querySelector('[data-diff-field="sogliaMinuti"]');
+      const soglia = parseInt(inp && inp.value, 10) || d.sogliaMinuti || DIFF_SOGLIA_MINUTI_DEFAULT;
+      if(!confirm('Ricalcolare i gruppi dai minuti dell\'ultima partita? Gli spostamenti manuali verranno sovrascritti; impostazioni ed esercitazioni restano.')) return;
+      const split = calcolaAutoSplitDifferenziato(ev.date, soglia);
+      d.sogliaMinuti = split.sogliaMinuti;
+      d.autoSplitDaPartitaId = split.partitaId;
+      d.autoSplitDaPartitaData = split.partitaData;
+      d.note = split.note;
+      d.recupero.giocatoriIds = split.recupero.map(String);
+      d.intensivo.giocatoriIds = split.intensivo.map(String);
+      await salvaERidisegna();
+      return;
+    }
+
+    const g = btn.dataset.diffG;
+    const pid = btn.dataset.pid ? String(btn.dataset.pid) : null;
+    const togliDaTutti = id => {
+      d.recupero.giocatoriIds = d.recupero.giocatoriIds.filter(x => x !== id);
+      d.intensivo.giocatoriIds = d.intensivo.giocatoriIds.filter(x => x !== id);
+    };
+    if(act === 'sposta' && pid){
+      const dest = g === 'recupero' ? 'intensivo' : 'recupero';
+      togliDaTutti(pid);
+      d[dest].giocatoriIds.push(pid);
+    } else if(act === 'togli' && pid){
+      togliDaTutti(pid);
+    } else if(act === 'assegna' && pid && d[g]){
+      togliDaTutti(pid);
+      d[g].giocatoriIds.push(pid);
+    } else if(act === 'togliEse' && d[g]){
+      d[g].esercitazioniIds = d[g].esercitazioniIds.filter(x => x !== btn.dataset.wid);
+    } else if(act === 'togliExtra' && d[g]){
+      d[g].extra.splice(parseInt(btn.dataset.idx, 10), 1);
+    } else {
+      return;
+    }
+    await salvaERidisegna();
+  });
+
+  modal.addEventListener('change', async (e) => {
+    const el = e.target;
+    const ev = getEv();
+    if(!ev || !ev.differenziato) return;
+    const d = normalizzaDifferenziato(ev.differenziato);
+    const g = el.dataset.diffG;
+
+    if(el.dataset.diffAct === 'aggiungiEse'){
+      if(!el.value || !d[g]) return;
+      if(!d[g].esercitazioniIds.includes(el.value)) d[g].esercitazioniIds.push(el.value);
+      await salvaERidisegna();
+      return;
+    }
+    const field = el.dataset.diffField;
+    if(!field || !d[g]) return;          // la soglia si legge solo su "Ricalcola gruppi"
+    if(field === 'modalita') d[g].modalita = el.value === 'VIFT' ? 'VIFT' : 'VAM';
+    else if(field === 'nSottogruppi') d[g].nSottogruppi = el.value === 'auto' ? 'auto' : parseInt(el.value, 10);
+    else if(field === 'note') d[g].note = el.value;
+    else {
+      const lim = {percentuale:[40, 130], lavoroSec:[0, 600], durataCorsaMin:[0, 120]}[field];
+      if(!lim) return;
+      let v = parseInt(el.value, 10);
+      if(isNaN(v)) v = lim[0];
+      d[g][field] = Math.max(lim[0], Math.min(lim[1], v));
+    }
+    await salvaERidisegna();
+  });
 }
 
 function renderCalendario(el){
@@ -9048,10 +9103,11 @@ function renderCalendario(el){
 /* ---------- MATCH DETAILS ---------- */
 function renderAllenamentoDetails(event){
   const modal = document.createElement('div');
+  modal.id = 'allenamentoModal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;box-sizing:border-box;overflow-y:auto;';
   
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:600px;width:100%;padding:24px;margin:auto;">
+    <div style="background:white;border-radius:12px;max-width:${event.differenziato && event.differenziato.attivo ? 820 : 600}px;width:100%;padding:24px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
         <div>
           <h2 style="margin:0;color:var(--pitch);">${esc(event.title)}</h2>
@@ -9125,29 +9181,8 @@ function renderAllenamentoDetails(event){
         })()}
       </div>
 
-      <!-- BLOCCO DIFFERENZIATO -->
-      <div style="border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:20px;background:${event.differenziato && event.differenziato.attivo ? '#FDF3E7' : 'white'};">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-          <h4 style="margin:0;color:var(--pitch);font-size:13px;">Lavoro differenziato</h4>
-          ${event.differenziato && event.differenziato.attivo
-            ? '<span style="font-size:11px;color:var(--ok);font-weight:700;">ATTIVO</span>'
-            : '<span style="font-size:11px;color:var(--ink-soft);">Non attivato</span>'}
-        </div>
-        ${event.differenziato && event.differenziato.attivo ? `
-          <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">
-            Recupero: <strong>${(event.differenziato.recupero.giocatoriIds||[]).length}</strong> giocatori
-            (${esc(event.differenziato.recupero.modalita)} ${event.differenziato.recupero.percentualeIntensita}% · ${event.differenziato.recupero.durataMinuti} min${(event.differenziato.recupero.extra||[]).length ? ' + ' + event.differenziato.recupero.extra.length + ' extra' : ''})<br>
-            Intensivo: <strong>${(event.differenziato.intensivo.giocatoriIds||[]).length}</strong> giocatori
-            (${(event.differenziato.intensivo.esercitazioniIds||[]).length} esercitazioni dall'archivio)
-          </div>
-          <button id="editDifferenziatoBtn" class="btn" style="width:100%;font-size:12px;">Modifica differenziato</button>
-        ` : `
-          <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">
-            Divide la sessione in due gruppi: recupero (aerobico blando) per chi ha giocato molto, intensivo/SSG per gli altri. I portieri sono esclusi.
-          </div>
-          <button id="attivaDifferenziatoBtn" class="btn secondary" style="width:100%;font-size:12px;">Attiva differenziato</button>
-        `}
-      </div>
+      <!-- BLOCCO DIFFERENZIATO: tutto visibile e modificabile qui -->
+      ${renderDifferenziatoInline(event)}
 
       <div style="text-align:right;display:flex;gap:12px;justify-content:flex-end;">
         <button id="copyAllenamentoBtn" class="btn secondary" style="padding:8px 20px;">Copia</button>
@@ -9179,27 +9214,15 @@ function renderAllenamentoDetails(event){
     if(e.target === modal) modal.remove();
   });
 
-  // Attiva differenziato / Modifica differenziato
-  const attivaBtn = document.getElementById('attivaDifferenziatoBtn');
-  const editBtn = document.getElementById('editDifferenziatoBtn');
-  const onDiffChanged = ()=>{
-    modal.remove();
-    renderAllenamentoDetails(event);
-  };
-  if(attivaBtn) attivaBtn.addEventListener('click', ()=>{
-    event.differenziato = creaDifferenziatoDefault(event.date, DIFF_SOGLIA_MINUTI_DEFAULT);
-    apriEditorDifferenziato(event.id, onDiffChanged);
-  });
-  if(editBtn) editBtn.addEventListener('click', ()=>{
-    apriEditorDifferenziato(event.id, onDiffChanged);
-  });
+  // Differenziato: handler dei controlli inline
+  bindDifferenziatoInline(modal, event.id);
   
   // Delete workout
   modal.querySelectorAll('.del-workout-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const wid = btn.dataset.workoutId;
       event.workoutIds = event.workoutIds.filter(id => id !== wid);
-      renderAllenamentoDetails(event); // Refresh
+      ridisegnaSchedaAllenamento(event.id);
     });
   });
   
@@ -9216,7 +9239,7 @@ function renderAllenamentoDetails(event){
       event.workoutIds.push(wid);
     }
     selectEl.value = '';
-    renderAllenamentoDetails(event); // Refresh
+    ridisegnaSchedaAllenamento(event.id);
   });
   
   // Copy button
