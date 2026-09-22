@@ -305,7 +305,7 @@ const TEAM_ID = 'alense';
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '2.4';
+const APP_VERSION = '2.5';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -375,6 +375,7 @@ const NAV_STAFF = [
 ];
 
 const NAV_PLAYER = [
+  {id:'oggi', label:'Oggi', icon:''},
   {id:'wellness', label:'Wellness', icon:''},
   {id:'calendario', label:'Calendario', icon:''},
   {id:'piani', label:'Piani', icon:''},
@@ -541,7 +542,7 @@ function cmjFatica(playerId){
 }
 
 const TEST_SPECS = {
-  '30-15 Intermittent': {unit: 'km/h', description: 'Boucheit – Velocità massima raggiunta'},
+  '30-15 Intermittent': {unit: 'km/h', description: 'Buchheit – VIFT, velocità finale raggiunta (la VAM viene stimata in automatico)'},
   'VAM': {unit: 'km/h', description: 'Velocita aerobica massima – test in linea (es. Vameval, Gacon)'},
   'Yo-Yo IR1': {unit: 'm', description: 'Distanza totale percorsa'},
   'Yo-Yo IR2': {unit: 'm', description: 'Distanza totale percorsa'},
@@ -554,6 +555,25 @@ const TEST_SPECS = {
   'Navetta 5-10-15m': {unit: 's', description: 'Tempo al decimo'},
   'Tecnico': {unit: 'punteggio (0-10)', description: 'Valutazione tecnico/tattica'},
 };
+
+/* ---------- VAM STIMATA DAL 30-15 IFT ----------
+   Il 30-15 Intermittent Fitness Test (Buchheit) misura la VIFT: la velocita' finale
+   di un test intermittente, con pause e cambi di direzione. Per questo la VIFT e'
+   sistematicamente piu' alta della VAM misurata con un test continuo; in letteratura
+   la differenza e' di qualche km/h, nell'ordine del 15-25%. Non esiste un coefficiente
+   universale: VAM = VIFT / rapporto, con rapporto impostabile in Impostazioni
+   (predefinito 1.20). La VAM non viene salvata: si ricalcola sempre dalla VIFT,
+   cosi' se lo staff cambia il rapporto tutti i valori restano coerenti. */
+const TEST_VIFT = '30-15 Intermittent';
+const VIFT_VAM_RAPPORTO_DEFAULT = 1.20;
+function rapportoViftVam(){
+  const r = Number(STATE && STATE.teamConfig && STATE.teamConfig.viftVamRatio);
+  return (r >= 1 && r <= 1.5) ? r : VIFT_VAM_RAPPORTO_DEFAULT;
+}
+function vamDaVift(vift){
+  const v = Number(vift);
+  return v > 0 ? Math.round((v / rapportoViftVam()) * 10) / 10 : null;
+}
 
 /* ---------- ANAGRAFICA ---------- */
 const ROLES = [
@@ -1145,28 +1165,57 @@ async function saveKey(key, value){
 /* Stato dell'ultima lettura: serve a non scrivere quando non si e' letto */
 let LOAD_FAILED = false;
 const LOAD_STATUS = {};
+const LOAD_ERRORS = {};   /* chiave -> codice dell'errore Firestore, per spiegare il banner rosso */
+
+/* Traduce gli errori di lettura in una frase comprensibile. Il caso piu' grave e'
+   permission-denied: le regole di sicurezza di Firestore hanno una scadenza e,
+   quando scadono, nessuno riesce piu' a leggere ne' a salvare. */
+function dettaglioErroreCaricamento(){
+  const chiavi = Object.keys(LOAD_ERRORS);
+  if(!chiavi.length) return '';
+  const codici = chiavi.map(k => String(LOAD_ERRORS[k]));
+  if(codici.some(x => x.indexOf('permission-denied') !== -1)){
+    return "Firestore ha negato l'accesso (permission-denied): quasi certamente sono scadute le regole di sicurezza del database. Vanno rinnovate dalla console Firebase.";
+  }
+  if(codici.some(x => /unavailable|offline|network|deadline/i.test(x))){
+    return 'Connessione assente o instabile al momento dell\'apertura. Ricarica quando hai rete.';
+  }
+  return 'Dettaglio: ' + chiavi.map(k => k + ' (' + LOAD_ERRORS[k] + ')').join(', ');
+}
 
 async function loadKey(key, fallback){
   // Distinguo tre casi: dato letto, documento assente, lettura fallita.
   // Confonderli significa sovrascrivere dati veri con un array vuoto.
   if(db && TEAM_ID){
-    try{
-      const doc = await db.collection('teams').doc(TEAM_ID).collection('data').doc(key).get();
-      if(doc.exists && typeof doc.data().value !== 'undefined'){
-        const result = doc.data().value;
-        try{ localStorage.setItem(key, JSON.stringify(result)); }catch(e){}
-        return result;
+    /* Ritento prima di arrendermi: su iPhone, al risveglio della pagina o con la
+       rete che va e viene, la prima lettura puo' fallire anche se i dati ci sono.
+       Prima bastava un intoppo di un secondo per bloccare tutti i salvataggi. */
+    const attese = [0, 700, 1600];
+    let ultimoErrore = null;
+    for(let i = 0; i < attese.length; i++){
+      if(attese[i]) await new Promise(r => setTimeout(r, attese[i]));
+      try{
+        const doc = await db.collection('teams').doc(TEAM_ID).collection('data').doc(key).get();
+        if(doc.exists && typeof doc.data().value !== 'undefined'){
+          const result = doc.data().value;
+          try{ localStorage.setItem(key, JSON.stringify(result)); }catch(e){}
+          return result;
+        }
+        // Documento assente davvero: nessun dato salvato per questa chiave
+        LOAD_STATUS[key] = 'vuoto';
+        return fallback;
+      }catch(e){
+        ultimoErrore = e;
+        if(e && e.code === 'permission-denied') break;   // riprovare non serve
       }
-      // Documento assente davvero: nessun dato salvato per questa chiave
-      LOAD_STATUS[key] = 'vuoto';
-      return fallback;
-    }catch(e){
-      console.error('LETTURA FALLITA per', key, '-', e.message);
-      LOAD_STATUS[key] = 'errore';
-      LOAD_FAILED = true;
     }
+    console.error('LETTURA FALLITA per', key, '-', ultimoErrore && ultimoErrore.message);
+    LOAD_STATUS[key] = 'errore';
+    LOAD_ERRORS[key] = (ultimoErrore && (ultimoErrore.code || ultimoErrore.message)) || 'errore sconosciuto';
+    LOAD_FAILED = true;
   } else {
     LOAD_STATUS[key] = 'errore';
+    LOAD_ERRORS[key] = 'database non inizializzato';
     LOAD_FAILED = true;
   }
 
@@ -1326,7 +1375,7 @@ function login(role, identifier){
       STATE.role = 'player';
       STATE.currentPlayerId = player.id;
       STATE.currentPlayerName = player.name;
-      STATE.page = 'wellness';
+      STATE.page = 'oggi';
       console.log('Player logged in:', STATE.currentPlayerId, STATE.currentPlayerName);
     }else{
       showToast('Giocatore non trovato');
@@ -2004,7 +2053,7 @@ function render(){
   // Se il caricamento e' fallito, avviso in cima e blocco i salvataggi
   const bannerErrore = LOAD_FAILED
     ? '<div style="background:#B5473A;color:white;padding:10px 14px;text-align:center;font-size:12.5px;font-weight:600;">' +
-      'Dati non caricati correttamente. I salvataggi sono bloccati per non perdere nulla. ' +
+      'Dati non caricati correttamente. I salvataggi sono bloccati per non perdere nulla. ' + esc(dettaglioErroreCaricamento()) + ' ' +
       '<button onclick="location.reload()" style="margin-left:8px;padding:4px 10px;border:1px solid rgba(255,255,255,0.6);background:transparent;color:white;border-radius:4px;cursor:pointer;font-size:11px;">Ricarica</button></div>'
     : '';
   if(!STATE.loggedIn){
@@ -2035,6 +2084,12 @@ function render(){
           ${navItems.map(n=>{
             /* Badge: se il giocatore ha piani non visti, mostro il conteggio sulla voce Piani */
             let badge = '';
+            if(STATE.role === 'player' && n.id === 'oggi' && STATE.currentPlayerId){
+              const nd = compitiGiocatore(STATE.currentPlayerId).daFare;
+              if(nd > 0){
+                badge = `<span style="background:var(--amber-dark);color:white;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;margin-left:6px;">${nd}</span>`;
+              }
+            }
             if(STATE.role === 'player' && n.id === 'piani' && STATE.currentPlayerId){
               const nv = pianiNonVisti(STATE.currentPlayerId);
               if(nv > 0){
@@ -2074,6 +2129,7 @@ function render(){
     impostazioni: renderImpostazioni,
   };
   const playerRenderers = {
+    oggi: renderOggiGiocatore,
     wellness: renderWellness,
     calendario: renderPlayerCalendario,
     piani: renderPianiGiocatore,
@@ -2097,7 +2153,7 @@ function render(){
     STATE.page = primaConsentita;
   }
 
-  (renderers[STATE.page]||renderDashboard)(content);
+  (renderers[STATE.page] || (renderers === playerRenderers ? renderOggiGiocatore : renderDashboard))(content);
 }
 
 const DEVICE_CODE_KEY = 'thp-device-code';
@@ -2223,7 +2279,7 @@ async function setAccessCode(playerId, code){
 
 function renderLogin(el){
   const bannerErrore = LOAD_FAILED
-    ? '<div style="background:#B5473A;color:white;padding:10px;text-align:center;font-size:12.5px;font-weight:600;">Connessione ai dati non riuscita. Ricarica la pagina.</div>'
+    ? '<div style="background:#B5473A;color:white;padding:10px;text-align:center;font-size:12.5px;font-weight:600;">Connessione ai dati non riuscita. Ricarica la pagina.' + (dettaglioErroreCaricamento() ? '<div style="font-weight:400;font-size:11.5px;opacity:.92;margin-top:4px;">' + esc(dettaglioErroreCaricamento()) + '</div>' : '') + '</div>'
     : '';
   el.innerHTML = `${bannerErrore}
     <div class="login-screen">
@@ -3653,9 +3709,9 @@ function renderDashboardFisio(el){
           <div class="alert-row" data-player-id="${p.id}" style="cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;">
             <div>
               <div style="font-weight:600;font-size:13px;">${esc(p.name)}</div>
-              <div style="font-size:11px;color:var(--ink-soft);">${esc(d.zone || 'zona non specificata')}${d.intensity ? ' · intensita ' + d.intensity + '/10' : ''}</div>
+              <div style="font-size:11px;color:var(--ink-soft);">${esc(d.zone || 'zona non specificata')}${d.lastIntensity ? ' · intensita ' + d.lastIntensity + '/10' : ''}</div>
             </div>
-            <div style="font-size:10px;color:var(--ink-soft);">dal ${fmtDate(d.date)}</div>
+            <div style="font-size:10px;color:var(--ink-soft);">dal ${fmtDate(d.first ? d.first.date : '')}</div>
           </div>
         `).join('')}
         ${doloriAperti.length > 10 ? `<div style="font-size:11px;color:var(--ink-soft);text-align:center;margin-top:8px;">+${doloriAperti.length - 10} altri (apri Area Medica per vederli tutti)</div>` : ''}
@@ -6941,7 +6997,7 @@ function renderTest(el){
             </div>
             ${selectedTestId===t.id ? `
               <div style="border-top:1px solid var(--line);padding-top:12px;">
-                <h4 style="margin:0 0 12px 0;font-size:13px;color:var(--pitch);">Inserisci valori test${t.unit ? ' (' + t.unit + ')' : ''}</h4>
+                <h4 style="margin:0 0 12px 0;font-size:13px;color:var(--pitch);">Inserisci valori test${t.unit ? ' (' + t.unit + ')' : ''}${t.type === TEST_VIFT ? ' — scrivi la VIFT, la VAM si calcola da sola (VIFT ÷ ' + rapportoViftVam().toFixed(2) + ')' : ''}</h4>
                 <table style="width:100%;border-collapse:collapse;">
                   <thead>
                     <tr style="background:var(--chalk);border-bottom:1px solid var(--line);">
@@ -6957,7 +7013,7 @@ function renderTest(el){
                         <tr data-player-row="${p.id}" style="border-bottom:1px solid #EEEAD9;">
                           <td style="padding:10px;font-size:13px;">${esc(p.name)}</td>
                           <td style="padding:10px;text-align:center;">
-                            <input type="number" step="0.01" class="test-value-input" data-player-id="${p.id}" value="${result?.value||''}" placeholder="-" style="width:80px;padding:6px;border:1px solid var(--line);border-radius:4px;text-align:center;">
+                            <input type="number" step="0.01" class="test-value-input" data-player-id="${p.id}" value="${result?.value||''}" placeholder="-" style="width:80px;padding:6px;border:1px solid var(--line);border-radius:4px;text-align:center;">${t.type === TEST_VIFT ? `<div class="vam-live" data-player-id="${p.id}" style="font-size:10.5px;color:var(--ink-soft);margin-top:3px;">${result && result.value > 0 ? 'VAM ' + fmtKmh(vamDaVift(result.value)) + ' km/h' : 'VAM —'}</div>` : ''}
                           </td>
                           <td style="padding:10px;text-align:center;">
                             ${result ? 
@@ -7024,6 +7080,16 @@ function renderTest(el){
     });
   });
   
+  /* VAM stimata in tempo reale mentre si scrive la VIFT del 30-15 */
+  el.querySelectorAll('.test-value-input').forEach(inp=>{
+    const out = el.querySelector(`.vam-live[data-player-id="${inp.dataset.playerId}"]`);
+    if(!out) return;
+    inp.addEventListener('input', ()=>{
+      const v = parseFloat(String(inp.value).replace(',', '.'));
+      out.textContent = v > 0 ? 'VAM ' + fmtKmh(vamDaVift(v)) + ' km/h' : 'VAM —';
+    });
+  });
+
   // New: handle test results with input fields
   if(selectedTest && document.getElementById('saveTestResultsBtn')){
     document.getElementById('saveTestResultsBtn').addEventListener('click', async ()=>{
@@ -7354,7 +7420,7 @@ function renderAllenamenti(el){
               const vMax = g.righe[0].value, vMin = g.righe[g.righe.length-1].value;
               return `<div style="margin-bottom:10px;padding:10px;background:${g.bg};border-left:4px solid ${g.colore};border-radius:4px;">
                 <div style="font-size:12px;font-weight:700;margin-bottom:4px;">${g.nome} · ${g.righe.length}</div>
-                <div style="font-size:11px;color:var(--ink-soft);margin-bottom:6px;">${vMin.toFixed(1)}–${vMax.toFixed(1)} km/h · 15" al 100%: ${coni(vMin)}–${coni(vMax)} m</div>
+                <div style="font-size:11px;color:var(--ink-soft);margin-bottom:6px;">${vMin.toFixed(1)}–${vMax.toFixed(1)} km/h${test.type === TEST_VIFT ? ' · VAM ' + fmtKmh(vamDaVift(vMin)) + '–' + fmtKmh(vamDaVift(vMax)) : ''} · 15" al 100%: ${coni(vMin)}–${coni(vMax)} m</div>
                 <div style="display:flex;flex-wrap:wrap;gap:4px;">${g.righe.map(r => {
                   const p = STATE.players.find(pl => String(pl.id) === String(r.playerId));
                   return `<span style="background:white;padding:3px 7px;border-radius:3px;font-size:11px;">${esc(p ? p.name : '?')} ${r.value.toFixed(1)}</span>`;
@@ -7715,8 +7781,8 @@ async function setPlayerPresence(eventId, playerId, present){
   if(present && idx === -1) event.presentPlayers.push(playerId);
   if(!present && idx !== -1) event.presentPlayers.splice(idx, 1);
   event.presentCount = event.presentPlayers.length;
-  await saveKey('events', STATE.events);
-  return true;
+  const ok = await saveKey('events', STATE.events);
+  return ok !== false;
 }
 
 /* ---------- CONVOCAZIONI ---------- */
@@ -8197,7 +8263,7 @@ function calcolaAutoSplitDifferenziato(dateStr, sogliaMinuti){
    ============================================================ */
 
 /* Da quale tipo di test si legge la velocita' del giocatore */
-const DIFF_TEST_PER_MODALITA = { VAM: 'VAM', VIFT: '30-15 Intermittent' };
+const DIFF_TEST_PER_MODALITA = { VAM: '30-15 Intermittent', VIFT: '30-15 Intermittent' };   /* unico test: la VAM si stima dalla VIFT */
 
 /* Sottogruppi di velocita': Rosso = piu' veloci, Blu = piu' lenti (convenzione dell'app) */
 const DIFF_SOTTOGRUPPI = {
@@ -8253,12 +8319,15 @@ function creaDifferenziatoDefault(dateStr, sogliaMinuti){
   };
 }
 
-/* Ultimo risultato del giocatore nel test della modalita' scelta */
+/* Ultimo 30-15 del giocatore, l'unico test aerobico usato dallo staff.
+   Restituisce la VIFT misurata e la VAM stimata; "value" e' la velocita' su cui
+   si calcola l'intensita' della modalita' scelta (VAM in linea o VIFT con COD). */
 function velocitaTestGiocatore(playerId, modalita){
-  const tipo = DIFF_TEST_PER_MODALITA[modalita];
-  if(!tipo) return null;
-  const storia = playerTestHistory(playerId, tipo);   // dal piu' recente
-  return storia.length ? {value: storia[0].value, date: storia[0].date} : null;
+  const storia = playerTestHistory(playerId, TEST_VIFT);   // dal piu' recente
+  if(!storia.length || !(storia[0].value > 0)) return null;
+  const vift = storia[0].value;
+  const vam = vamDaVift(vift);
+  return {value: modalita === 'VAM' ? vam : vift, vift, vam, date: storia[0].date};
 }
 
 /* Divide i giocatori di un gruppo in sottogruppi contigui per velocita' di test.
@@ -8270,10 +8339,10 @@ function sottogruppiDifferenziato(g){
     const p = STATE.players.find(x => String(x.id) === String(pid));
     if(!p) return;
     const t = velocitaTestGiocatore(p.id, g.modalita);
-    if(t && t.value > 0) conTest.push({p, v: t.value, testDate: t.date});
+    if(t && t.value > 0) conTest.push({p, v: t.value, vam: t.vam, vift: t.vift, testDate: t.date});
     else senzaTest.push(p);
   });
-  conTest.sort((a,b) => b.v - a.v);
+  conTest.sort((a,b) => (b.vam || 0) - (a.vam || 0));   // divisi per VAM (stesso ordine della VIFT)
   const n = conTest.length;
   let k = (g.nSottogruppi === 'auto' || !g.nSottogruppi) ? (n >= 7 ? 3 : n >= 4 ? 2 : 1) : parseInt(g.nSottogruppi, 10);
   k = Math.max(1, Math.min(3, k, n || 1));
@@ -8381,7 +8450,7 @@ function colonnaGruppoDiff(event, chiave){
       <div style="border-left:3px solid ${s.colore};background:${s.bg};border-radius:4px;padding:6px;margin-bottom:6px;">
         <div style="font-size:11px;font-weight:700;color:var(--ink);margin-bottom:4px;">${s.nome} · ${s.righe.length}
           <span style="font-weight:500;color:var(--ink-soft);"> · ${target}</span></div>
-        ${s.righe.map(x => rigaGiocatore(x.p, `${g.modalita} ${fmtKmh(x.v)} · ` + (lavoro > 0 ? `${x.distRep} m` : (x.distTot ? `${(x.distTot/1000).toFixed(1)} km` : `${fmtKmh(x.vTarget)} km/h`)))).join('')}
+        ${s.righe.map(x => rigaGiocatore(x.p, `VAM ${fmtKmh(x.vam)}${g.modalita === 'VIFT' ? ' · VIFT ' + fmtKmh(x.vift) : ''} · ` + (lavoro > 0 ? `${x.distRep} m` : (x.distTot ? `${(x.distTot/1000).toFixed(1)} km` : `${fmtKmh(x.vTarget)} km/h`)))).join('')}
       </div>`;
   }).join('');
 
@@ -8390,7 +8459,7 @@ function colonnaGruppoDiff(event, chiave){
       <div style="border-left:3px solid var(--line);background:#F7F5EC;border-radius:4px;padding:6px;margin-bottom:6px;">
         <div style="font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:4px;">Senza test ${g.modalita} · ${sg.senzaTest.length}</div>
         ${sg.senzaTest.map(p => rigaGiocatore(p, '')).join('')}
-        ${nessunTestTipo ? `<div style="font-size:10.5px;color:var(--ink-soft);margin-top:4px;">Nessun test "${esc(sg.tipoTest)}" registrato: aggiungilo in Performance → Test${g.modalita === 'VAM' ? ', oppure passa a VIFT' : ''}.</div>` : ''}
+        ${nessunTestTipo ? `<div style="font-size:10.5px;color:var(--ink-soft);margin-top:4px;">Nessun test "${esc(sg.tipoTest)}" registrato: aggiungilo in Performance → Test. La VAM viene stimata in automatico dalla VIFT.</div>` : ''}
       </div>` : '';
 
   const esercitazioni = g.esercitazioniIds.map(wid => {
@@ -10666,6 +10735,260 @@ function rigaEsercizioGiocatore(ex, i, planId){
   `;
 }
 
+/* ============================================================
+   OGGI — schermata iniziale del giocatore
+   Tutto quello che deve fare in un posto solo: presenza all'allenamento
+   di oggi, wellness, RPE da inserire, dolori. Le cose da fare stanno in
+   cima ed evidenziate, quelle gia' fatte scendono in fondo. Wellness,
+   Calendario, Piani e Profilo restano disponibili nel menu.
+   ============================================================ */
+
+/* La sessione e' finita? L'RPE va chiesto dopo la fine (metodo Foster), non prima.
+   true = finita, false = non ancora, null = oggi ma senza orario (non si puo' sapere). */
+function sessioneFinita(e){
+  if(!e) return false;
+  const oggi = todayStr();
+  if(e.date < oggi) return true;
+  if(e.date > oggi) return false;
+  if(!e.time) return null;
+  const parti = String(e.time).split(':');
+  const fine = new Date();
+  fine.setHours(parseInt(parti[0], 10) || 0, parseInt(parti[1], 10) || 0, 0, 0);
+  const durata = e.type === 'Partita' ? 105 : (Number(getSessionDuration(e)) || 90);   // partita: 90' + intervallo
+  fine.setMinutes(fine.getMinutes() + durata);
+  return new Date() >= fine;
+}
+
+/* RPE ancora da inserire negli ultimi 7 giorni.
+   daFare: partite in cui ha giocato e allenamenti in cui risulta presente.
+   altri: allenamenti in cui non risulta presente. Puo' compilarli lo stesso
+   (verra' segnato presente), ma non li conto come cose da fare, altrimenti
+   chi era davvero assente si ritroverebbe un promemoria per ogni sessione. */
+function rpeDaInserire(playerId){
+  const pid = String(playerId);
+  const oggi = todayStr(), limite = daysAgo(7);
+  const daFare = [], altri = [];
+  STATE.events
+    .filter(e => e && e.id !== 'rpe-import-session' && (e.type === 'Allenamento' || e.type === 'Partita'))
+    .filter(e => e.date >= limite && e.date <= oggi && sessioneFinita(e) !== false)
+    .filter(e => canEnterRPE(e, pid))
+    .filter(e => !STATE.rpeLog.some(r => String(r.playerId) === pid && r.sessionId === e.id))
+    .sort((a,b) => String(b.date).localeCompare(String(a.date)))
+    .forEach(e => {
+      const presente = Array.isArray(e.presentPlayers) && e.presentPlayers.map(String).includes(pid);
+      /* Oggi senza orario: compilabile, ma non la segnalo come da fare finche' non so che e' finita */
+      const finita = sessioneFinita(e) === true;
+      (finita && (e.type === 'Partita' || presente) ? daFare : altri).push(e);
+    });
+  return {daFare, altri};
+}
+
+/* Riepilogo delle cose da fare: lo usano la schermata Oggi e il badge del menu */
+function compitiGiocatore(playerId){
+  const pid = String(playerId);
+  const player = STATE.players.find(p => String(p.id) === pid) || null;
+  const oggi = todayStr();
+  const allenamento = getTodayWorkout();
+  const presente = !!(allenamento && Array.isArray(allenamento.presentPlayers) && allenamento.presentPlayers.map(String).includes(pid));
+  const puoPresenza = !!(allenamento && player && canMarkPresence(player));
+  const wellness = STATE.hooperLog.find(h => String(h.playerId) === pid && h.date === oggi) || null;
+  const rpe = rpeDaInserire(pid);
+  const daFare = (puoPresenza && !presente ? 1 : 0) + (wellness ? 0 : 1) + rpe.daFare.length;
+  return {player, allenamento, presente, puoPresenza, wellness, rpe, nuoviPiani: pianiNonVisti(pid), daFare};
+}
+
+function renderOggiGiocatore(el){
+  const pid = STATE.currentPlayerId;
+  const c = compitiGiocatore(pid);
+  if(!c.player){
+    el.innerHTML = '<div class="card"><div class="empty">Profilo non trovato. Contatta lo staff.</div></div>';
+    return;
+  }
+  const giorniNomi = ['Domenica','Lunedi','Martedi','Mercoledi','Giovedi','Venerdi','Sabato'];
+  const oggiD = new Date(todayStr() + 'T00:00:00');
+  const quando = d => {
+    if(d === todayStr()) return 'Oggi';
+    if(d === daysAgo(1)) return 'Ieri';
+    return giorniNomi[new Date(d + 'T00:00:00').getDay()] + ' ' + fmtDate(d);
+  };
+  const nomeSessione = e => e.type === 'Partita'
+    ? 'Partita' + (e.opponent ? ' vs ' + esc(e.opponent) : (e.title ? ' · ' + esc(e.title) : ''))
+    : esc(e.title || 'Allenamento');
+
+  /* stato: 'fare' | 'fatto' | null (solo informativa) */
+  const scheda = (stato, titolo, sotto, corpo) => `
+    <div class="card" style="border-left:4px solid ${stato === 'fare' ? 'var(--amber)' : stato === 'fatto' ? 'var(--ok)' : 'var(--line)'};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;${corpo ? 'margin-bottom:12px;' : ''}">
+        <div style="min-width:0;">
+          <h3 style="margin:0;">${titolo}</h3>
+          ${sotto ? `<div style="font-size:12.5px;color:var(--ink-soft);margin-top:2px;">${sotto}</div>` : ''}
+        </div>
+        ${stato ? `<span style="font-size:10px;font-weight:700;letter-spacing:.05em;padding:3px 8px;border-radius:10px;white-space:nowrap;background:${stato === 'fare' ? '#FFF6E0' : '#E3EFE7'};color:${stato === 'fare' ? 'var(--amber-dark)' : 'var(--ok)'};">${stato === 'fare' ? 'DA FARE' : 'FATTO'}</span>` : ''}
+      </div>
+      ${corpo || ''}
+    </div>`;
+
+  const pendenti = [], info = [], fatte = [];
+
+  /* --- Presenza all'allenamento di oggi --- */
+  if(c.allenamento){
+    const sotto = esc(c.allenamento.title || 'Allenamento') + (c.allenamento.time ? ' · ore ' + esc(c.allenamento.time) : '');
+    if(c.puoPresenza && !c.presente){
+      pendenti.push(scheda('fare', 'Allenamento di oggi', sotto,
+        `<button class="btn" id="oggiPresenteBtn" style="width:100%;padding:14px;font-size:15px;">Sono presente</button>`));
+    } else if(c.presente){
+      fatte.push(scheda('fatto', 'Allenamento di oggi', sotto + ' · sei segnato presente',
+        `<button type="button" id="oggiAssenteBtn" style="background:none;border:none;color:var(--ink-soft);font-size:12px;text-decoration:underline;cursor:pointer;padding:0;">Non ci sono piu', togli la presenza</button>`));
+    } else {
+      info.push(scheda(null, 'Allenamento di oggi', sotto,
+        `<div style="font-size:12.5px;color:var(--ink-soft);">Con stato "${esc(statusMeta(c.player.status).label)}" la presenza la registra lo staff.</div>`));
+    }
+  }
+
+  /* --- Wellness: quattro domande, un tocco per risposta --- */
+  if(c.wellness){
+    const sc = hooperScore(c.wellness), b = hooperBand(sc);
+    fatte.push(scheda('fatto', 'Wellness di oggi', `Freschezza <strong style="color:${b.color};">${hooperPercent(sc)}%</strong> · ${esc(b.label)}`, ''));
+  } else {
+    pendenti.push(scheda('fare', 'Wellness di oggi', 'Quattro domande: tocca un numero da 1 a 7',
+      HOOPER_ITEMS.map(it => `
+        <div style="margin-bottom:14px;">
+          <div style="font-size:13.5px;font-weight:600;">${esc(it.label)}</div>
+          <div style="display:flex;justify-content:space-between;gap:8px;font-size:10.5px;color:var(--ink-soft);margin:2px 0 6px 0;"><span>1 = ${esc(it.low)}</span><span style="text-align:right;">7 = ${esc(it.high)}</span></div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">
+            ${[1,2,3,4,5,6,7].map(v => `<button type="button" class="hq-btn" data-key="${it.key}" data-v="${v}" style="padding:12px 0;border:1px solid var(--line);border-radius:6px;background:white;font-size:15px;font-weight:600;cursor:pointer;color:var(--ink);">${v}</button>`).join('')}
+          </div>
+        </div>`).join('') +
+      `<button class="btn" id="oggiWellnessBtn" disabled style="width:100%;padding:13px;font-size:15px;opacity:.45;">Salva wellness</button>`));
+  }
+
+  /* --- RPE da inserire --- */
+  const rigaRpe = e => `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;background:#FAFAF7;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;">
+      <div style="min-width:0;">
+        <div style="font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nomeSessione(e)}</div>
+        <div style="font-size:11.5px;color:var(--ink-soft);">${quando(e.date)}</div>
+      </div>
+      <button class="btn oggi-rpe-btn" data-event-id="${esc(e.id)}" style="padding:10px 14px;white-space:nowrap;">Inserisci RPE</button>
+    </div>`;
+  const altriHtml = c.rpe.altri.length ? `
+    <details style="margin-top:8px;">
+      <summary style="font-size:12px;color:var(--ink-soft);cursor:pointer;">Hai fatto un altro allenamento? (${c.rpe.altri.length})</summary>
+      <div style="margin-top:8px;">${c.rpe.altri.map(rigaRpe).join('')}
+        <div style="font-size:11px;color:var(--ink-soft);">Inserendo l'RPE vieni segnato presente.</div>
+      </div>
+    </details>` : '';
+  if(c.rpe.daFare.length){
+    pendenti.push(scheda('fare', c.rpe.daFare.length === 1 ? 'RPE da inserire' : c.rpe.daFare.length + ' RPE da inserire',
+      'Quanto e\' stata faticosa la sessione, da 1 a 10', c.rpe.daFare.map(rigaRpe).join('') + altriHtml));
+  } else {
+    fatte.push(scheda('fatto', 'RPE', 'Nessun RPE in sospeso', altriHtml));
+  }
+
+  /* --- Prossima partita: stato della convocazione --- */
+  const prossima = STATE.events
+    .filter(e => e.type === 'Partita' && e.date >= todayStr())
+    .sort((a,b) => String(a.date).localeCompare(String(b.date)))[0] || null;
+  let cardConv = '';
+  if(prossima){
+    const aperte = Array.isArray(prossima.convocati) && prossima.convocati.length > 0;
+    const io = isConvocato(prossima, pid);
+    const stato = io ? 'Sei convocato' : aperte ? 'Non convocato' : 'In attesa di convocazione';
+    const col = io ? 'var(--ok)' : aperte ? 'var(--clay)' : 'var(--ink-soft)';
+    cardConv = `<div class="card" style="padding:12px 16px;"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+      <div style="min-width:0;"><div style="font-size:10.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;">Prossima partita</div>
+      <div style="font-weight:600;font-size:13.5px;">${quando(prossima.date)}${prossima.time ? ' · ' + esc(prossima.time) : ''}${prossima.opponent ? ' · ' + esc(prossima.opponent) : ''}</div></div>
+      <div style="font-weight:700;font-size:12.5px;color:${col};text-align:right;white-space:nowrap;">${stato}</div></div></div>`;
+  }
+
+  /* --- Nuovi piani --- */
+  const cardPiani = c.nuoviPiani > 0 ? scheda(null, c.nuoviPiani === 1 ? 'Hai 1 nuovo piano' : 'Hai ' + c.nuoviPiani + ' nuovi piani', 'Assegnato dallo staff',
+    `<button class="btn secondary" id="oggiPianiBtn" style="width:100%;padding:12px;">Apri i piani</button>`) : '';
+
+  /* --- Dolori: sempre a portata, non e' una cosa da fare --- */
+  const aperti = getOpenPainIssues(pid);
+  const cardDolori = scheda(null, 'Dolori o fastidi',
+    aperti.length ? 'Segnalazioni aperte: ' + aperti.length : 'Se senti un dolore, segnalalo subito',
+    (aperti.length ? aperti.slice(0, 4).map(d => `<div style="font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line);">${esc(d.zone)}${d.lastIntensity ? ' · ' + d.lastIntensity + '/10' : ''}<span style="color:var(--ink-soft);"> · ${esc(d.label)}</span></div>`).join('') : '') +
+    `<button class="btn secondary" id="oggiDoloreBtn" style="width:100%;padding:12px;font-size:14px;margin-top:${aperti.length ? '10px' : '0'};">Segnala un dolore</button>`);
+
+  const n = c.daFare;
+  el.innerHTML = `
+    <div class="page-head"><h1>Oggi</h1><p>${giorniNomi[oggiD.getDay()]} ${fmtDate(todayStr())} · ${esc(c.player.name)}</p></div>
+    <div style="padding:16px;border-radius:10px;margin-bottom:16px;background:${n ? '#FFF6E0' : '#E3EFE7'};border:1px solid ${n ? 'var(--amber)' : 'var(--ok)'};">
+      <div style="font-family:Oswald,sans-serif;font-size:22px;font-weight:600;color:${n ? 'var(--amber-dark)' : 'var(--ok)'};">${n ? (n === 1 ? 'Hai 1 cosa da fare' : 'Hai ' + n + ' cose da fare') : 'Tutto fatto per oggi'}</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);margin-top:2px;">${n ? 'Ci vuole meno di un minuto.' : 'Grazie. Se senti un dolore o un fastidio, segnalalo qui sotto.'}</div>
+    </div>
+    ${pendenti.join('')}
+    ${cardConv}
+    ${cardPiani}
+    ${info.join('')}
+    ${cardDolori}
+    ${fatte.join('')}
+  `;
+
+  /* --- Azioni --- */
+  const bP = document.getElementById('oggiPresenteBtn');
+  if(bP) bP.addEventListener('click', async ()=>{
+    bP.disabled = true;
+    const ok = await setPlayerPresence(c.allenamento.id, STATE.currentPlayerId, true);
+    if(!ok){ bP.disabled = false; return; }
+    showToast('Presenza registrata');
+    render();
+  });
+  const bA = document.getElementById('oggiAssenteBtn');
+  if(bA) bA.addEventListener('click', async ()=>{
+    if(!confirm("Togliere la presenza all'allenamento di oggi?")) return;
+    await setPlayerPresence(c.allenamento.id, STATE.currentPlayerId, false);
+    showToast('Presenza tolta');
+    render();
+  });
+
+  const scelte = {};
+  const bW = document.getElementById('oggiWellnessBtn');
+  el.querySelectorAll('.hq-btn').forEach(b => b.addEventListener('click', ()=>{
+    const k = b.dataset.key, v = parseInt(b.dataset.v, 10);
+    scelte[k] = v;
+    const tono = v <= 2 ? ['#E3EFE7', 'var(--ok)'] : v <= 5 ? ['#FFF6E0', 'var(--amber-dark)'] : ['#F9E4E0', 'var(--clay)'];
+    el.querySelectorAll(`.hq-btn[data-key="${k}"]`).forEach(x => {
+      const sel = parseInt(x.dataset.v, 10) === v;
+      x.style.background = sel ? tono[0] : 'white';
+      x.style.borderColor = sel ? tono[1] : 'var(--line)';
+      x.style.color = sel ? tono[1] : 'var(--ink)';
+    });
+    const completo = HOOPER_ITEMS.every(it => scelte[it.key]);
+    if(bW){ bW.disabled = !completo; bW.style.opacity = completo ? '1' : '.45'; }
+  }));
+  if(bW) bW.addEventListener('click', async ()=>{
+    if(!HOOPER_ITEMS.every(it => scelte[it.key])) return;
+    /* doppio tocco o compilato da un altro dispositivo nel frattempo */
+    if(STATE.hooperLog.some(h => String(h.playerId) === String(STATE.currentPlayerId) && h.date === todayStr())){ render(); return; }
+    bW.disabled = true;
+    const entry = {id: uid(), playerId: STATE.currentPlayerId, date: todayStr(), scale: 7,
+                   statusAtEntry: currentStatusOf(STATE.currentPlayerId)};
+    HOOPER_ITEMS.forEach(it => { entry[it.key] = scelte[it.key]; });
+    STATE.hooperLog.push(entry);
+    const ok = await saveKey('hooper-log', STATE.hooperLog);
+    if(ok === false){
+      /* salvataggio bloccato: tolgo la voce, cosi' non sembra registrata quando non lo e' */
+      STATE.hooperLog = STATE.hooperLog.filter(h => h.id !== entry.id);
+      bW.disabled = false;
+      return;
+    }
+    showToast('Wellness salvato · ' + hooperBand(hooperScore(entry)).label);
+    render();
+  });
+
+  el.querySelectorAll('.oggi-rpe-btn').forEach(b => b.addEventListener('click', ()=>{
+    const ev = STATE.events.find(x => String(x.id) === String(b.dataset.eventId));
+    if(ev) formRpeGiocatore(STATE.currentPlayerId, ev, () => render());
+  }));
+  const bD = document.getElementById('oggiDoloreBtn');
+  if(bD) bD.addEventListener('click', () => addPainEntryForm(STATE.currentPlayerId, () => render()));
+  const bPi = document.getElementById('oggiPianiBtn');
+  if(bPi) bPi.addEventListener('click', () => setPage('piani'));
+}
+
 function renderPlayerCalendario(el){
  try{
   const today = todayStr();
@@ -10833,6 +11156,12 @@ function renderImpostazioni(el){
   el.innerHTML = `
     <div class="page-head"><h1>Impostazioni</h1></div>
     <div class="card"><h3>Nome squadra</h3><input id="setTeamName" type="text" value="${esc(STATE.teamConfig.name||'')}"><div class="btn-row"><button class="btn" id="saveTeamBtn">Salva</button></div></div>
+    <div class="card"><h3>Test 30-15: stima della VAM</h3>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">La VAM viene stimata dalla VIFT: VAM = VIFT ÷ rapporto. In letteratura la VIFT supera la VAM di circa il 15-25%; il valore predefinito e' 1,20.</div>
+      <label>Rapporto VIFT / VAM</label><input id="setViftVamRatio" type="number" min="1" max="1.5" step="0.01" value="${rapportoViftVam().toFixed(2)}">
+      <div id="viftVamEsempio" style="font-size:11.5px;color:var(--ink-soft);margin-top:6px;">Esempio: VIFT 19,0 km/h → VAM ${fmtKmh(vamDaVift(19))} km/h</div>
+      <div class="btn-row"><button class="btn" id="saveViftVamBtn">Salva</button></div>
+    </div>
     <div class="card"><h3>Password staff</h3><input id="setStaffPassword" type="text" value="${esc(STATE.staffPassword||'staff')}"><div class="btn-row"><button class="btn" id="saveStaffPasswordBtn">Aggiorna</button></div></div>
     <div class="card"><h3>Backup dati</h3><div class="btn-row"><button class="btn secondary" id="exportBtn">Scarica backup</button></div></div>
   `;
@@ -10842,6 +11171,24 @@ function renderImpostazioni(el){
     await saveKey('team-config', STATE.teamConfig);
     showToast('Salvato');
   });
+
+  const ratioInput = document.getElementById('setViftVamRatio');
+  const ratioEsempio = document.getElementById('viftVamEsempio');
+  if(ratioInput){
+    ratioInput.addEventListener('input', ()=>{
+      const r = parseFloat(String(ratioInput.value).replace(',', '.'));
+      if(ratioEsempio) ratioEsempio.textContent = (r >= 1 && r <= 1.5)
+        ? 'Esempio: VIFT 19,0 km/h → VAM ' + fmtKmh(19 / r) + ' km/h'
+        : 'Valore ammesso tra 1,00 e 1,50';
+    });
+    document.getElementById('saveViftVamBtn').addEventListener('click', async ()=>{
+      const r = parseFloat(String(ratioInput.value).replace(',', '.'));
+      if(!(r >= 1 && r <= 1.5)){ showToast('Inserisci un valore tra 1,00 e 1,50'); return; }
+      STATE.teamConfig.viftVamRatio = Math.round(r * 100) / 100;
+      await saveKey('team-config', STATE.teamConfig);
+      showToast('Rapporto VIFT/VAM salvato');
+    });
+  }
   
   document.getElementById('saveStaffPasswordBtn').addEventListener('click', async ()=>{
     const pwd = document.getElementById('setStaffPassword').value.trim();
