@@ -301,11 +301,95 @@ const firebaseConfig = {
 
 let app = null;
 let db = null;
-const TEAM_ID = 'alense';
+/* ---------- SQUADRE ----------
+   I dati di ogni squadra vivono gia' in teams/{id}/data/{chiave}: cambiare squadra
+   significa solo cambiare questo id. La scelta resta sul dispositivo (e si puo'
+   forzare con ?team=... nell'indirizzo); l'elenco delle squadre sta su Firestore
+   in teams/_index/data/list, cosi' e' leggibile prima del login e uguale su tutti
+   i dispositivi. Ogni squadra ha rosa, calendario, test e password proprie. */
+const TEAM_DEFAULT = 'alense';
+const TEAM_KEY = 'thp-team';
+const TEAM_INDEX_ID = '_index';
+let TEAM_ID = TEAM_DEFAULT;
+let TEAMS = [];
+(function(){
+  try{
+    const m = String((window.location && window.location.search) || '').match(/[?&]team=([A-Za-z0-9_-]+)/);
+    const scelta = String(m ? m[1] : (localStorage.getItem(TEAM_KEY) || '')).trim().toLowerCase();
+    if(/^[a-z0-9_-]{2,40}$/.test(scelta)) TEAM_ID = scelta;
+    if(m) localStorage.setItem(TEAM_KEY, TEAM_ID);
+  }catch(e){}
+})();
+
+/* Profili: due preimpostazioni che accendono e spengono i moduli. Gli interruttori
+   restano modificabili uno per uno per i casi di mezzo. */
+const PROFILI_SQUADRA = {
+  completa:       {label:'Squadra completa',     moduli:{accessoGiocatori:true,  wellness:true,  rpe:true,  medica:true}},
+  programmazione: {label:'Solo programmazione',  moduli:{accessoGiocatori:false, wellness:false, rpe:false, medica:false}}
+};
+const MODULI_SQUADRA = [
+  {id:'accessoGiocatori', label:'I giocatori entrano nell app'},
+  {id:'wellness',         label:'Wellness compilato dai giocatori'},
+  {id:'rpe',              label:'RPE, carico e ACWR'},
+  {id:'medica',           label:'Area medica'}
+];
+
+/* Un modulo spento nasconde anche tutto cio' che ne deriva: senza RPE non esistono
+   ACWR ne' carico. Le squadre create prima di questa versione non hanno la
+   configurazione: in quel caso valgono tutti attivi, cosi' non cambia niente. */
+function moduloAttivo(nome){
+  const m = STATE && STATE.teamConfig && STATE.teamConfig.moduli;
+  if(!m || typeof m[nome] === 'undefined') return true;
+  return !!m[nome];
+}
+function squadraCorrente(){
+  return TEAMS.find(t => t.id === TEAM_ID)
+      || {id: TEAM_ID, name: (STATE && STATE.teamConfig && STATE.teamConfig.name) || TEAM_ID, profilo: 'completa'};
+}
+function cambiaSquadra(id){
+  if(!id || id === TEAM_ID) return;
+  try{ localStorage.setItem(TEAM_KEY, id); }catch(e){}
+  window.location.reload();
+}
+async function caricaElencoSquadre(){
+  const base = [{id: TEAM_DEFAULT, name: 'Alense', profilo: 'completa'}];
+  TEAMS = base;
+  if(db){
+    try{
+      const doc = await db.collection('teams').doc(TEAM_INDEX_ID).collection('data').doc('list').get();
+      const v = doc.exists ? doc.data().value : null;
+      if(Array.isArray(v) && v.length) TEAMS = v;
+    }catch(e){ console.warn('Elenco squadre non letto:', e.message); }
+  }
+  /* La squadra aperta compare sempre, anche se il registro non fosse aggiornato */
+  if(!TEAMS.some(t => t.id === TEAM_ID)) TEAMS.push({id: TEAM_ID, name: TEAM_ID, profilo: 'completa'});
+  return TEAMS;
+}
+async function salvaElencoSquadre(){
+  if(LOAD_FAILED){ showToast('Dati non caricati correttamente: ricarica prima di salvare'); return false; }
+  if(!db){ showToast('Senza connessione non posso salvare l elenco squadre'); return false; }
+  try{
+    await db.collection('teams').doc(TEAM_INDEX_ID).collection('data').doc('list').set({
+      value: TEAMS, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return true;
+  }catch(e){ console.error(e); showToast('Elenco squadre non salvato'); return false; }
+}
+/* Scrittura diretta su UN ALTRA squadra: serve solo per creare una squadra nuova.
+   Tutto il resto passa da saveKey, che lavora sulla squadra aperta. */
+async function scriviChiaveSquadra(teamId, key, value){
+  if(LOAD_FAILED || !db) return false;
+  try{
+    await db.collection('teams').doc(teamId).collection('data').doc(key).set({
+      value: value, timestamp: firebase.firestore.FieldValue.serverTimestamp(), playerId: 'admin'
+    });
+    return true;
+  }catch(e){ console.error('Creazione squadra:', e.message); return false; }
+}
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '2.5';
+const APP_VERSION = '2.6';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -1249,6 +1333,7 @@ function showToast(msg){
 }
 
 async function loadAll(){
+  await caricaElencoSquadre();
   // Tutte le letture partono insieme: in sequenza servivano diversi secondi
   const chiavi = [
     ['team-config',      {name:'Alense'}],
@@ -1303,7 +1388,7 @@ async function loadAll(){
 
   // I dati iniziali si caricano SOLO se Firestore ha risposto e il documento
   // era davvero assente. Se la lettura e' fallita, non tocco niente.
-  if(STATE.players.length === 0 && LOAD_STATUS['players'] === 'vuoto' && !LOAD_FAILED){
+  if(TEAM_ID === TEAM_DEFAULT && STATE.players.length === 0 && LOAD_STATUS['players'] === 'vuoto' && !LOAD_FAILED){
     STATE.players = ALENSE_PLAYERS.map(p=>Object.assign({}, p));
     saveKey('players', STATE.players);
   } else {
@@ -1311,7 +1396,7 @@ async function loadAll(){
   }
 
   // Primo avvio: RPE storici e sessione fittizia che ne fissa la durata
-  if(STATE.rpeLog.length === 0 && LOAD_STATUS['rpe-log'] === 'vuoto' && !LOAD_FAILED && typeof ALENSE_RPE_SEED !== 'undefined' && ALENSE_RPE_SEED.length){
+  if(TEAM_ID === TEAM_DEFAULT && STATE.rpeLog.length === 0 && LOAD_STATUS['rpe-log'] === 'vuoto' && !LOAD_FAILED && typeof ALENSE_RPE_SEED !== 'undefined' && ALENSE_RPE_SEED.length){
     STATE.rpeLog = ALENSE_RPE_SEED.map(r=>Object.assign({}, r));
     if(!STATE.events.some(e=>e.id === 'rpe-import-session')){
       STATE.events.push({
@@ -2068,6 +2153,11 @@ function render(){
     const consentite = sezioniConsentite();
     navItems = NAV_STAFF.filter(n => consentite.indexOf(n.id) !== -1);
   }
+  /* Moduli spenti: via dal menu, e se ero su quella pagina torno alla prima utile */
+  if(STATE.role !== 'player'){
+    navItems = navItems.filter(n => n.id !== 'medica' || moduloAttivo('medica'));
+    if(navItems.length && !navItems.some(n => n.id === STATE.page)) STATE.page = navItems[0].id;
+  }
   root.innerHTML = `
     ${bannerErrore}
     <div class="app">
@@ -2077,7 +2167,7 @@ function render(){
             <div class="brand-name" style="font-size:20px;letter-spacing:0.05em;">TEAM HUB PRO</div>
             ${STATE.role==='player'
               ? `<div class="brand-sub" style="color:var(--amber);font-weight:700;font-size:12px;text-transform:none;letter-spacing:0;">${esc(STATE.currentPlayerName || 'Atleta')}</div>`
-              : `<div class="brand-sub">${STATE.role==='staff'?'Staff':'Amministratore'}</div>`}
+              : `<div class="brand-sub">${esc(squadraCorrente().name)} · ${STATE.role==='staff'?'Staff':'Amministratore'}</div>`}
           </div>
         </div>
         <div class="nav">
@@ -2285,6 +2375,10 @@ function renderLogin(el){
     <div class="login-screen">
       <div class="login-card">
         <h1>TEAM HUB PRO</h1>
+        ${TEAMS.length > 1 ? `<div style="margin-bottom:16px;">
+          <label for="loginTeamSelect" style="font-size:11px;">Squadra</label>
+          <select id="loginTeamSelect">${TEAMS.map(t=>`<option value="${esc(t.id)}" ${t.id===TEAM_ID?'selected':''}>${esc(t.name)}</option>`).join('')}</select>
+        </div>` : ''}
         <div id="playerForm" style="display:block;">
           <form id="playerLoginForm" action="#" method="post" autocomplete="on">
             <!-- Campo nascosto: lo riempio io col nome del giocatore appena riconosco il codice,
@@ -2332,6 +2426,22 @@ function renderLogin(el){
     </div>
   `;
   
+  const loginTeamSelect = document.getElementById('loginTeamSelect');
+  if(loginTeamSelect) loginTeamSelect.addEventListener('change', ()=> cambiaSquadra(loginTeamSelect.value));
+
+  /* Squadra senza accesso giocatori: mostro direttamente il modulo staff e tolgo
+     i rimandi al login atleta, che qui non porterebbero da nessuna parte. */
+  if(!moduloAttivo('accessoGiocatori')){
+    const pf = document.getElementById('playerForm');
+    const sf = document.getElementById('staffForm');
+    if(pf) pf.style.display = 'none';
+    if(sf) sf.style.display = 'block';
+    ['staffToggleBtn','playerToggleBtn','playerToggleBtn2'].forEach(id=>{
+      const b = document.getElementById(id);
+      if(b && b.parentNode) b.parentNode.style.display = 'none';
+    });
+  }
+
   document.getElementById('staffToggleBtn').addEventListener('click', (e)=>{
     e.preventDefault();
     document.getElementById('playerForm').style.display = 'none';
@@ -3139,6 +3249,8 @@ function printSessionRecap(eventId){
 }
 
 function renderDashboard(el){
+  /* Senza RPE e senza wellness la dashboard completa sarebbe fatta di riquadri vuoti */
+  if(!moduloAttivo('rpe') && !moduloAttivo('wellness')) return renderDashboardProgrammazione(el);
   /* Router: la dashboard cambia in base al ruolo dell'utente staff.
      - Admin e ruoli non riconosciuti vedono la dashboard completa (originale).
      - Allenatore e Vice vedono la dashboard "mister": prossima partita, formazione, disponibilita, risultati.
@@ -3152,6 +3264,76 @@ function renderDashboard(el){
     if(rk === 'Fisioterapista')               return renderDashboardFisio(el);
   }
   return renderDashboardCompleta(el);
+}
+
+
+/* Dashboard ridotta per le squadre di sola programmazione: senza RPE e wellness
+   la dashboard completa sarebbe fatta di riquadri vuoti. Qui resta solo cio' che
+   esiste davvero: calendario, sedute e dati dei test. */
+function renderDashboardProgrammazione(el){
+  const oggi = todayStr();
+  const settimana = STATE.events
+    .filter(e => e.type === 'Allenamento' && e.date >= oggi && e.date <= daysAgo(-7))
+    .sort((a,b) => String(a.date).localeCompare(String(b.date)));
+  const prossima = STATE.events
+    .filter(e => e.type === 'Partita' && e.date >= oggi)
+    .sort((a,b) => String(a.date).localeCompare(String(b.date)))[0] || null;
+  const movimento = STATE.players.filter(p => !isPortiere(p));
+  const conTest = [];
+  const senzaTest = [];
+  movimento.forEach(p => {
+    const storia = playerTestHistory(p.id, TEST_VIFT);
+    if(storia.length && storia[0].value > 0) conTest.push({p, vift: storia[0].value, vam: vamDaVift(storia[0].value), data: storia[0].date});
+    else senzaTest.push(p);
+  });
+  conTest.sort((a,b) => b.vift - a.vift);
+  const ultimoTest = conTest.length ? conTest.map(x => x.data).sort().pop() : null;
+
+  el.innerHTML = `
+    <div class="page-head"><h1>Dashboard</h1><p>${esc(squadraCorrente().name)} · solo programmazione</p></div>
+
+    <div class="tiles">
+      <div class="tile"><div class="tile-accent" style="background:var(--amber);"></div><div class="tile-lbl">Prossima partita</div>
+        <div class="tile-val" style="font-size:20px;">${prossima ? fmtDate(prossima.date) : '—'}</div>
+        <div class="tile-sub">${prossima ? esc(prossima.opponent || 'da definire') : 'nessuna in calendario'}</div></div>
+      <div class="tile"><div class="tile-accent" style="background:var(--pitch);"></div><div class="tile-lbl">Sedute nei 7 giorni</div>
+        <div class="tile-val">${settimana.length}</div><div class="tile-sub">in calendario</div></div>
+      <div class="tile"><div class="tile-accent" style="background:var(--ok);"></div><div class="tile-lbl">Giocatori</div>
+        <div class="tile-val">${STATE.players.length}</div><div class="tile-sub">${conTest.length} con test 30-15</div></div>
+      <div class="tile"><div class="tile-accent" style="background:var(--amber-dark);"></div><div class="tile-lbl">Ultimo 30-15</div>
+        <div class="tile-val" style="font-size:20px;">${ultimoTest ? fmtDate(ultimoTest) : '—'}</div>
+        <div class="tile-sub">${ultimoTest ? 'da ritestare ogni 6-8 settimane' : 'nessun test registrato'}</div></div>
+    </div>
+
+    <div class="card">
+      <h3>Prossime sedute</h3>
+      ${settimana.length === 0 ? '<div class="empty">Nessuna seduta nei prossimi 7 giorni.</div>' :
+        settimana.map(e => `
+          <div class="prog-sessione" data-event-id="${esc(e.id)}" style="display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:9px 10px;background:#F7F5EC;border-radius:6px;margin-bottom:6px;cursor:pointer;">
+            <div style="font-weight:700;font-size:12.5px;color:var(--pitch);width:76px;">${fmtDate(e.date)}</div>
+            <div style="font-size:12.5px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(e.title || 'Allenamento')}${e.md ? ' · ' + esc(e.md) : ''}${e.differenziato && e.differenziato.attivo ? ' · differenziato' : ''}</div>
+            <div style="font-size:11.5px;color:var(--ink-soft);white-space:nowrap;">${getSessionDuration(e) || '—'} min</div>
+          </div>`).join('')}
+    </div>
+
+    <div class="card">
+      <h3>Velocità dai test</h3>
+      <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">VAM stimata dalla VIFT del 30-15, usata per i gruppi e per i metri prescritti.</div>
+      ${conTest.length === 0 ? '<div class="empty">Nessun risultato del 30-15. Inseriscilo in Performance, sezione Test.</div>' :
+        conTest.map(x => `
+          <div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);font-size:12.5px;">
+            <span style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(x.p.name)}</span>
+            <span style="color:var(--ink-soft);font-size:11.5px;white-space:nowrap;">VIFT ${fmtKmh(x.vift)}</span>
+            <span style="font-weight:700;color:var(--pitch);white-space:nowrap;">VAM ${fmtKmh(x.vam)}</span>
+          </div>`).join('')}
+      ${senzaTest.length ? `<div style="font-size:11.5px;color:var(--ink-soft);margin-top:10px;">Senza test: ${senzaTest.map(p => esc(p.name)).join(', ')}</div>` : ''}
+    </div>
+  `;
+
+  el.querySelectorAll('.prog-sessione').forEach(r => r.addEventListener('click', ()=>{
+    const ev = STATE.events.find(e => String(e.id) === String(r.dataset.eventId));
+    if(ev) renderAllenamentoDetails(ev);
+  }));
 }
 
 function renderDashboardCompleta(el){
@@ -6366,9 +6548,9 @@ function renderPerformance(el){
     <div style="display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:20px;overflow-x:auto;">
       ${tabBtn('test','Test')}
       ${tabBtn('confronti','Confronti')}
-      ${tabBtn('carico','Carico')}
+      ${moduloAttivo('rpe') ? tabBtn('carico','Carico') : ''}
       ${tabBtn('grafici','Grafici')}
-      ${tabBtn('rpe','RPE sessioni')}
+      ${moduloAttivo('rpe') ? tabBtn('rpe','RPE sessioni') : ''}
       ${tabBtn('piani','Piani individuali')}
       ${tabBtn('stagione','Stagione')}
     </div>
@@ -6390,9 +6572,9 @@ function renderPerformance(el){
 
   if(tab === 'test') renderTest(content);
   else if(tab === 'confronti') renderPerfConfronti(content);
-  else if(tab === 'carico') renderPerfCarico(content);
+  else if(tab === 'carico' && moduloAttivo('rpe')) renderPerfCarico(content);
   else if(tab === 'grafici') renderPerfGrafici(content);
-  else if(tab === 'rpe') renderPerfRPE(content);
+  else if(tab === 'rpe' && moduloAttivo('rpe')) renderPerfRPE(content);
   else if(tab === 'piani') renderPianiIndividuali(content, 'integrazione');
   else renderPerfStagione(content);
 }
@@ -11316,9 +11498,97 @@ function formStaff(membro, onDone){
   });
 }
 
+function bindGestioneSquadre(){
+  const sel = document.getElementById('teamSelect');
+  const apri = document.getElementById('teamOpenBtn');
+  if(apri && sel) apri.addEventListener('click', ()=>{
+    if(sel.value === TEAM_ID){ showToast('E gia la squadra aperta'); return; }
+    cambiaSquadra(sel.value);
+  });
+
+  /* Scegliere un profilo sposta le spunte; poi restano modificabili a mano */
+  const prof = document.getElementById('teamProfilo');
+  if(prof) prof.addEventListener('change', ()=>{
+    const preset = PROFILI_SQUADRA[prof.value];
+    if(!preset) return;
+    document.querySelectorAll('.team-modulo').forEach(chk=>{
+      const v = preset.moduli[chk.dataset.modulo];
+      if(typeof v !== 'undefined') chk.checked = v;
+    });
+  });
+
+  const salva = document.getElementById('teamSaveProfiloBtn');
+  if(salva) salva.addEventListener('click', async ()=>{
+    const moduli = {};
+    document.querySelectorAll('.team-modulo').forEach(chk=>{ moduli[chk.dataset.modulo] = chk.checked; });
+    STATE.teamConfig.profilo = (document.getElementById('teamProfilo') || {}).value || 'completa';
+    STATE.teamConfig.moduli = moduli;
+    const ok = await saveKey('team-config', STATE.teamConfig);
+    if(ok === false) return;
+    const voce = TEAMS.find(t => t.id === TEAM_ID);
+    if(voce){ voce.profilo = STATE.teamConfig.profilo; voce.name = STATE.teamConfig.name || voce.name; await salvaElencoSquadre(); }
+    showToast('Profilo squadra salvato');
+    render();
+  });
+
+  const crea = document.getElementById('teamCreateBtn');
+  if(crea) crea.addEventListener('click', async ()=>{
+    const nome = (document.getElementById('teamNewName').value || '').trim();
+    if(nome.length < 3){ showToast('Scrivi il nome della squadra'); return; }
+    const id = nome.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+    if(!id){ showToast('Nome non valido'); return; }
+    if(TEAMS.some(t => t.id === id)){ showToast('Esiste gia una squadra con questo nome'); return; }
+    const profilo = document.getElementById('teamNewProfilo').value || 'completa';
+    crea.disabled = true;
+    const config = {name: nome, profilo, moduli: Object.assign({}, PROFILI_SQUADRA[profilo].moduli)};
+    const fatto = await scriviChiaveSquadra(id, 'team-config', config);
+    if(!fatto){ crea.disabled = false; showToast('Creazione non riuscita: controlla la connessione'); return; }
+    /* Stesse password, cosi' non devi ricordarne una per squadra */
+    await scriviChiaveSquadra(id, 'admin-password', STATE.adminPassword);
+    await scriviChiaveSquadra(id, 'staff-password', STATE.staffPassword);
+    TEAMS.push({id, name: nome, profilo});
+    await salvaElencoSquadre();
+    crea.disabled = false;
+    showToast('Squadra creata');
+    if(confirm('Squadra "' + nome + '" creata. Vuoi aprirla adesso?')) cambiaSquadra(id);
+    else render();
+  });
+}
+
 function renderImpostazioniAdmin(el){
   el.innerHTML = `
     <div class="page-head"><h1>Impostazioni Amministratore</h1><p>Solo per l'amministratore del sistema</p></div>
+
+    <div class="card">
+      <h3>Squadre</h3>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:10px;">Ogni squadra ha rosa, calendario, test e password proprie. Cambiare squadra ricarica la pagina.</div>
+      <label>Squadra aperta</label>
+      <select id="teamSelect">${TEAMS.map(t=>`<option value="${esc(t.id)}" ${t.id===TEAM_ID?'selected':''}>${esc(t.name)}</option>`).join('')}</select>
+      <div class="btn-row"><button class="btn secondary" id="teamOpenBtn">Apri squadra</button></div>
+
+      <div style="border-top:1px solid var(--line);margin:16px 0;"></div>
+
+      <label>Profilo di <strong>${esc(squadraCorrente().name)}</strong></label>
+      <select id="teamProfilo">
+        ${Object.keys(PROFILI_SQUADRA).map(k=>`<option value="${k}" ${(STATE.teamConfig.profilo||'completa')===k?'selected':''}>${esc(PROFILI_SQUADRA[k].label)}</option>`).join('')}
+      </select>
+      <div style="font-size:11.5px;color:var(--ink-soft);margin:6px 0 10px 0;">Completa: i giocatori entrano e compilano wellness e RPE. Solo programmazione: nessun accesso per i giocatori, resta tutto quello che serve a programmare il lavoro.</div>
+      <div id="teamModuli">
+        ${MODULI_SQUADRA.map(m=>`<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:6px;font-weight:400;text-transform:none;letter-spacing:0;">
+          <input type="checkbox" class="team-modulo" data-modulo="${m.id}" ${moduloAttivo(m.id)?'checked':''} style="width:18px;height:18px;margin:0;"> ${esc(m.label)}</label>`).join('')}
+      </div>
+      <div class="btn-row"><button class="btn" id="teamSaveProfiloBtn">Salva profilo</button></div>
+
+      <div style="border-top:1px solid var(--line);margin:16px 0;"></div>
+
+      <label>Crea una nuova squadra</label>
+      <input id="teamNewName" type="text" placeholder="Es. Trento Under 15">
+      <select id="teamNewProfilo" style="margin-top:8px;">
+        ${Object.keys(PROFILI_SQUADRA).map(k=>`<option value="${k}" ${k==='programmazione'?'selected':''}>${esc(PROFILI_SQUADRA[k].label)}</option>`).join('')}
+      </select>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">Nasce vuota, senza giocatori, con le stesse password di questa squadra.</div>
+      <div class="btn-row"><button class="btn" id="teamCreateBtn">Crea squadra</button></div>
+    </div>
 
     <details style="margin-bottom:20px;border:1px solid var(--line);border-radius:8px;padding:0;overflow:hidden;">
       <summary style="padding:14px 16px;cursor:pointer;font-weight:600;color:var(--pitch);background:var(--chalk);list-style:none;display:flex;justify-content:space-between;align-items:center;">
@@ -11991,6 +12261,8 @@ function renderImpostazioniAdmin(el){
     setTimeout(()=>location.reload(), 1200);
   });
   
+  /* Gestione squadre: agganciata qui perche i pulsanti esistono solo dopo il render */
+  bindGestioneSquadre();
 }
 
 // ========== FIRESTORE REAL-TIME SYNC ==========
