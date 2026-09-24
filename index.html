@@ -324,11 +324,14 @@ let TEAMS = [];
 /* Profili: due preimpostazioni che accendono e spengono i moduli. Gli interruttori
    restano modificabili uno per uno per i casi di mezzo. */
 const PROFILI_SQUADRA = {
-  completa:       {label:'Squadra completa',     moduli:{accessoGiocatori:true,  wellness:true,  rpe:true,  medica:true}},
-  programmazione: {label:'Solo programmazione',  moduli:{accessoGiocatori:false, wellness:false, rpe:false, medica:false}}
+  completa:       {label:'Squadra completa',     moduli:{accessoGiocatori:true,  accessoStaff:true,  wellness:true,  rpe:true,  medica:true}},
+  /* Solo programmazione: ci entra solo l'amministratore. Niente giocatori e niente
+     staff, perche' e' una squadra che usi come archivio di lavoro tuo. */
+  programmazione: {label:'Solo programmazione',  moduli:{accessoGiocatori:false, accessoStaff:false, wellness:false, rpe:false, medica:false}}
 };
 const MODULI_SQUADRA = [
   {id:'accessoGiocatori', label:'I giocatori entrano nell app'},
+  {id:'accessoStaff',     label:'Lo staff entra nell app'},
   {id:'wellness',         label:'Wellness compilato dai giocatori'},
   {id:'rpe',              label:'RPE, carico e ACWR'},
   {id:'medica',           label:'Area medica'}
@@ -389,7 +392,7 @@ async function scriviChiaveSquadra(teamId, key, value){
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '2.6';
+const APP_VERSION = '3.0';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -419,6 +422,7 @@ const SEZIONI = [
   {id:'calendario',  label:'Calendario'},
   {id:'allenamenti', label:'Allenamenti'},
   {id:'performance', label:'Area Performance'},
+  {id:'programmazione', label:'Programmazione'},
   {id:'medica',      label:'Area Medica'}
 ];
 
@@ -426,7 +430,7 @@ const SEZIONI = [
 const RUOLI_STAFF = {
   'Allenatore':   {label:'Allenatore',   sezioni:['dashboard','calendario','allenamenti']},
   'Vice':         {label:'Vice allenatore', sezioni:['dashboard','calendario','allenamenti']},
-  'Preparatore':  {label:'Preparatore atletico', sezioni:['dashboard','calendario','allenamenti','performance']},
+  'Preparatore':  {label:'Preparatore atletico', sezioni:['dashboard','calendario','allenamenti','performance','programmazione']},
   'Fisioterapista':{label:'Fisioterapista', sezioni:['dashboard','calendario','medica']},
   'Personalizzato':{label:'Personalizzato', sezioni:['dashboard']}
 };
@@ -452,6 +456,7 @@ const NAV_STAFF = [
   {id:'dashboard', label:'Dashboard', icon:''},
   {id:'giocatori', label:'Rosa', icon:''},
   {id:'performance', label:'Performance', icon:''},
+  {id:'programmazione', label:'Programmazione', icon:''},
   {id:'medica', label:'Area Medica', icon:''},
   {id:'allenamenti', label:'Allenamenti', icon:''},
   {id:'calendario', label:'Calendario', icon:''},
@@ -470,6 +475,7 @@ const NAV_ADMIN = [
   {id:'dashboard', label:'Dashboard', icon:''},
   {id:'giocatori', label:'Rosa', icon:''},
   {id:'performance', label:'Performance', icon:''},
+  {id:'programmazione', label:'Programmazione', icon:''},
   {id:'medica', label:'Area Medica', icon:''},
   {id:'allenamenti', label:'Allenamenti', icon:''},
   {id:'calendario', label:'Calendario', icon:''},
@@ -1134,15 +1140,15 @@ const ATHLETIC_PARAMS = {
   'Riscaldamento coordinativo': {fields: ['series', 'minutes', 'recovery']},
   'Core stability e propriocezione': {fields: ['series', 'minutes', 'recovery']},
   'Prevenzione infortuni (Screening e protocolli)': {fields: ['minutes']},
-  'Forza massima': {fields: ['exercise', 'series', 'reps', 'recovery']},
-  'Forza esplosiva e pliometria': {fields: ['series', 'reps', 'recovery']},
+  'Forza massima': {fields: ['exercise', 'series', 'reps', 'kg', 'recovery']},
+  'Forza esplosiva e pliometria': {fields: ['series', 'reps', 'kg', 'recovery']},
   'Forza resistente': {fields: ['series', 'minutes', 'recovery']},
   'Speed & Agility (Velocità pura)': {fields: ['series', 'distance', 'recovery']},
   'Cambi di direzione (COD)': {fields: ['series', 'distance', 'recovery']},
-  'Resistenza aerobica a secco': {fields: ['minutes'], groups: true},
-  'Potenza metabolica ed High-Intensity Interval Training (HIIT)': {fields: ['series', 'minutesPerSeries', 'recovery'], groups: true},
-  'Lavoro intermittente': {fields: ['series', 'minutesPerSeries', 'recovery'], groups: true},
-  'Differenziato': {fields: ['series', 'minutesPerSeries', 'recovery'], groups: true},
+  'Resistenza aerobica a secco': {fields: ['minutes', 'intensita'], groups: true},
+  'Potenza metabolica ed High-Intensity Interval Training (HIIT)': {fields: ['series', 'minutesPerSeries', 'intensita', 'recovery'], groups: true},
+  'Lavoro intermittente': {fields: ['series', 'minutesPerSeries', 'intensita', 'recovery'], groups: true},
+  'Differenziato': {fields: ['series', 'minutesPerSeries', 'intensita', 'recovery'], groups: true},
   'Rigenerazione e scarico (Recovery)': {fields: ['minutes']},
   'Test del Lattato (Test di Mader)': {fields: ['description']},
   'Yo-Yo Intermittent Recovery Test': {fields: ['description']},
@@ -1350,7 +1356,8 @@ async function loadAll(){
     ['customPasswords',  {}],
     ['injuries',         []],
     ['staffMembers',     []],
-    ['individualPlans',  []]
+    ['individualPlans',  []],
+    ['programmazione',   {}]
   ];
 
   const t0 = Date.now();
@@ -1366,6 +1373,7 @@ async function loadAll(){
   STATE.teamConfig      = dati['team-config'];
   STATE.players         = dati['players'] || [];
   STATE.workouts        = dati['workouts'] || [];
+  STATE.programmazione  = dati['programmazione'] || {};
   STATE.events          = dati['events'] || [];
   STATE.tests           = dati['tests'] || [];
   STATE.rpeLog          = dati['rpe-log'] || [];
@@ -1423,6 +1431,10 @@ function findStaffByCode(code){
 
 /* Fa entrare un membro dello staff con i suoi permessi */
 function loginStaffMember(staff){
+  if(!moduloAttivo('accessoStaff')){
+    showToast('Per questa squadra entra solo l amministratore');
+    return;
+  }
   STATE.loggedIn = true;
   STATE.role = 'staff';
   STATE.currentStaff = staff;
@@ -1444,6 +1456,10 @@ function login(role, identifier){
       return;
     }
   }else if(role==='staff'){
+    if(!moduloAttivo('accessoStaff')){
+      showToast('Per questa squadra entra solo l amministratore');
+      return;
+    }
     if(identifier === STATE.staffPassword){
       STATE.loggedIn = true;
       STATE.role = 'staff';
@@ -1453,6 +1469,10 @@ function login(role, identifier){
       return;
     }
   }else if(role==='player'){
+    if(!moduloAttivo('accessoGiocatori')){
+      showToast('Per questa squadra i giocatori non hanno accesso');
+      return;
+    }
     const player = STATE.players.find(p=>String(p.id)===String(identifier));
     console.log('Player login attempt - identifier:', identifier, 'found player:', player);
     if(player){
@@ -2213,6 +2233,7 @@ function render(){
     dashboard: renderDashboard,
     giocatori: renderGiocatori,
     performance: renderPerformance,
+    programmazione: renderProgrammazione,
     medica: renderMedica,
     allenamenti: renderAllenamenti,
     calendario: renderCalendario,
@@ -2229,6 +2250,7 @@ function render(){
     dashboard: renderDashboard,
     giocatori: renderGiocatori,
     performance: renderPerformance,
+    programmazione: renderProgrammazione,
     medica: renderMedica,
     allenamenti: renderAllenamenti,
     calendario: renderCalendario,
@@ -2375,10 +2397,7 @@ function renderLogin(el){
     <div class="login-screen">
       <div class="login-card">
         <h1>TEAM HUB PRO</h1>
-        ${TEAMS.length > 1 ? `<div style="margin-bottom:16px;">
-          <label for="loginTeamSelect" style="font-size:11px;">Squadra</label>
-          <select id="loginTeamSelect">${TEAMS.map(t=>`<option value="${esc(t.id)}" ${t.id===TEAM_ID?'selected':''}>${esc(t.name)}</option>`).join('')}</select>
-        </div>` : ''}
+        ${TEAM_ID !== TEAM_DEFAULT ? `<div style="margin-bottom:14px;text-align:center;font-size:11px;color:rgba(244,241,232,0.55);letter-spacing:0.06em;text-transform:uppercase;">${esc(squadraCorrente().name)}</div>` : ''}
         <div id="playerForm" style="display:block;">
           <form id="playerLoginForm" action="#" method="post" autocomplete="on">
             <!-- Campo nascosto: lo riempio io col nome del giocatore appena riconosco il codice,
@@ -2426,21 +2445,22 @@ function renderLogin(el){
     </div>
   `;
   
-  const loginTeamSelect = document.getElementById('loginTeamSelect');
-  if(loginTeamSelect) loginTeamSelect.addEventListener('change', ()=> cambiaSquadra(loginTeamSelect.value));
-
-  /* Squadra senza accesso giocatori: mostro direttamente il modulo staff e tolgo
-     i rimandi al login atleta, che qui non porterebbero da nessuna parte. */
-  if(!moduloAttivo('accessoGiocatori')){
-    const pf = document.getElementById('playerForm');
-    const sf = document.getElementById('staffForm');
-    if(pf) pf.style.display = 'none';
-    if(sf) sf.style.display = 'block';
-    ['staffToggleBtn','playerToggleBtn','playerToggleBtn2'].forEach(id=>{
-      const b = document.getElementById(id);
-      if(b && b.parentNode) b.parentNode.style.display = 'none';
-    });
-  }
+  /* Mostro solo i modi di accesso attivi per questa squadra e nascondo i rimandi
+     a quelli spenti. Il blocco vero pero' non e' qui: e' dentro login(), perche'
+     nascondere un pulsante non impedisce niente a chi conosce la password. */
+  (function(){
+    const puoGiocatore = moduloAttivo('accessoGiocatori');
+    const puoStaff = moduloAttivo('accessoStaff');
+    if(puoGiocatore && puoStaff) return;
+    const mostra = (id, visibile)=>{ const e = document.getElementById(id); if(e) e.style.display = visibile ? 'block' : 'none'; };
+    const iniziale = puoGiocatore ? 'playerForm' : (puoStaff ? 'staffForm' : 'adminForm');
+    mostra('playerForm', iniziale === 'playerForm');
+    mostra('staffForm',  iniziale === 'staffForm');
+    mostra('adminForm',  iniziale === 'adminForm');
+    const nascondiRiga = id=>{ const b = document.getElementById(id); if(b && b.parentNode) b.parentNode.style.display = 'none'; };
+    if(!puoGiocatore){ nascondiRiga('playerToggleBtn'); nascondiRiga('playerToggleBtn2'); }
+    if(!puoStaff) nascondiRiga('staffToggleBtn');
+  })();
 
   document.getElementById('staffToggleBtn').addEventListener('click', (e)=>{
     e.preventDefault();
@@ -7331,6 +7351,465 @@ function renderTest(el){
 }
 
 /* ---------- ALLENAMENTI (Database Esercitazioni) ---------- */
+/* ============================================================
+   COPIA TRA SQUADRE
+   L'archivio esercitazioni resta separato per squadra, cosi' ritoccare una
+   durata per l'Under 15 non cambia le sedute di un'altra squadra. Per non
+   riscrivere tutto da capo si copia: le esercitazioni scelte, oppure una
+   seduta intera con dentro le sue esercitazioni.
+   ============================================================ */
+async function leggiChiaveSquadra(teamId, key){
+  if(!db) return {ok:false, value:null};
+  try{
+    const doc = await db.collection('teams').doc(teamId).collection('data').doc(key).get();
+    if(doc.exists && typeof doc.data().value !== 'undefined') return {ok:true, value: doc.data().value};
+    return {ok:true, value:null};   /* documento assente: la squadra non ha ancora niente */
+  }catch(e){
+    console.error('Lettura squadra', teamId, key, e.message);
+    return {ok:false, value:null};
+  }
+}
+
+/* Modale: scegli la squadra di partenza, spunta le esercitazioni, copia */
+function apriCopiaEsercitazioni(onDone){
+  const altre = TEAMS.filter(t => t.id !== TEAM_ID);
+  if(!altre.length){ showToast('Non ci sono altre squadre'); return; }
+
+  const modal = document.createElement('div');
+  modal.id = 'copiaEsercModal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;box-sizing:border-box;overflow-y:auto;';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:12px;max-width:560px;width:100%;padding:22px;margin:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h2 style="margin:0;color:var(--pitch);font-size:18px;">Copia esercitazioni</h2>
+        <button id="ceClose" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">&times;</button>
+      </div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;">Le esercitazioni vengono duplicate in <strong>${esc(squadraCorrente().name)}</strong>: modificarle qui non tocca la squadra di partenza.</div>
+      <label>Copia da</label>
+      <select id="ceTeam">${altre.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('')}</select>
+      <div id="ceLista" style="margin-top:14px;max-height:320px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:8px;">
+        <div style="font-size:12px;color:var(--ink-soft);padding:10px;text-align:center;">Caricamento...</div>
+      </div>
+      <div class="btn-row" style="margin-top:14px;">
+        <button class="btn" id="ceCopia">Copia le selezionate</button>
+        <button class="btn secondary" id="ceClose2">Chiudi</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  let originali = [];
+  const chiudi = ()=> modal.remove();
+  document.getElementById('ceClose').addEventListener('click', chiudi);
+  document.getElementById('ceClose2').addEventListener('click', chiudi);
+
+  const carica = async ()=>{
+    const teamId = document.getElementById('ceTeam').value;
+    const box = document.getElementById('ceLista');
+    box.innerHTML = '<div style="font-size:12px;color:var(--ink-soft);padding:10px;text-align:center;">Caricamento...</div>';
+    const res = await leggiChiaveSquadra(teamId, 'workouts');
+    if(!res.ok){
+      box.innerHTML = '<div style="font-size:12px;color:var(--clay);padding:10px;text-align:center;">Non riesco a leggere quella squadra. Controlla la connessione.</div>';
+      originali = [];
+      return;
+    }
+    originali = Array.isArray(res.value) ? res.value : [];
+    if(!originali.length){
+      box.innerHTML = '<div style="font-size:12px;color:var(--ink-soft);padding:10px;text-align:center;">Quella squadra non ha esercitazioni.</div>';
+      return;
+    }
+    const nomiQui = STATE.workouts.map(w => String(w.name || '').trim().toLowerCase());
+    box.innerHTML = originali.map((w, i)=>{
+      const gia = nomiQui.indexOf(String(w.name || '').trim().toLowerCase()) !== -1;
+      return `<label style="display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:7px 6px;border-bottom:1px solid var(--line);cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0;">
+        <input type="checkbox" class="ce-chk" data-idx="${i}" ${gia ? '' : 'checked'} style="width:18px;height:18px;margin:0;">
+        <span style="min-width:0;font-size:12.5px;">${esc(w.name || 'senza nome')}
+          <span style="color:var(--ink-soft);font-size:10.5px;"> · ${esc(w.type || '')}</span>
+          ${gia ? '<span style="color:var(--amber-dark);font-size:10.5px;"> · gia presente</span>' : ''}</span>
+        <span style="font-size:11px;color:var(--ink-soft);white-space:nowrap;">${calcWorkoutDuration(w)} min</span>
+      </label>`;
+    }).join('');
+  };
+  document.getElementById('ceTeam').addEventListener('change', carica);
+  carica();
+
+  document.getElementById('ceCopia').addEventListener('click', async ()=>{
+    const scelte = Array.from(modal.querySelectorAll('.ce-chk')).filter(c => c.checked).map(c => originali[parseInt(c.dataset.idx, 10)]).filter(Boolean);
+    if(!scelte.length){ showToast('Non hai selezionato niente'); return; }
+    scelte.forEach(w => STATE.workouts.push(Object.assign({}, w, {id: uid()})));
+    const ok = await saveKey('workouts', STATE.workouts);
+    if(ok === false){
+      /* salvataggio bloccato: tolgo le copie, altrimenti sembrano esserci e non ci sono */
+      STATE.workouts.splice(STATE.workouts.length - scelte.length, scelte.length);
+      return;
+    }
+    showToast(scelte.length === 1 ? 'Esercitazione copiata' : scelte.length + ' esercitazioni copiate');
+    chiudi();
+    if(onDone) onDone();
+  });
+}
+
+/* Copia una seduta in un'altra squadra, portandosi dietro le esercitazioni che
+   la' non esistono. Non copio presenze, RPE e differenziato: sono legati ai
+   giocatori di questa squadra e la' non vorrebbero dire niente. */
+function apriCopiaSeduta(event){
+  const altre = TEAMS.filter(t => t.id !== TEAM_ID);
+  if(!altre.length){ showToast('Non ci sono altre squadre'); return; }
+
+  const modal = document.createElement('div');
+  modal.id = 'copiaSedutaModal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10001;padding:20px;box-sizing:border-box;overflow-y:auto;';
+  modal.innerHTML = `
+    <div style="background:white;border-radius:12px;max-width:460px;width:100%;padding:22px;margin:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h2 style="margin:0;color:var(--pitch);font-size:18px;">Copia la seduta</h2>
+        <button id="csClose" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">&times;</button>
+      </div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;">Copio titolo ed esercitazioni. Presenze, RPE e differenziato restano qui: sono legati a questi giocatori.</div>
+      <label>Squadra di destinazione</label>
+      <select id="csTeam">${altre.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('')}</select>
+      <label style="margin-top:10px;display:block;">Data</label>
+      <input id="csData" type="date" value="${event.date || todayStr()}">
+      <div class="btn-row" style="margin-top:14px;">
+        <button class="btn" id="csCopia">Copia</button>
+        <button class="btn secondary" id="csClose2">Annulla</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  const chiudi = ()=> modal.remove();
+  document.getElementById('csClose').addEventListener('click', chiudi);
+  document.getElementById('csClose2').addEventListener('click', chiudi);
+
+  document.getElementById('csCopia').addEventListener('click', async ()=>{
+    const teamId = document.getElementById('csTeam').value;
+    const data = document.getElementById('csData').value || todayStr();
+    const btn = document.getElementById('csCopia');
+    btn.disabled = true;
+
+    const wDest = await leggiChiaveSquadra(teamId, 'workouts');
+    const eDest = await leggiChiaveSquadra(teamId, 'events');
+    if(!wDest.ok || !eDest.ok){
+      btn.disabled = false;
+      showToast('Non riesco a leggere la squadra di destinazione: non ho scritto niente');
+      return;
+    }
+    const destWorkouts = Array.isArray(wDest.value) ? wDest.value.slice() : [];
+    const destEvents = Array.isArray(eDest.value) ? eDest.value.slice() : [];
+
+    /* Le esercitazioni con lo stesso nome non le duplico: riuso quelle che ci sono */
+    const mappa = {};
+    let nuove = 0;
+    (event.workoutIds || []).forEach(wid => {
+      const w = STATE.workouts.find(x => x.id === wid);
+      if(!w) return;
+      const gia = destWorkouts.find(x => String(x.name||'').trim().toLowerCase() === String(w.name||'').trim().toLowerCase() && x.type === w.type);
+      if(gia){ mappa[wid] = gia.id; }
+      else {
+        const copia = Object.assign({}, w, {id: uid()});
+        destWorkouts.push(copia);
+        mappa[wid] = copia.id;
+        nuove++;
+      }
+    });
+
+    destEvents.push({
+      id: uid(), type: 'Allenamento', date: data, time: event.time || '',
+      title: event.title || 'Allenamento', md: event.md || '',
+      workoutIds: (event.workoutIds || []).map(w => mappa[w]).filter(Boolean),
+      presentPlayers: [], presentCount: 0
+    });
+
+    const ok1 = await scriviChiaveSquadra(teamId, 'workouts', destWorkouts);
+    const ok2 = ok1 ? await scriviChiaveSquadra(teamId, 'events', destEvents) : false;
+    btn.disabled = false;
+    if(!ok1 || !ok2){ showToast('Copia non riuscita: controlla la connessione'); return; }
+    const nomeDest = (TEAMS.find(t => t.id === teamId) || {}).name || teamId;
+    showToast('Seduta copiata in ' + nomeDest + (nuove ? ' con ' + nuove + ' esercitazioni' : ''));
+    chiudi();
+  });
+}
+
+/* ============================================================
+   PROGRAMMAZIONE
+   Il piano sta sopra al calendario, non accanto: la settimana fissa il bersaglio,
+   le sedute del calendario lo riempiono e i totali si aggiornano da soli. Niente
+   da riscrivere due volte, che e' il motivo per cui i piani vengono abbandonati.
+
+   I volumi sono tre monete diverse e non si sommano:
+   - metri di corsa prescritti, calcolati dalla velocita' bersaglio
+   - tonnellaggio in palestra, serie per ripetizioni per chili
+   - carico interno reale, RPE per minuti, che arriva dai giocatori
+   I metri sono PRESCRITTI, non corsi: senza GPS nessuno sa quanto ha corso davvero.
+   ============================================================ */
+
+function lunediDi(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  const g = (d.getDay() + 6) % 7;         /* lunedi = 0 */
+  d.setDate(d.getDate() - g);
+  return dateToStr(d);
+}
+function aggiungiGiorni(dateStr, n){
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return dateToStr(d);
+}
+
+/* VAM media della squadra: serve per stimare i metri di una prescrizione a squadra.
+   Per il singolo giocatore la velocita' resta la sua, calcolata al momento. */
+function vamMediaSquadra(){
+  const v = [];
+  STATE.players.filter(p => !isPortiere(p)).forEach(p => {
+    const storia = playerTestHistory(p.id, TEST_VIFT);
+    if(storia.length && storia[0].value > 0) v.push(vamDaVift(storia[0].value));
+  });
+  if(!v.length) return null;
+  return Math.round((v.reduce((a,b)=>a+b, 0) / v.length) * 10) / 10;
+}
+
+/* Metri prescritti da una singola esercitazione. Ritorno 0 quando non si possono
+   ricavare: meglio un numero mancante che un numero inventato. */
+function metriEsercitazione(w, vam){
+  if(!w) return 0;
+  const serie = Number(w.series) || 0;
+  /* Navette e sprint: la distanza e' scritta nella prescrizione */
+  if(Number(w.distance) > 0 && serie > 0) return serie * Number(w.distance);
+  /* Corsa a tempo: servono i minuti e la percentuale della VAM */
+  const pct = Number(w.intensita) || 0;
+  if(!(pct > 0) || !(vam > 0)) return 0;
+  const velocita = vam * pct / 100;                       /* km/h */
+  const minuti = serie > 0 && Number(w.minutesPerSeries) > 0
+    ? serie * Number(w.minutesPerSeries)
+    : Number(w.minutes) || 0;
+  if(!(minuti > 0)) return 0;
+  return Math.round(minuti * 60 * velocita / 3.6);
+}
+function tonnellaggioEsercitazione(w){
+  if(!w) return 0;
+  const serie = Number(w.series) || 0, rip = Number(w.reps) || 0, kg = Number(w.kg) || 0;
+  return (serie > 0 && rip > 0 && kg > 0) ? serie * rip * kg : 0;
+}
+
+/* Metri del lavoro differenziato: riuso il calcolo dei sottogruppi, cosi' la
+   formula e' una sola. Faccio la media fra i giocatori, che e' il numero che
+   ha senso a livello di settimana. */
+function metriDifferenziato(event){
+  const d = event && event.differenziato;
+  if(!d || !d.attivo) return 0;
+  let somma = 0, n = 0;
+  ['recupero', 'intensivo'].forEach(chiave => {
+    const g = d[chiave];
+    if(!g || !Array.isArray(g.giocatoriIds) || !g.giocatoriIds.length) return;
+    let sg;
+    try { sg = sottogruppiDifferenziato(g); } catch(e) { return; }
+    (sg.sotto || []).forEach(s => (s.righe || []).forEach(x => {
+      const m = Number(x.distTot) || 0;
+      if(m > 0){ somma += m; n++; }
+    }));
+  });
+  return n ? Math.round(somma / n) : 0;
+}
+
+/* Volumi di una singola seduta */
+function volumiSeduta(event, vam){
+  let metri = 0, tonnellaggio = 0;
+  (event.workoutIds || []).forEach(wid => {
+    const w = STATE.workouts.find(x => x.id === wid);
+    metri += metriEsercitazione(w, vam);
+    tonnellaggio += tonnellaggioEsercitazione(w);
+  });
+  metri += metriDifferenziato(event);
+  return {minuti: Number(getSessionDuration(event)) || 0, metri, tonnellaggio};
+}
+
+/* Carico interno reale della settimana: RPE per minuti, solo sessioni vere */
+function caricoRealeSettimana(dal, al){
+  return (STATE.rpeLog || [])
+    .filter(r => r.date >= dal && r.date <= al && r.source !== 'plan')
+    .reduce((s, r) => s + sessionLoad(r), 0);
+}
+
+function settimanaProg(lunedi){
+  if(!STATE.programmazione) STATE.programmazione = {};
+  return STATE.programmazione[lunedi] || {tipo:'', obiettivo:'', targetUA:null, note:''};
+}
+
+const TIPI_SETTIMANA = [
+  {id:'',             label:'—',             colore:'var(--line)'},
+  {id:'carico',       label:'Carico',        colore:'var(--clay)'},
+  {id:'mantenimento', label:'Mantenimento',  colore:'var(--amber)'},
+  {id:'scarico',      label:'Scarico',       colore:'var(--ok)'},
+  {id:'gara',         label:'Settimana gara',colore:'var(--pitch)'},
+  {id:'sosta',        label:'Sosta',         colore:'var(--ink-soft)'}
+];
+
+function renderProgrammazione(el){
+  const nSettimane = parseInt(el.dataset.progSett || '12', 10);
+  const indietro = 4;
+  const vam = vamMediaSquadra();
+  const primoLunedi = aggiungiGiorni(lunediDi(todayStr()), -7 * indietro);
+  const settimane = [];
+  for(let i = 0; i < nSettimane; i++){
+    const lun = aggiungiGiorni(primoLunedi, i * 7);
+    const dom = aggiungiGiorni(lun, 6);
+    const sedute = STATE.events
+      .filter(e => e.date >= lun && e.date <= dom && e.id !== 'rpe-import-session' && (e.type === 'Allenamento' || e.type === 'Partita'))
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    let minuti = 0, metri = 0, tonn = 0;
+    sedute.forEach(s => {
+      const v = volumiSeduta(s, vam);
+      minuti += v.minuti; metri += v.metri; tonn += v.tonnellaggio;
+    });
+    settimane.push({
+      lun, dom, sedute, minuti, metri, tonn,
+      reale: Math.round(caricoRealeSettimana(lun, dom)),
+      piano: settimanaProg(lun),
+      passata: dom < todayStr(),
+      corrente: lun === lunediDi(todayStr())
+    });
+  }
+
+  const fmtData = d => d.slice(8) + '/' + d.slice(5,7);
+  const serieP = settimane.filter(s => s.piano.targetUA > 0).map(s => ({x: s.lun, y: s.piano.targetUA}));
+  const serieR = settimane.filter(s => s.reale > 0).map(s => ({x: s.lun, y: s.reale}));
+
+  el.innerHTML = `
+    <div class="page-head"><h1>Programmazione</h1><p>${esc(squadraCorrente().name)} · il piano si riempie con le sedute del calendario</p></div>
+
+    ${vam === null ? `<div class="card" style="border-left:3px solid var(--amber);"><div style="font-size:12.5px;">Nessun risultato del 30-15 in archivio: i metri di corsa non si possono calcolare. Inseriscilo in Performance, sezione Test.</div></div>` : ''}
+
+    ${(serieP.length || serieR.length) ? `
+      <div class="card">
+        <h3>Carico pianificato e carico reale</h3>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">In unita arbitrarie (RPE per minuti). Il pianificato e' quello che scrivi tu, il reale arriva dagli RPE dei giocatori.</div>
+        ${lineChartSVG({series:[
+          {name:'Pianificato', color:'var(--amber)', data: serieP},
+          {name:'Reale',       color:'var(--pitch)', data: serieR}
+        ], yLabel:'UA', yMin:0})}
+      </div>` : ''}
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+        <h3 style="margin:0;">Settimane</h3>
+        <div style="display:flex;gap:6px;">
+          ${[8, 12, 20].map(n => `<button type="button" class="prog-n" data-n="${n}" style="padding:5px 10px;border-radius:5px;border:1px solid ${nSettimane===n?'var(--pitch)':'var(--line)'};background:${nSettimane===n?'var(--pitch)':'white'};color:${nSettimane===n?'white':'var(--ink)'};font-size:11.5px;font-weight:600;cursor:pointer;">${n}</button>`).join('')}
+        </div>
+      </div>
+
+      ${settimane.map(s => {
+        const tipo = TIPI_SETTIMANA.find(t => t.id === s.piano.tipo) || TIPI_SETTIMANA[0];
+        const scarto = (s.piano.targetUA > 0 && s.reale > 0) ? Math.round((s.reale - s.piano.targetUA) / s.piano.targetUA * 100) : null;
+        return `
+        <details ${s.corrente ? 'open' : ''} style="border:1px solid ${s.corrente ? 'var(--ok)' : 'var(--line)'};border-left:4px solid ${tipo.colore};border-radius:8px;margin-bottom:8px;overflow:hidden;">
+          <summary style="padding:10px 12px;cursor:pointer;list-style:none;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;background:${s.corrente ? '#F0F7F1' : 'white'};">
+            <div style="min-width:0;">
+              <div style="font-weight:700;font-size:13px;color:var(--pitch);">${fmtData(s.lun)} - ${fmtData(s.dom)}${s.corrente ? ' · questa settimana' : ''}</div>
+              <div style="font-size:11px;color:var(--ink-soft);">${esc(tipo.label)}${s.piano.obiettivo ? ' · ' + esc(s.piano.obiettivo) : ''} · ${s.sedute.length} ${s.sedute.length === 1 ? 'seduta' : 'sedute'}</div>
+            </div>
+            <div style="text-align:right;white-space:nowrap;">
+              <div style="font-size:12.5px;font-weight:700;color:var(--pitch);">${s.reale || '—'}<span style="font-size:10px;color:var(--ink-soft);font-weight:400;"> UA</span></div>
+              ${s.piano.targetUA > 0 ? `<div style="font-size:10px;color:${scarto === null ? 'var(--ink-soft)' : Math.abs(scarto) <= 15 ? 'var(--ok)' : 'var(--amber-dark)'};">obiettivo ${s.piano.targetUA}${scarto !== null ? ` (${scarto > 0 ? '+' : ''}${scarto}%)` : ''}</div>` : ''}
+            </div>
+          </summary>
+
+          <div style="padding:12px;border-top:1px solid var(--line);">
+            <div class="grid2" style="gap:8px;">
+              <div><label style="font-size:10px;">Tipo di settimana</label>
+                <select class="prog-tipo" data-lun="${s.lun}" style="width:100%;padding:6px;font-size:12px;">
+                  ${TIPI_SETTIMANA.map(t => `<option value="${t.id}" ${t.id === s.piano.tipo ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}
+                </select></div>
+              <div><label style="font-size:10px;">Obiettivo prevalente</label>
+                <input class="prog-obiettivo" data-lun="${s.lun}" type="text" value="${esc(s.piano.obiettivo || '')}" placeholder="Es. forza, capacita aerobica" style="width:100%;padding:6px;font-size:12px;"></div>
+            </div>
+            <div class="grid2" style="gap:8px;margin-top:8px;">
+              <div><label style="font-size:10px;">Carico obiettivo (UA)</label>
+                <input class="prog-target" data-lun="${s.lun}" type="number" min="0" max="20000" value="${s.piano.targetUA || ''}" placeholder="${s.reale || ''}" style="width:100%;padding:6px;font-size:12px;"></div>
+              <div><label style="font-size:10px;">Note</label>
+                <input class="prog-note" data-lun="${s.lun}" type="text" value="${esc(s.piano.note || '')}" placeholder="Test, sosta, doppia gara..." style="width:100%;padding:6px;font-size:12px;"></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:12px;">
+              <div style="padding:8px;background:#F7F5EC;border-radius:6px;">
+                <div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;">Minuti</div>
+                <div style="font-size:16px;font-weight:700;color:var(--pitch);">${s.minuti || '—'}</div></div>
+              <div style="padding:8px;background:#F7F5EC;border-radius:6px;">
+                <div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;">Metri prescritti</div>
+                <div style="font-size:16px;font-weight:700;color:var(--pitch);">${s.metri ? s.metri.toLocaleString('it-IT') : '—'}</div></div>
+              <div style="padding:8px;background:#F7F5EC;border-radius:6px;">
+                <div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;">Tonnellaggio</div>
+                <div style="font-size:16px;font-weight:700;color:var(--pitch);">${s.tonn ? Math.round(s.tonn).toLocaleString('it-IT') + ' kg' : '—'}</div></div>
+              <div style="padding:8px;background:#F7F5EC;border-radius:6px;">
+                <div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;">Carico reale</div>
+                <div style="font-size:16px;font-weight:700;color:var(--pitch);">${s.reale || '—'}</div></div>
+            </div>
+
+            <div style="margin-top:12px;">
+              ${s.sedute.length === 0
+                ? '<div style="font-size:12px;color:var(--ink-soft);padding:8px 0;">Nessuna seduta in calendario in questa settimana.</div>'
+                : s.sedute.map(ev => {
+                    const v = volumiSeduta(ev, vam);
+                    const parti = [];
+                    if(v.minuti) parti.push(v.minuti + ' min');
+                    if(v.metri) parti.push(v.metri.toLocaleString('it-IT') + ' m');
+                    if(v.tonnellaggio) parti.push(Math.round(v.tonnellaggio).toLocaleString('it-IT') + ' kg');
+                    return `<div class="prog-seduta" data-event-id="${esc(ev.id)}" style="display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:7px 9px;background:${ev.type === 'Partita' ? '#FDF3E7' : '#F0F7F1'};border-radius:6px;margin-bottom:5px;cursor:pointer;">
+                      <span style="font-size:11.5px;font-weight:700;color:var(--pitch);width:46px;">${fmtData(ev.date)}</span>
+                      <span style="font-size:12.5px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(ev.title || ev.type)}${ev.md ? ' · ' + esc(ev.md) : ''}</span>
+                      <span style="font-size:11px;color:var(--ink-soft);white-space:nowrap;">${parti.join(' · ') || '—'}</span>
+                    </div>`;
+                  }).join('')}
+            </div>
+          </div>
+        </details>`;
+      }).join('')}
+    </div>
+
+    <div class="card">
+      <div style="font-size:11.5px;color:var(--ink-soft);line-height:1.6;">
+        I metri sono <strong>prescritti</strong>, non corsi: si ricavano dalla velocita' bersaglio, quindi se un ragazzo tira al novanta per cento del suo il numero non se ne accorge. Restano utili perche' sono coerenti settimana dopo settimana.
+        Si calcolano solo dove la prescrizione lo permette: distanza per serie, oppure minuti con la percentuale di VAM.
+        ${vam !== null ? `VAM media della squadra usata per la stima: <strong>${fmtKmh(vam)} km/h</strong>.` : ''}
+        Tutto poggia sul 30-15: se il test invecchia, i metri si allontanano dalla realta' senza avvisare.
+      </div>
+    </div>
+  `;
+
+  const salva = async ()=>{ await saveKey('programmazione', STATE.programmazione); };
+  const aggiorna = (lun, campo, valore)=>{
+    if(!STATE.programmazione) STATE.programmazione = {};
+    const p = STATE.programmazione[lun] || {tipo:'', obiettivo:'', targetUA:null, note:''};
+    p[campo] = valore;
+    STATE.programmazione[lun] = p;
+  };
+
+  el.querySelectorAll('.prog-n').forEach(b => b.addEventListener('click', ()=>{
+    el.dataset.progSett = b.dataset.n;
+    renderProgrammazione(el);
+  }));
+  el.querySelectorAll('.prog-tipo').forEach(s => s.addEventListener('change', async ()=>{
+    aggiorna(s.dataset.lun, 'tipo', s.value);
+    await salva();
+    renderProgrammazione(el);
+  }));
+  el.querySelectorAll('.prog-obiettivo').forEach(i => i.addEventListener('change', async ()=>{
+    aggiorna(i.dataset.lun, 'obiettivo', i.value.trim());
+    await salva();
+  }));
+  el.querySelectorAll('.prog-note').forEach(i => i.addEventListener('change', async ()=>{
+    aggiorna(i.dataset.lun, 'note', i.value.trim());
+    await salva();
+  }));
+  el.querySelectorAll('.prog-target').forEach(i => i.addEventListener('change', async ()=>{
+    const v = parseInt(i.value, 10);
+    aggiorna(i.dataset.lun, 'targetUA', (v > 0 ? v : null));
+    await salva();
+    renderProgrammazione(el);
+  }));
+  el.querySelectorAll('.prog-seduta').forEach(r => r.addEventListener('click', ()=>{
+    const ev = STATE.events.find(e => String(e.id) === String(r.dataset.eventId));
+    if(!ev) return;
+    if(ev.type === 'Partita') renderMatchDetails(ev); else renderAllenamentoDetails(ev);
+  }));
+}
+
 function renderAllenamenti(el){
   el.innerHTML = `
     <div class="page-head"><h1>Allenamenti</h1><p>Catalogo esercitazioni di allenamento</p></div>
@@ -7347,7 +7826,10 @@ function renderAllenamenti(el){
     </div>
     
     <div class="card">
-      <h3>Esercitazioni disponibili (${STATE.workouts.length})</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+        <h3 style="margin:0;">Esercitazioni disponibili (${STATE.workouts.length})</h3>
+        ${TEAMS.length > 1 ? '<button class="btn secondary" id="copiaEsercBtn" style="font-size:11px;padding:6px 12px;">Copia da un altra squadra</button>' : ''}
+      </div>
       ${STATE.workouts.length===0 ? '<div class="empty">Nessuna esercitazione catalogata</div>' :
         STATE.workouts.map(w=>`
           <div class="workout-item">
@@ -7498,6 +7980,12 @@ function renderAllenamenti(el){
       if(params.fields.includes('distance')){
         html += `<div><label>Distanza (m)</label><select id="wDistance"><option value="10">10m</option><option value="20">20m</option><option value="30">30m</option><option value="40">40m</option></select></div>`;
       }
+      if(params.fields.includes('kg')){
+        html += `<div><label>Carico medio (kg)</label><input id="wKg" type="number" min="0" step="0.5" placeholder="per il tonnellaggio"></div>`;
+      }
+      if(params.fields.includes('intensita')){
+        html += `<div><label>Intensita (% VAM)</label><input id="wIntensita" type="number" min="30" max="130" placeholder="per i metri"></div>`;
+      }
       if(params.fields.includes('recovery')){
         html += `<div><label>Recupero (min)</label><input id="wRecovery" type="number" min="0" value="1"></div>`;
       }
@@ -7630,7 +8118,10 @@ function renderAllenamenti(el){
   typeSelect.addEventListener('change', updateParams);
   
   updateTypeOptions();
-  
+
+  const copiaEsercBtn = document.getElementById('copiaEsercBtn');
+  if(copiaEsercBtn) copiaEsercBtn.addEventListener('click', ()=> apriCopiaEsercitazioni(()=> renderAllenamenti(el)));
+
   document.getElementById('createWorkoutBtn').addEventListener('click', async ()=>{
     const name = document.getElementById('workoutName').value.trim();
     const category = categorySelect.value;
@@ -7661,6 +8152,8 @@ function renderAllenamenti(el){
       if(params.fields.includes('minutes')) workout.minutes = parseInt(document.getElementById('wMinutes').value)||1;
       if(params.fields.includes('minutesPerSeries')) workout.minutesPerSeries = parseInt(document.getElementById('wMinutesPerSeries').value)||1;
       if(params.fields.includes('distance')) workout.distance = parseInt(document.getElementById('wDistance').value)||20;
+      if(params.fields.includes('kg')) workout.kg = parseFloat((document.getElementById('wKg')||{}).value) || null;
+      if(params.fields.includes('intensita')) workout.intensita = parseInt((document.getElementById('wIntensita')||{}).value, 10) || null;
       if(params.fields.includes('recovery')) workout.recovery = parseInt(document.getElementById('wRecovery').value)||0;
       if(params.fields.includes('description')) workout.description = document.getElementById('wDescription').value.trim();
       
@@ -9366,6 +9859,7 @@ function renderAllenamentoDetails(event){
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
           <button id="presenzeAllenamentoBtn" class="btn secondary" style="padding:6px 12px;font-size:11px;">Presenze (${Array.isArray(event.presentPlayers) ? event.presentPlayers.length : 0})</button>
+          ${TEAMS.length > 1 ? '<button id="copiaSedutaBtn" class="btn secondary" style="padding:6px 12px;font-size:11px;">Copia in altra squadra</button>' : ''}
           <button id="printAllenamentoBtn" class="btn secondary" style="padding:6px 12px;font-size:11px;">PDF recap</button>
           <button id="closeAllenamentoModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">×</button>
         </div>
@@ -9454,6 +9948,9 @@ function renderAllenamentoDetails(event){
 
   /* Presenze: apre il modale presenze per QUESTO allenamento, che sia passato,
      odierno o futuro. Lo staff puo' correggere le presenze in qualunque momento. */
+  const copiaSedutaBtn = document.getElementById('copiaSedutaBtn');
+  if(copiaSedutaBtn) copiaSedutaBtn.addEventListener('click', ()=> apriCopiaSeduta(event));
+
   const presBtnAll = document.getElementById('presenzeAllenamentoBtn');
   if(presBtnAll) presBtnAll.addEventListener('click', ()=>{
     modal.remove();
@@ -9747,133 +10244,232 @@ function renderEditAllenamentoModal(event){
   });
 }
 
+/* ============================================================
+   SCHEDA PARTITA
+   Una sola fonte per i gol: quelli nostri si contano dalla timeline, dove si
+   inseriscono. A mano resta solo il numero dei gol subiti. Le partite registrate
+   prima, che hanno il punteggio scritto a mano e nessun marcatore, continuano a
+   mostrare quel punteggio finche' non si tocca la timeline.
+   ============================================================ */
+const VISTA_SCHEDA_PARTITA = {};   /* id partita -> 'prima' | 'dopo', solo per questa sessione */
+
+function golDaTimeline(match){
+  return (match.events || []).filter(e => e.type === 'goal').length;
+}
+function golFatti(match){
+  const daTimeline = golDaTimeline(match);
+  if(daTimeline > 0) return daTimeline;
+  return (match.result && Number(match.result.goalsFor)) || 0;
+}
+function golSubiti(match){
+  return (match.result && Number(match.result.goalsAgainst)) || 0;
+}
+/* Da chiamare dopo ogni modifica alla timeline: da quel momento il punteggio
+   nostro e' quello dei marcatori, senza piu' due numeri che possono litigare. */
+function allineaRisultatoAiMarcatori(match){
+  match.result = {goalsFor: golDaTimeline(match), goalsAgainst: golSubiti(match)};
+}
+
+/* Tutti gli avvenimenti in un'unica lista ordinata per minuto: gol, assist,
+   sostituzioni ed espulsioni. Cosi' la partita si rilegge dall'inizio alla fine. */
+function eventiPartita(match){
+  const out = [];
+  (match.events || []).forEach((e, i) => out.push({
+    kind: e.type === 'assist' ? 'assist' : 'goal', minute: Number(e.minute) || 0,
+    playerId: e.playerId, id: e.id || '', idx: i
+  }));
+  (match.substitutions || []).forEach(s => out.push({
+    kind: 'sub', minute: Number(s.minute) || 0, id: s.id,
+    outPlayerId: s.outPlayerId, inPlayerId: s.inPlayerId
+  }));
+  (match.redCards || []).forEach(r => out.push({
+    kind: 'red', minute: Number(r.minute) || 0, id: r.id, playerId: r.playerId
+  }));
+  return out.sort((a, b) => a.minute - b.minute);
+}
+
+/* Elenchi sotto al campo: chi gioca e chi e' in panchina, in sola lettura.
+   La formazione si tocca solo dal campo grafico, cosi' esiste un posto solo. */
+function elencoFormazione(match){
+  const calc = computeMatchMinutes(match);
+  const slots = match.formationSlots || {};
+  const inCampo = new Set(Object.values(slots).map(String));
+  const starters = (Array.isArray(match.starters) ? match.starters : []).map(String);
+  const convocati = (Array.isArray(match.convocati) ? match.convocati : []).map(String);
+  const nome = pid => {
+    const p = STATE.players.find(x => String(x.id) === String(pid));
+    return p ? esc(p.name) : 'giocatore rimosso';
+  };
+  const riga = (pid, nota) => {
+    const r = calc[String(pid)];
+    const min = r ? r.minutes : 0;
+    return `<div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--line);font-size:12.5px;">
+      <span style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nome(pid)}${nota ? ` <span style="color:var(--amber-dark);font-size:10.5px;">${nota}</span>` : ''}</span>
+      <span style="white-space:nowrap;font-weight:${min > 0 ? '700' : '400'};color:${min > 0 ? 'var(--pitch)' : 'var(--ink-soft)'};">${min > 0 ? min + " min" : '—'}${r && r.reason ? ` <span style="font-weight:400;color:var(--ink-soft);font-size:10.5px;">${esc(r.reason)}</span>` : ''}</span>
+    </div>`;
+  };
+  /* In panchina metto i convocati che non sono in campo dall'inizio: se non ci sono
+     convocati (partita registrata in fretta) ripiego sul resto della rosa. */
+  const base = convocati.length ? convocati : STATE.players.map(p => String(p.id));
+  const panchina = base.filter(pid => starters.indexOf(pid) === -1);
+  const senzaPosto = starters.filter(pid => !inCampo.has(pid));
+
+  return `
+    <div class="grid2" style="gap:12px;margin-top:14px;">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">In campo dall'inizio (${starters.length})</div>
+        ${starters.length ? starters.map(pid => riga(pid, inCampo.has(pid) ? '' : 'senza posizione')).join('')
+                          : '<div style="font-size:12px;color:var(--ink-soft);padding:8px 0;">Nessuno. Tocca le caselle del campo.</div>'}
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Panchina (${panchina.length})</div>
+        ${panchina.length ? panchina.map(pid => riga(pid, '')).join('')
+                          : '<div style="font-size:12px;color:var(--ink-soft);padding:8px 0;">Nessuno.</div>'}
+      </div>
+    </div>
+    ${senzaPosto.length ? `<div style="font-size:11px;color:var(--amber-dark);margin-top:8px;">Titolari senza posizione sul campo: ${senzaPosto.map(nome).join(', ')}. Assegnali toccando una casella libera.</div>` : ''}`;
+}
+
 function renderMatchDetails(match){
   const modal = document.createElement('div');
+  modal.id = 'matchModal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;box-sizing:border-box;overflow-y:auto;';
-  
+
   const teamName = STATE.teamConfig.name || 'Squadra';
   const isHome = match.position === 'home';
   const isPast = match.date < todayStr();
-  
+  /* La scheda ha due modi: prima della partita si prepara, dopo si registra.
+     Ci arriva da sola in base alla data, e si cambia con un tocco. */
+  const vista = VISTA_SCHEDA_PARTITA[match.id] || (isPast ? 'dopo' : 'prima');
+  const dopo = vista === 'dopo';
+
+  const gf = golFatti(match), gs = golSubiti(match);
+  const marcatori = golDaTimeline(match);
+  const salvato = match.result && Number(match.result.goalsFor) || 0;
+  const discordanza = marcatori > 0 && salvato > 0 && salvato !== marcatori;
+  const soloAMano = marcatori === 0 && salvato > 0;
+
+  const rosaPerSelect = (() => {
+    const conv = (match.convocati || []).map(String);
+    const base = conv.length ? STATE.players.filter(p => conv.indexOf(String(p.id)) !== -1) : STATE.players.slice();
+    return base.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  })();
+  const nomeDi = pid => {
+    if(!pid) return 'marcatore non indicato';
+    const p = STATE.players.find(x => String(x.id) === String(pid));
+    return p ? esc(p.name) : 'giocatore rimosso';
+  };
+  const tab = (id, label) => `<button type="button" class="match-vista" data-vista="${id}" style="flex:1;padding:8px;border:1px solid ${vista===id?'var(--pitch)':'var(--line)'};background:${vista===id?'var(--pitch)':'white'};color:${vista===id?'white':'var(--ink)'};font-size:12px;font-weight:600;cursor:pointer;border-radius:6px;">${label}</button>`;
+
   modal.innerHTML = `
     <div style="background:white;border-radius:12px;max-width:700px;width:100%;padding:24px;margin:auto;">
-      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:14px;">
         <div>
           <h2 style="margin:0;color:var(--pitch);">${esc(match.title)}</h2>
-          <div style="font-size:12px;color:var(--ink-soft);">${fmtDate(match.date)} ${match.time || '-'} | ${esc(match.matchType)}</div>
+          <div style="font-size:12px;color:var(--ink-soft);">${fmtDate(match.date)} ${match.time || '-'} | ${esc(match.matchType || 'Partita')}</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
           <button id="printMatchBtn" class="btn secondary" style="padding:6px 12px;font-size:11px;">PDF recap</button>
-          <button id="closeMatchModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">×</button>
+          <button id="closeMatchModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">&times;</button>
         </div>
       </div>
-      
-      ${isPast ? `
-        <!-- PARTITA PASSATA: RISULTATO + TIMELINE -->
-        <div style="border:2px solid var(--amber);border-radius:8px;padding:16px;margin-bottom:20px;">
+
+      <div style="display:flex;gap:6px;margin-bottom:18px;">
+        ${tab('prima', 'Preparazione')}
+        ${tab('dopo', 'Partita giocata')}
+      </div>
+
+      ${dopo ? `
+        <!-- RISULTATO -->
+        <div style="border:2px solid var(--amber);border-radius:8px;padding:16px;margin-bottom:16px;">
           <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;">
-            ${isHome ? `
-              <div style="text-align:center;">
-                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">${esc(teamName)}</div>
-                <select id="homeGoals" style="padding:10px;font-size:18px;font-weight:700;border:1px solid var(--line);border-radius:6px;text-align:center;">
-                  ${Array.from({length:11}, (_,i)=>`<option value="${i}" ${match.result?.goalsFor===i?'selected':''}>${i}</option>`).join('')}
-                </select>
-              </div>
-            ` : `
-              <div style="text-align:center;">
-                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">${esc(match.opponent)}</div>
-                <select id="homeGoals" style="padding:10px;font-size:18px;font-weight:700;border:1px solid var(--line);border-radius:6px;text-align:center;">
-                  ${Array.from({length:11}, (_,i)=>`<option value="${i}" ${match.result?.goalsAgainst===i?'selected':''}>${i}</option>`).join('')}
-                </select>
-              </div>
-            `}
-            <div style="font-size:16px;font-weight:700;color:var(--ink-soft);">-</div>
-            ${isHome ? `
-              <div style="text-align:center;">
-                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">${esc(match.opponent)}</div>
-                <select id="awayGoals" style="padding:10px;font-size:18px;font-weight:700;border:1px solid var(--line);border-radius:6px;text-align:center;">
-                  ${Array.from({length:11}, (_,i)=>`<option value="${i}" ${match.result?.goalsAgainst===i?'selected':''}>${i}</option>`).join('')}
-                </select>
-              </div>
-            ` : `
-              <div style="text-align:center;">
-                <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">${esc(teamName)}</div>
-                <select id="awayGoals" style="padding:10px;font-size:18px;font-weight:700;border:1px solid var(--line);border-radius:6px;text-align:center;">
-                  ${Array.from({length:11}, (_,i)=>`<option value="${i}" ${match.result?.goalsFor===i?'selected':''}>${i}</option>`).join('')}
-                </select>
-              </div>
-            `}
+            <div style="text-align:center;">
+              <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">${esc(isHome ? teamName : match.opponent || 'Avversario')}</div>
+              ${isHome
+                ? `<div style="font-size:30px;font-weight:700;color:var(--pitch);line-height:1;">${gf}</div><div style="font-size:10px;color:var(--ink-soft);margin-top:4px;">dai marcatori</div>`
+                : `<input id="golSubiti" type="number" min="0" max="30" value="${gs}" style="width:78px;padding:8px;font-size:22px;font-weight:700;border:1px solid var(--line);border-radius:6px;text-align:center;">`}
+            </div>
+            <div style="font-size:18px;font-weight:700;color:var(--ink-soft);">-</div>
+            <div style="text-align:center;">
+              <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">${esc(isHome ? (match.opponent || 'Avversario') : teamName)}</div>
+              ${isHome
+                ? `<input id="golSubiti" type="number" min="0" max="30" value="${gs}" style="width:78px;padding:8px;font-size:22px;font-weight:700;border:1px solid var(--line);border-radius:6px;text-align:center;">`
+                : `<div style="font-size:30px;font-weight:700;color:var(--pitch);line-height:1;">${gf}</div><div style="font-size:10px;color:var(--ink-soft);margin-top:4px;">dai marcatori</div>`}
+            </div>
           </div>
+          ${discordanza ? `<div style="margin-top:12px;padding:8px 10px;background:#FFF6E0;border:1px solid var(--amber);border-radius:6px;font-size:11.5px;color:var(--ink);">Il punteggio salvato in precedenza diceva ${salvato}, i marcatori registrati sono ${marcatori}. Ora vale la timeline: aggiungi i gol mancanti, anche senza marcatore.</div>` : ''}
+          ${soloAMano ? `<div style="margin-top:12px;padding:8px 10px;background:#F7F5EC;border:1px solid var(--line);border-radius:6px;font-size:11.5px;color:var(--ink-soft);">Punteggio inserito a mano, nessun marcatore registrato. Aggiungi i marcatori qui sotto se vuoi che finiscano nelle statistiche.</div>` : ''}
         </div>
-        
-        <!-- TIMELINE EVENTI -->
-        <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:20px;">
-          <h4 style="margin:0 0 12px 0;color:var(--pitch);font-size:13px;">Timeline (${match.events?.length || 0} eventi)</h4>
-          
-          ${match.events && match.events.length > 0 ? `
-            <div style="margin-bottom:12px;max-height:200px;overflow-y:auto;">
-              ${match.events.sort((a,b)=>a.minute-b.minute).map((evt, idx)=>`
-                <div style="padding:8px;background:var(--chalk);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:12px;">
-                  <div>
-                    <span style="font-weight:600;">${evt.minute}'</span>
-                    <span style="margin-left:8px;">${evt.type==='goal'?'':''} ${esc(STATE.players.find(p=>p.id==evt.playerId)?.name||'?')}</span>
-                    ${evt.type==='goal'?`<span style="color:var(--ok);font-weight:600;margin-left:4px;"> GOL</span>`:`<span style="color:var(--amber);margin-left:4px;"> ASSIST</span>`}
-                  </div>
-                  <button class="del-evt-btn" data-evt-idx="${idx}" style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;">×</button>
-                </div>
-              `).join('')}
-            </div>
-          ` : '<div style="font-size:12px;color:#999;text-align:center;margin-bottom:12px;">Nessun evento</div>'}
-          
-          <div style="border-top:1px solid var(--line);padding-top:12px;">
-            <div class="grid2" style="gap:8px;margin-bottom:8px;">
-              <select id="eventType" style="padding:8px;border:1px solid var(--line);border-radius:4px;font-size:12px;">
-                <option value="goal">Goal</option>
-                <option value="assist">Assist</option>
-              </select>
-              <input id="eventMinute" type="number" min="0" max="120" placeholder="Min." style="padding:8px;border:1px solid var(--line);border-radius:4px;font-size:12px;text-align:center;">
-            </div>
-            <div style="margin-bottom:8px;">
-              <select id="eventPlayer" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:4px;font-size:12px;">
-                <option value="">Seleziona giocatore...</option>
-                ${STATE.players.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}
+
+        <!-- TIMELINE UNICA -->
+        <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px;">
+          <h4 style="margin:0 0 10px 0;color:var(--pitch);font-size:13px;">Cronologia della partita</h4>
+          ${(() => {
+            const items = eventiPartita(match);
+            if(!items.length) return '<div style="font-size:12px;color:var(--ink-soft);text-align:center;padding:10px;">Niente ancora. Aggiungi i gol qui sotto; cambi ed espulsioni si registrano dal campo.</div>';
+            const stile = {
+              goal:   {col:'var(--ok)',        testo: e => 'Gol di ' + nomeDi(e.playerId)},
+              assist: {col:'var(--amber-dark)',testo: e => 'Assist di ' + nomeDi(e.playerId)},
+              sub:    {col:'var(--pitch)',     testo: e => 'Esce ' + nomeDi(e.outPlayerId) + ', entra ' + nomeDi(e.inPlayerId)},
+              red:    {col:'var(--clay)',      testo: e => 'Espulso ' + nomeDi(e.playerId)}
+            };
+            return `<div style="max-height:260px;overflow-y:auto;">${items.map(e => {
+              const s = stile[e.kind];
+              return `<div style="display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center;padding:7px 8px;border-bottom:1px solid var(--line);font-size:12.5px;">
+                <span style="font-weight:700;color:var(--pitch);">${e.minute}'</span>
+                <span style="min-width:0;"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${s.col};margin-right:6px;"></span>${s.testo(e)}</span>
+                <button type="button" class="tl-del" data-kind="${e.kind}" data-id="${esc(e.id || '')}" data-idx="${typeof e.idx === 'number' ? e.idx : ''}" style="background:none;border:1px solid var(--line);border-radius:4px;padding:2px 8px;font-size:11px;color:var(--clay);cursor:pointer;">Elimina</button>
+              </div>`;
+            }).join('')}</div>`;
+          })()}
+
+          <div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px;">
+            <div style="font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Aggiungi un gol</div>
+            <div style="display:grid;grid-template-columns:70px 1fr;gap:8px;margin-bottom:8px;">
+              <input id="golMinuto" type="number" min="0" max="150" placeholder="Min." style="padding:8px;border:1px solid var(--line);border-radius:6px;text-align:center;font-size:12.5px;">
+              <select id="golMarcatore" style="padding:8px;border:1px solid var(--line);border-radius:6px;font-size:12.5px;">
+                <option value="">Marcatore non indicato</option>
+                ${rosaPerSelect.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}
               </select>
             </div>
-            <button id="addEventBtn" class="btn" style="width:100%;padding:8px;">+ Aggiungi evento</button>
+            <select id="golAssist" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;font-size:12.5px;margin-bottom:8px;">
+              <option value="">Nessun assist</option>
+              ${rosaPerSelect.map(p => `<option value="${p.id}">Assist: ${esc(p.name)}</option>`).join('')}
+            </select>
+            <button id="addGolBtn" class="btn" style="width:100%;padding:9px;">Aggiungi gol</button>
           </div>
         </div>
-      ` : ''}
-      
-      <!-- CONVOCAZIONI -->
-      <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-          <h4 style="margin:0;color:var(--pitch);font-size:13px;">Convocati</h4>
-          <span id="convocatiCount" style="font-size:12px;font-weight:700;color:var(--ink-soft);"></span>
-        </div>
-        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Spunta chi convochi. Ogni giocatore vedra' nella sua pagina se e' stato convocato o meno.</div>
-        <div style="display:flex;gap:6px;margin-bottom:10px;">
-          <button type="button" id="convocaTuttiBtn" class="btn secondary" style="font-size:11px;padding:5px 10px;">Convoca disponibili</button>
-          <button type="button" id="svuotaConvocatiBtn" class="btn secondary" style="font-size:11px;padding:5px 10px;">Azzera</button>
-        </div>
-        <div style="max-height:280px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;">
-          ${STATE.players.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name))).map(p=>{
-            const conv = isConvocato(match, p.id);
-            const meta = statusMeta(p.status);
-            const unav = p.status !== 'Disponibile';
-            return `
-              <label class="convoca-row" style="padding:8px 10px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;cursor:pointer;">
+      ` : `
+        <!-- CONVOCAZIONI -->
+        <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <h4 style="margin:0;color:var(--pitch);font-size:13px;">Convocati</h4>
+            <span id="convocatiCount" style="font-size:12px;font-weight:700;color:var(--ink-soft);"></span>
+          </div>
+          <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Ogni giocatore vede nella sua pagina se e' stato convocato.</div>
+          <div style="display:flex;gap:6px;margin-bottom:10px;">
+            <button type="button" id="convocaTuttiBtn" class="btn secondary" style="font-size:11px;padding:5px 10px;">Convoca disponibili</button>
+            <button type="button" id="svuotaConvocatiBtn" class="btn secondary" style="font-size:11px;padding:5px 10px;">Azzera</button>
+          </div>
+          <div style="max-height:280px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;">
+            ${STATE.players.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name))).map(p=>{
+              const conv = isConvocato(match, p.id);
+              const meta = statusMeta(p.status);
+              const unav = p.status !== 'Disponibile';
+              return `<label class="convoca-row" style="padding:8px 10px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;cursor:pointer;">
                 <input type="checkbox" class="convoca-check" data-player-id="${p.id}" ${conv ? 'checked' : ''} style="width:18px;height:18px;margin:0;">
                 <div>
                   <div style="font-size:12.5px;font-weight:600;">${esc(p.name)}</div>
                   <div style="font-size:10px;color:var(--ink-soft);">${esc(p.role||'—')}${unav ? ' · <span style="color:'+meta.color+';font-weight:600;">'+meta.label+'</span>' : ''}</div>
                 </div>
               </label>`;
-          }).join('')}
+            }).join('')}
+          </div>
         </div>
-      </div>
+      `}
 
-      <!-- MODULO + CAMPO GRAFICO (SEMPRE) -->
-      <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:20px;">
+      <!-- MODULO, CAMPO E FORMAZIONE -->
+      <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;flex-wrap:wrap;">
           <h4 style="margin:0;color:var(--pitch);font-size:13px;">Modulo e formazione</h4>
           <span id="pitchStarterCount" style="font-size:12px;font-weight:700;color:var(--ink-soft);"></span>
@@ -9885,10 +10481,11 @@ function renderMatchDetails(match){
         <div id="pitchContainer"></div>
         <div id="pitchPicker" style="display:none;"></div>
         <div style="font-size:11px;color:var(--ink-soft);margin-top:10px;line-height:1.4;">
-          Tocca una casella vuota sul campo per assegnare un convocato. Tocca un giocatore in campo per sostituirlo, espellerlo o rimuoverlo.
+          Tocca una casella vuota per mettere un convocato. Tocca un giocatore in campo per sostituirlo, espellerlo o toglierlo.
         </div>
+        <div id="elencoFormazione">${elencoFormazione(match)}</div>
       </div>
-      
+
       <!-- DURATA -->
       <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px;">
         <h4 style="margin:0 0 10px 0;color:var(--pitch);font-size:13px;">Durata partita</h4>
@@ -9898,362 +10495,168 @@ function renderMatchDetails(match){
         </div>
       </div>
 
-      <!-- TITOLARI -->
-      <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px;background:#F7F5EC;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-          <h4 style="margin:0;color:var(--pitch);font-size:13px;">In campo dall'inizio</h4>
-          <span id="starterCount" style="font-size:12px;font-weight:700;"></span>
-        </div>
-        <div id="startersBox">
-          ${(()=>{
-            const st = Array.isArray(match.starters) ? match.starters : [];
-            if(st.length === 0) return '<div style="font-size:12px;color:var(--ink-soft);padding:10px;text-align:center;">Nessun titolare. Spuntali dalla lista qui sotto.</div>';
-            const calc = computeMatchMinutes(match);
-            return st.map(pid=>{
-              const pl = STATE.players.find(x=>String(x.id)===String(pid));
-              if(!pl) return '';
-              const r = calc[String(pid)] || {minutes: matchDuration(match), reason:null};
-              return `
-                <div style="padding:8px 10px;background:white;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;">
-                  <div style="min-width:0;">
-                    <div style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(pl.name)}</div>
-                    <div style="font-size:10px;color:var(--ink-soft);">${esc(pl.role||'—')} &middot; <strong>${r.minutes} min</strong>${r.reason ? ' &middot; ' + r.reason : ''}</div>
-                  </div>
-                  <button type="button" class="open-sub-btn" data-player-id="${pid}" style="background:none;border:1px solid var(--line);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;white-space:nowrap;">Sostituisci</button>
-                  <button type="button" class="open-red-btn" data-player-id="${pid}" style="background:none;border:1px solid var(--line);border-radius:4px;padding:4px 8px;font-size:11px;cursor:pointer;color:var(--clay);white-space:nowrap;">Rosso</button>
-                </div>`;
-            }).join('');
-          })()}
-        </div>
-      </div>
-
-      <!-- BLOCCO RPE PARTITA -->
-      <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-          <h4 style="margin:0;color:var(--pitch);font-size:13px;">RPE partita</h4>
+      ${dopo && moduloAttivo('rpe') ? `
+        <!-- RPE -->
+        <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <h4 style="margin:0;color:var(--pitch);font-size:13px;">RPE partita</h4>
+            ${(()=>{
+              const rpes = (STATE.rpeLog || []).filter(r => r.sessionId === match.id && r.source !== 'plan');
+              if(!rpes.length) return '<span style="font-size:11px;color:var(--ink-soft);">Nessun RPE inserito</span>';
+              const avg = rpes.reduce((s,r)=>s + Number(r.rpe||0), 0) / rpes.length;
+              const load = rpes.reduce((s,r)=>s + Number(r.rpe||0) * Number(r.minutes||0), 0);
+              return `<span style="font-size:11px;color:var(--ink-soft);">Media <strong style="color:var(--pitch);">${Math.round(avg*10)/10}</strong> · Carico <strong style="color:var(--pitch);">${Math.round(load)}</strong> UA</span>`;
+            })()}
+          </div>
           ${(()=>{
             const rpes = (STATE.rpeLog || []).filter(r => r.sessionId === match.id && r.source !== 'plan');
-            if(rpes.length === 0) return '<span style="font-size:11px;color:var(--ink-soft);">Nessun RPE inserito</span>';
-            const avg = rpes.reduce((s,r)=>s + Number(r.rpe||0), 0) / rpes.length;
-            const load = rpes.reduce((s,r)=>s + Number(r.rpe||0) * Number(r.minutes||0), 0);
-            return `<span style="font-size:11px;color:var(--ink-soft);">Media <strong style="color:var(--pitch);">${(Math.round(avg*10)/10)}</strong> · Carico totale <strong style="color:var(--pitch);">${Math.round(load)}</strong> UA</span>`;
+            if(!rpes.length) return '<div style="font-size:12px;color:var(--ink-soft);padding:10px;text-align:center;background:#F7F5EC;border-radius:6px;">Nessun RPE registrato per questa partita.</div>';
+            return '<div style="max-height:240px;overflow-y:auto;">' + rpes.map(r=>{
+              const p = STATE.players.find(x => String(x.id) === String(r.playerId));
+              const col = r.rpe >= 8 ? 'var(--clay)' : r.rpe >= 6 ? 'var(--amber-dark)' : r.rpe >= 4 ? 'var(--amber)' : 'var(--ok)';
+              return `<div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:6px 10px;background:#F9F9F9;border-radius:4px;margin-bottom:4px;font-size:12px;">
+                <span>${p ? esc(p.name) : 'giocatore rimosso'}</span>
+                <span style="color:var(--ink-soft);font-size:11px;">${r.minutes || 0} min</span>
+                <span style="font-weight:700;color:${col};min-width:34px;text-align:right;">${r.rpe}/10</span>
+              </div>`;
+            }).join('') + '</div>';
           })()}
         </div>
-        ${(()=>{
-          const rpes = (STATE.rpeLog || []).filter(r => r.sessionId === match.id && r.source !== 'plan');
-          if(rpes.length === 0){
-            return '<div style="font-size:12px;color:var(--ink-soft);padding:10px;text-align:center;background:#F7F5EC;border-radius:6px;">Nessun RPE registrato per questa partita.</div>';
-          }
-          const righe = rpes.map(r=>{
-            const p = STATE.players.find(x => String(x.id) === String(r.playerId));
-            const color = r.rpe >= 8 ? 'var(--clay)' : r.rpe >= 6 ? 'var(--amber-dark)' : r.rpe >= 4 ? 'var(--amber)' : 'var(--ok)';
-            return `<div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:6px 10px;background:#F9F9F9;border-radius:4px;margin-bottom:4px;font-size:12px;">
-              <span>${p ? esc(p.name) : 'giocatore rimosso'}</span>
-              <span style="color:var(--ink-soft);font-size:11px;">${r.minutes || 0} min</span>
-              <span style="font-weight:700;color:${color};min-width:34px;text-align:right;">${r.rpe}/10</span>
-            </div>`;
-          }).join('');
-          return '<div style="max-height:280px;overflow-y:auto;">' + righe + '</div>';
-        })()}
-      </div>
-
-      <!-- EVENTI -->
-      <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px;">
-        <h4 style="margin:0 0 10px 0;color:var(--pitch);font-size:13px;">Cambi ed espulsioni</h4>
-        <div id="eventsBox">
-          ${(()=>{
-            const items = [];
-            (match.substitutions||[]).forEach(x=> items.push(Object.assign({kind:'sub'}, x)));
-            (match.redCards||[]).forEach(x=> items.push(Object.assign({kind:'red'}, x)));
-            items.sort((a,b)=>(a.minute||0)-(b.minute||0));
-            if(items.length === 0) return '<div style="font-size:12px;color:var(--ink-soft);">Nessun evento registrato</div>';
-            const nome = id=>{ const p = STATE.players.find(x=>String(x.id)===String(id)); return p ? esc(p.name) : 'giocatore rimosso'; };
-            return items.map(it=>`
-              <div style="padding:8px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;">
-                <div style="font-size:13px;font-weight:700;color:var(--pitch);width:38px;">${it.minute}'</div>
-                <div style="font-size:12px;">
-                  ${it.kind === 'sub'
-                    ? `<span style="color:var(--clay);">esce</span> ${nome(it.outPlayerId)} &rarr; <span style="color:var(--ok);">entra</span> ${nome(it.inPlayerId)}`
-                    : `<span style="color:var(--clay);font-weight:600;">Espulso</span> ${nome(it.playerId)}`}
-                </div>
-                <button type="button" class="del-match-event" data-kind="${it.kind}" data-id="${it.id}" style="background:none;border:1px solid var(--line);border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--clay);">Elimina</button>
-              </div>`).join('');
-          })()}
-        </div>
-      </div>
-
-      <!-- PANCHINA / ROSA -->
-      <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:20px;">
-        <h4 style="margin:0 0 4px 0;color:var(--pitch);font-size:13px;">Panchina</h4>
-        <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Spunta chi parte titolare. I minuti si calcolano da soli dai cambi.</div>
-        <div style="max-height:300px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;">
-          ${(()=>{
-            const st = (Array.isArray(match.starters) ? match.starters : []).map(String);
-            const calc = computeMatchMinutes(match);
-            const bench = STATE.players.slice()
-              .filter(p=> st.indexOf(String(p.id)) === -1)
-              .sort((a,b)=>String(a.name).localeCompare(String(b.name)));
-            if(bench.length === 0) return '<div style="font-size:12px;color:var(--ink-soft);padding:10px;">Nessuno</div>';
-            return bench.map(p=>{
-              const meta = statusMeta(p.status);
-              const unav = p.status !== 'Disponibile';
-              const r = calc[String(p.id)];
-              return `
-                <div class="bench-row" style="padding:8px 10px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;">
-                  <input type="checkbox" class="starter-check" data-player-id="${p.id}" style="width:18px;height:18px;margin:0;cursor:pointer;">
-                  <div style="min-width:0;">
-                    <div style="font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(p.name)}</div>
-                    <div style="font-size:10px;color:var(--ink-soft);">${esc(p.role||'—')}${unav ? ` &middot; <span style="color:${meta.color};font-weight:600;">${meta.label}</span>` : ''}</div>
-                  </div>
-                  <div style="font-size:11px;color:${r ? 'var(--ok)' : 'var(--ink-soft)'};font-weight:${r?'700':'400'};white-space:nowrap;">${r ? r.minutes + ' min' : '—'}</div>
-                </div>`;
-            }).join('');
-          })()}
-        </div>
-      </div>
+      ` : ''}
 
       <div style="display:flex;gap:8px;">
-        <button id="saveMatchBtn" class="btn" style="flex:1;">Salva Partita</button>
+        <button id="saveMatchBtn" class="btn" style="flex:1;">Salva partita</button>
         <button id="closeMatchModal2" class="btn secondary" style="flex:0.3;">Chiudi</button>
       </div>
     </div>
   `;
-  
+
   document.body.appendChild(modal);
-  
+
+  const refreshMatch = ()=>{ modal.remove(); renderMatchDetails(match); };
+  const chiudi = ()=> modal.remove();
   const closeBtn = document.getElementById('closeMatchModal');
   const closeBtn2 = document.getElementById('closeMatchModal2');
+  if(closeBtn) closeBtn.addEventListener('click', chiudi);
+  if(closeBtn2) closeBtn2.addEventListener('click', chiudi);
   const printMatchBtn = document.getElementById('printMatchBtn');
   if(printMatchBtn) printMatchBtn.addEventListener('click', ()=> printSessionRecap(match.id));
-  
-  // --- Formazione ed eventi partita ---
-  const refreshMatch = ()=>{ modal.remove(); renderMatchDetails(match); };
 
-  // --- Convocazioni ---
+  modal.querySelectorAll('.match-vista').forEach(b => b.addEventListener('click', ()=>{
+    VISTA_SCHEDA_PARTITA[match.id] = b.dataset.vista;
+    refreshMatch();
+  }));
+
+  /* --- Convocazioni (solo in preparazione) --- */
   const updateConvocatiCount = ()=>{
     const n = (match.convocati || []).length;
     const out = document.getElementById('convocatiCount');
     if(out) out.textContent = n + (n === 1 ? ' convocato' : ' convocati');
   };
   updateConvocatiCount();
-
   modal.querySelectorAll('.convoca-check').forEach(chk=>{
     chk.addEventListener('change', async ()=>{
       await toggleConvocato(match.id, chk.dataset.playerId);
       updateConvocatiCount();
+      const box = document.getElementById('elencoFormazione');
+      if(box) box.innerHTML = elencoFormazione(match);
     });
   });
-
   const convocaTuttiBtn = document.getElementById('convocaTuttiBtn');
-  if(convocaTuttiBtn){
-    convocaTuttiBtn.addEventListener('click', async ()=>{
-      match.convocati = STATE.players.filter(p=>p.status === 'Disponibile').map(p=>String(p.id));
-      await saveKey('events', STATE.events);
-      refreshMatch();
-    });
-  }
-
+  if(convocaTuttiBtn) convocaTuttiBtn.addEventListener('click', async ()=>{
+    match.convocati = STATE.players.filter(p=>p.status === 'Disponibile').map(p=>String(p.id));
+    await saveKey('events', STATE.events);
+    refreshMatch();
+  });
   const svuotaConvocatiBtn = document.getElementById('svuotaConvocatiBtn');
-  if(svuotaConvocatiBtn){
-    svuotaConvocatiBtn.addEventListener('click', async ()=>{
-      match.convocati = [];
-      await saveKey('events', STATE.events);
-      refreshMatch();
-    });
-  }
-
-  const updateStarterCount = ()=>{
-    const n = (match.starters || []).length;
-    const out = document.getElementById('starterCount');
-    if(out){
-      out.textContent = n + (n === 1 ? ' titolare' : ' titolari');
-      out.style.color = (n === 11) ? 'var(--ok)' : (n > 11 ? 'var(--clay)' : 'var(--ink-soft)');
-    }
-  };
-  updateStarterCount();
-
-  // Spuntare un giocatore dalla panchina lo porta tra i titolari
-  modal.querySelectorAll('.starter-check').forEach(chk=>{
-    chk.addEventListener('change', ()=>{
-      if(!Array.isArray(match.starters)) match.starters = [];
-      const pid = chk.dataset.playerId;
-      if(chk.checked){
-        if(match.starters.map(String).indexOf(String(pid)) === -1) match.starters.push(pid);
-      }
-      refreshMatch();
-    });
+  if(svuotaConvocatiBtn) svuotaConvocatiBtn.addEventListener('click', async ()=>{
+    match.convocati = [];
+    await saveKey('events', STATE.events);
+    refreshMatch();
   });
 
-  // Togliere un titolare: click sul nome nel riquadro titolari non serve,
-  // uso il pulsante Sostituisci; per rimuoverlo del tutto c'e' il rosso o il cambio.
-
-  // Sostituzione
-  modal.querySelectorAll('.open-sub-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const outId = btn.dataset.playerId;
-      const outPl = STATE.players.find(x=>String(x.id)===String(outId));
-      const dur = matchDuration(match);
-
-      const minStr = prompt('Al minuto quanti esce ' + (outPl ? outPl.name : '') + '? (1-' + dur + ')', '');
-      if(minStr === null) return;
-      const minute = parseInt(minStr, 10);
-      if(isNaN(minute) || minute < 0 || minute > dur){ showToast('Minuto non valido'); return; }
-
-      // Chi e' gia' sceso in campo non puo' entrare di nuovo
-      const calc = computeMatchMinutes(match);
-      const disponibili = STATE.players.filter(pl => !calc[String(pl.id)]);
-      if(disponibili.length === 0){ showToast('Nessun giocatore disponibile in panchina'); return; }
-
-      const elenco = disponibili.map((pl,i)=> (i+1) + '. ' + pl.name).join('\n');
-      const scelta = prompt('Chi entra al posto di ' + (outPl ? outPl.name : '') + '?\n\n' + elenco + '\n\nScrivi il numero:', '');
-      if(scelta === null) return;
-      const idx = parseInt(scelta, 10) - 1;
-      if(isNaN(idx) || idx < 0 || idx >= disponibili.length){ showToast('Scelta non valida'); return; }
-
-      if(!Array.isArray(match.substitutions)) match.substitutions = [];
-      match.substitutions.push({
-        id: uid(), minute: minute,
-        outPlayerId: outId,
-        inPlayerId: disponibili[idx].id
-      });
-      showToast('Cambio al ' + minute + "'");
-      refreshMatch();
-    });
+  /* --- Gol: un solo inserimento per gol e assist --- */
+  const addGolBtn = document.getElementById('addGolBtn');
+  if(addGolBtn) addGolBtn.addEventListener('click', async ()=>{
+    const minuto = parseInt(document.getElementById('golMinuto').value, 10);
+    const dur = matchDuration(match);
+    if(isNaN(minuto) || minuto < 0 || minuto > dur + 15){ showToast('Minuto non valido'); return; }
+    const marcatore = document.getElementById('golMarcatore').value;
+    const assist = document.getElementById('golAssist').value;
+    if(assist && assist === marcatore){ showToast('Marcatore e assist non possono essere la stessa persona'); return; }
+    if(!Array.isArray(match.events)) match.events = [];
+    match.events.push({id: uid(), type: 'goal', minute: minuto, playerId: String(marcatore || '')});
+    if(assist) match.events.push({id: uid(), type: 'assist', minute: minuto, playerId: String(assist)});
+    allineaRisultatoAiMarcatori(match);
+    await saveKey('events', STATE.events);
+    showToast('Gol registrato');
+    refreshMatch();
   });
 
-  // Espulsione
-  modal.querySelectorAll('.open-red-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const pid = btn.dataset.playerId;
-      const pl = STATE.players.find(x=>String(x.id)===String(pid));
-      const dur = matchDuration(match);
-      const minStr = prompt('Al minuto quanti e stato espulso ' + (pl ? pl.name : '') + '? (1-' + dur + ')', '');
-      if(minStr === null) return;
-      const minute = parseInt(minStr, 10);
-      if(isNaN(minute) || minute < 0 || minute > dur){ showToast('Minuto non valido'); return; }
-
-      if(!Array.isArray(match.redCards)) match.redCards = [];
-      match.redCards.push({id: uid(), playerId: pid, minute: minute});
-      showToast('Espulsione registrata');
-      refreshMatch();
-    });
-  });
-
-  // Elimina evento
-  modal.querySelectorAll('.del-match-event').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
+  /* --- Eliminazione dalla cronologia --- */
+  modal.querySelectorAll('.tl-del').forEach(btn => btn.addEventListener('click', async ()=>{
+    const kind = btn.dataset.kind, id = btn.dataset.id, idx = parseInt(btn.dataset.idx, 10);
+    if(kind === 'sub' || kind === 'red'){
       if(!confirm('Eliminare questo evento? I minutaggi verranno ricalcolati.')) return;
-      const id = btn.dataset.id;
-      if(btn.dataset.kind === 'sub'){
-        match.substitutions = (match.substitutions||[]).filter(x=>x.id !== id);
-      } else {
-        match.redCards = (match.redCards||[]).filter(x=>x.id !== id);
-      }
-      refreshMatch();
-    });
+      if(kind === 'sub') match.substitutions = (match.substitutions || []).filter(x => x.id !== id);
+      else match.redCards = (match.redCards || []).filter(x => x.id !== id);
+    } else {
+      /* Gol e assist: uso l'id se c'e', altrimenti la posizione (voci vecchie senza id) */
+      if(!Array.isArray(match.events)) return;
+      let pos = id ? match.events.findIndex(e => e.id === id) : -1;
+      if(pos === -1 && !isNaN(idx)) pos = idx;
+      if(pos < 0 || pos >= match.events.length) return;
+      match.events.splice(pos, 1);
+      allineaRisultatoAiMarcatori(match);
+    }
+    await saveKey('events', STATE.events);
+    showToast('Evento rimosso');
+    refreshMatch();
+  }));
+
+  /* --- Durata --- */
+  const durInput = document.getElementById('matchDuration');
+  if(durInput) durInput.addEventListener('change', ()=>{
+    const d = parseInt(durInput.value, 10);
+    if(isNaN(d) || d < 1 || d > 150){ showToast('Durata non valida'); durInput.value = matchDuration(match); return; }
+    match.duration = d;
+    refreshMatch();
   });
 
-  const durInput = document.getElementById('matchDuration');
-  if(durInput){
-    durInput.addEventListener('change', ()=>{
-      const d = parseInt(durInput.value, 10);
-      if(isNaN(d) || d < 1 || d > 150){ showToast('Durata non valida'); durInput.value = matchDuration(match); return; }
-      match.duration = d;
-      refreshMatch();
-    });
-  }
-
-  if(closeBtn) closeBtn.addEventListener('click', ()=>modal.remove());
-  if(closeBtn2) closeBtn2.addEventListener('click', ()=>modal.remove());
-
-  /* --- Modulo + campo grafico --- */
+  /* --- Modulo e campo grafico --- */
   const moduloSel = document.getElementById('modulo');
-  if(moduloSel){
-    moduloSel.addEventListener('change', async ()=>{
-      const newMod = moduloSel.value;
-      match.modulo = newMod;
-      /* Se il modulo cambia il numero di slot, ripulisco assegnazioni fuori range.
-         Non tolgo i titolari da match.starters: restano "senza posizione" e ripiazzabili. */
-      const nSlots = (FORMATIONS[newMod] || []).length;
-      if(match.formationSlots){
-        Object.keys(match.formationSlots).forEach(k=>{
-          if(parseInt(k,10) >= nSlots) delete match.formationSlots[k];
-        });
-      }
-      await saveKey('events', STATE.events);
-      refreshPitch(match);
-    });
-  }
-  /* Primo render del campo, se il modulo e' gia' impostato */
+  if(moduloSel) moduloSel.addEventListener('change', async ()=>{
+    const newMod = moduloSel.value;
+    match.modulo = newMod;
+    const nSlots = (FORMATIONS[newMod] || []).length;
+    if(match.formationSlots){
+      Object.keys(match.formationSlots).forEach(k=>{
+        if(parseInt(k, 10) >= nSlots) delete match.formationSlots[k];
+      });
+    }
+    await saveKey('events', STATE.events);
+    refreshMatch();
+  });
   refreshPitch(match);
 
-  // Add event (only for past matches)
-  if(isPast && document.getElementById('addEventBtn')){
-    document.getElementById('addEventBtn').addEventListener('click', async ()=>{
-      const type = document.getElementById('eventType').value;
-      const minute = parseInt(document.getElementById('eventMinute').value);
-      const playerIdRaw = document.getElementById('eventPlayer').value;
-
-      if(!playerIdRaw || isNaN(minute) || minute < 0 || minute > 120){
-        showToast('Completa minuto e giocatore');
-        return;
-      }
-
-      /* Manteniamo l'id come stringa: coerente con come sono salvati altrove. */
-      if(!match.events) match.events = [];
-      match.events.push({type, minute, playerId: String(playerIdRaw)});
-      await saveKey('events', STATE.events);
-      showToast(type === 'goal' ? 'Gol registrato' : 'Assist registrato');
-      renderMatchDetails(match);
-      modal.remove();
-    });
-  }
-
-  // Delete event
-  modal.querySelectorAll('.del-evt-btn').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const idx = parseInt(btn.dataset.evtIdx);
-      if(!match.events || isNaN(idx)) return;
-      /* La timeline mostrata e' ordinata per minuto, quindi devo ritrovare l'evento */
-      const sortedEvents = match.events.slice().sort((a,b)=>a.minute-b.minute);
-      const toRemove = sortedEvents[idx];
-      if(!toRemove) return;
-      const realIdx = match.events.indexOf(toRemove);
-      if(realIdx !== -1) match.events.splice(realIdx, 1);
-      await saveKey('events', STATE.events);
-      showToast('Evento rimosso');
-      renderMatchDetails(match);
-      modal.remove();
-    });
+  /* --- Salvataggio --- */
+  const saveBtn = document.getElementById('saveMatchBtn');
+  if(saveBtn) saveBtn.addEventListener('click', async ()=>{
+    const subiti = document.getElementById('golSubiti');
+    if(subiti){
+      const n = parseInt(subiti.value, 10);
+      if(isNaN(n) || n < 0 || n > 30){ showToast('Gol subiti non validi'); return; }
+      match.result = {goalsFor: golFatti(match), goalsAgainst: n};
+    }
+    match.modulo = (document.getElementById('modulo') || {}).value || '';
+    const nStarters = (match.starters || []).length;
+    if(nStarters > 11 && !confirm('Hai ' + nStarters + ' titolari, piu di 11. Salvare lo stesso?')) return;
+    syncMatchLineup(match);
+    await saveKey('events', STATE.events);
+    showToast('Partita salvata');
+    modal.remove();
+    render();
   });
-  
-  // Save match
-  if(document.getElementById('saveMatchBtn')){
-    document.getElementById('saveMatchBtn').addEventListener('click', async ()=>{
-      if(isPast){
-        const homeGoalsVal = parseInt(document.getElementById('homeGoals').value || '0');
-        const awayGoalsVal = parseInt(document.getElementById('awayGoals').value || '0');
-        
-        match.result = {
-          goalsFor: isHome ? homeGoalsVal : awayGoalsVal,
-          goalsAgainst: isHome ? awayGoalsVal : homeGoalsVal
-        };
-      }
-      
-      /* modulo e' un select: value e' gia' pulito, uso stringa vuota se "— Nessun modulo —" */
-      match.modulo = document.getElementById('modulo').value || '';
-      
-      // I minuti sono calcolati dagli eventi: allineo match.lineup per le statistiche
-      const nStarters = (match.starters || []).length;
-      if(nStarters > 11 && !confirm('Hai indicato ' + nStarters + ' titolari, piu di 11. Salvare lo stesso?')) return;
-      syncMatchLineup(match);
-
-      await saveKey('events', STATE.events);
-      showToast('Partita salvata');
-      modal.remove();
-      render();
-    });
-  }
 }
 
 
@@ -12613,14 +13016,14 @@ loadAll().then(()=>{
   try{
     const savedCode = localStorage.getItem(DEVICE_CODE_KEY);
     if(savedCode && !STATE.loggedIn){
-      const pid = findPlayerByCode(savedCode);
+      const pid = moduloAttivo('accessoGiocatori') ? findPlayerByCode(savedCode) : null;
       if(pid){
         login('player', pid);
         setupFirestoreSync();
         avviaAutoBackup();
         return;
       }
-      const staff = findStaffByCode(savedCode);
+      const staff = moduloAttivo('accessoStaff') ? findStaffByCode(savedCode) : null;
       if(staff){
         loginStaffMember(staff);
         setupFirestoreSync();
@@ -12633,6 +13036,9 @@ loadAll().then(()=>{
          arrivato), il codice potrebbe essere ancora valido: non lo cancello, ritento
          al prossimo caricamento. Lo cancello solo se sono sicuro che la ricerca sia
          stata fatta su dati completi e il codice davvero non esiste piu' (rigenerato). */
+      /* Con un modulo spento il codice non e' scaduto: e' solo inutile qui. Lo tengo,
+         serve ancora sulla squadra da cui viene. */
+      if(!moduloAttivo('accessoGiocatori') || !moduloAttivo('accessoStaff')) return;
       const accessCodesVuoto = !STATE.accessCodes || Object.keys(STATE.accessCodes).length === 0;
       const staffVuoto = !Array.isArray(STATE.staffMembers) || STATE.staffMembers.length === 0;
       if(!LOAD_FAILED && !accessCodesVuoto && !staffVuoto){
