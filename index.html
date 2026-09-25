@@ -20,9 +20,47 @@
     --line: #DCD6C4;
     --ink: #000000;
     --ink-soft: #333333;
+    /* Superfici e sfondi di stato: prima erano tinte scritte a mano in mezzo al
+       codice, cosi' il tema si cambia in un posto solo. --pitch resta il colore
+       scuro del marchio (barra laterale, pulsanti); --heading e' il testo dei
+       titoli, che nel tema scuro deve diventare chiaro. */
+    --heading: #1A1A1A;
+    --surface-2: #F7F5EC;
+    --ok-bg: #E3EFE7;
+    --warn-bg: #FFF6E0;
+    --amber-bg: #FDF3E7;
+    --bad-bg: #F9E4E0;
     --radius: 10px;
     --radius-sm: 6px;
   }
+  /* TEMA SCURO: cambio solo i valori, nessuna regola duplicata. I colori di stato
+     restano riconoscibili ma schiariti, altrimenti su fondo scuro spariscono. */
+  :root[data-theme="dark"]{
+    --chalk: #15171B;
+    --paper: #1E2127;
+    --surface-2: #262A31;
+    --line: #333944;
+    --ink: #E9E7E2;
+    --ink-soft: #A7AEBA;
+    --heading: #F2F0EA;
+    --pitch: #0E1014;
+    --pitch-dark: #090B0E;
+    --ok: #7FB79A;
+    --amber: #D9A63F;
+    --amber-dark: #E0B45C;
+    --clay: #D2685A;
+    --clay-soft: #3A2420;
+    --ok-bg: #1E2D25;
+    --warn-bg: #2E2718;
+    --amber-bg: #2B2218;
+    --bad-bg: #2E1E1C;
+  }
+  :root[data-theme="dark"] input,
+  :root[data-theme="dark"] select,
+  :root[data-theme="dark"] textarea{
+    background:var(--surface-2); color:var(--ink); border-color:var(--line);
+  }
+  :root[data-theme="dark"] .btn.secondary{ background:var(--surface-2); color:var(--ink); }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--chalk);color:var(--ink);font-family:'Inter',sans-serif;}
   h1,h2,h3{font-family:'Oswald',sans-serif;letter-spacing:0.01em;}
@@ -32,7 +70,7 @@
   .app{display:flex;min-height:100vh;}
   .login-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:var(--pitch);color:var(--chalk);padding:20px;}
   .login-card{background:var(--paper);color:var(--ink);border-radius:var(--radius);padding:40px;max-width:380px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.2);}
-  .login-card h1{margin-top:0;font-size:24px;text-align:center;color:var(--pitch);}
+  .login-card h1{margin-top:0;font-size:24px;text-align:center;color:var(--heading);}
   .login-logo{width:72px;height:72px;border-radius:50%;background:var(--amber);margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--pitch-dark);}
   .login-form label{display:block;font-size:13px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;margin-top:12px;}
   .login-form input,.login-form select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);font-size:14px;}
@@ -60,11 +98,11 @@
 
   .main{flex:1;padding:32px 40px;max-width:1200px;overflow-y:auto;}
   .page-head{margin-bottom:24px;}
-  .page-head h1{font-size:26px;margin:0 0 4px 0;color:var(--pitch);}
+  .page-head h1{font-size:26px;margin:0 0 4px 0;color:var(--heading);}
   .page-head p{margin:0;color:var(--ink-soft);font-size:14px;}
 
   .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:18px;}
-  .card h3{margin:0 0 14px 0;font-size:15px;color:var(--pitch);}
+  .card h3{margin:0 0 14px 0;font-size:15px;color:var(--heading);}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
   @media (max-width:900px){.grid2,.grid3{grid-template-columns:1fr;}}
@@ -88,36 +126,36 @@
 
   .btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:var(--radius-sm);border:1px solid var(--pitch);background:var(--pitch);color:var(--chalk);font-size:13.5px;font-weight:600;}
   .btn:hover{background:var(--pitch-dark);}
-  .btn.secondary{background:var(--paper);color:var(--pitch);border-color:var(--line);}
-  .btn.secondary:hover{background:#F2EFE4;}
+  .btn.secondary{background:var(--paper);color:var(--heading);border-color:var(--line);}
+  .btn.secondary:hover{background:var(--surface-2);}
   .btn-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
 
   table{width:100%;border-collapse:collapse;font-size:13.5px;}
   th{text-align:left;padding:8px 10px;color:var(--ink-soft);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--line);}
   td{padding:9px 10px;border-bottom:1px solid #EEEAD9;}
   tr:last-child td{border-bottom:none;}
-  tr:hover td{background:#FAF8F0;}
+  tr:hover td{background:var(--surface-2);}
 
   .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:600;}
-  .badge.ok{background:#E3EFE7;color:var(--ok);}
-  .badge.warn{background:#F7EAD3;color:var(--amber-dark);}
+  .badge.ok{background:var(--ok-bg);color:var(--ok);}
+  .badge.warn{background:var(--warn-bg);color:var(--amber-dark);}
   .badge.bad{background:var(--clay-soft);color:var(--clay);}
 
   .stat-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;}
   .stat{flex:1;min-width:140px;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;cursor:pointer;transition:all 0.2s;}
   .stat:hover{border-color:var(--amber);box-shadow:0 2px 8px rgba(0,0,0,0.08);}
-  .stat .num{font-family:'Oswald';font-size:28px;color:var(--pitch);}
+  .stat .num{font-family:'Oswald';font-size:28px;color:var(--heading);}
   .stat .lbl{font-size:12px;color:var(--ink-soft);margin-top:4px;}
 
   .empty{text-align:center;padding:40px 20px;color:var(--ink-soft);}
 
   .workout-item{border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px;background:var(--chalk);}
-  .workout-item h4{margin:0 0 6px 0;font-size:13px;color:var(--pitch);font-weight:600;}
+  .workout-item h4{margin:0 0 6px 0;font-size:13px;color:var(--heading);font-weight:600;}
   .workout-item-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;font-size:12px;margin-bottom:4px;}
   .workout-item-val{color:var(--amber);font-weight:600;}
 
-  .session-exercise{border:1px solid var(--amber);border-left:4px solid var(--amber);padding:8px;margin-bottom:6px;background:#FFF9F0;font-size:12px;}
-  .session-exercise-name{font-weight:600;color:var(--pitch);margin-bottom:2px;}
+  .session-exercise{border:1px solid var(--amber);border-left:4px solid var(--amber);padding:8px;margin-bottom:6px;background:var(--surface-2);font-size:12px;}
+  .session-exercise-name{font-weight:600;color:var(--heading);margin-bottom:2px;}
   .session-exercise-detail{color:var(--ink-soft);font-size:11px;}
 
   .checkbox-group{border:1px solid var(--line);border-radius:var(--radius);padding:12px;background:var(--chalk);max-height:300px;overflow-y:auto;}
@@ -132,15 +170,15 @@
   .tile.tap{cursor:pointer;}
   .tile.tap:hover{border-color:var(--amber);}
   .tile-lbl{font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-soft);font-weight:700;margin-bottom:6px;}
-  .tile-big{font-size:34px;font-weight:700;line-height:1;color:var(--pitch);font-family:'Oswald',sans-serif;}
+  .tile-big{font-size:34px;font-weight:700;line-height:1;color:var(--heading);font-family:'Oswald',sans-serif;}
   .tile-big small{font-size:15px;color:var(--ink-soft);font-weight:600;}
   .tile-sub{font-size:11px;color:var(--ink-soft);margin-top:5px;line-height:1.35;}
   .tile-accent{position:absolute;left:0;top:0;bottom:0;width:4px;}
 
   .alerts{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
   .alert{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--paper);border:1px solid var(--line);border-left-width:4px;border-radius:var(--radius-sm);cursor:pointer;}
-  .alert:hover{background:#FAF8F0;}
-  .alert-t{font-size:12.5px;font-weight:600;color:var(--pitch);line-height:1.3;}
+  .alert:hover{background:var(--surface-2);}
+  .alert-t{font-size:12.5px;font-weight:600;color:var(--heading);line-height:1.3;}
   .alert-s{font-size:11px;color:var(--ink-soft);margin-top:2px;}
 
   .form-strip{display:flex;gap:5px;}
@@ -165,7 +203,7 @@
     body > #root{display:none!important;}
     /* Nessun elemento generato dinamicamente deve sopravvivere alla stampa */
     body > div:not(#printSheet), body > section:not(#printSheet){display:none!important;}
-    #printSheet{display:block!important;position:static!important;color:#000;font-family:'Inter',sans-serif;background:white!important;padding:0!important;margin:0!important;width:auto!important;visibility:visible!important;opacity:1!important;}
+    #printSheet{color:#000!important;display:block!important;position:static!important;color:#000;font-family:'Inter',sans-serif;background:white!important;padding:0!important;margin:0!important;width:auto!important;visibility:visible!important;opacity:1!important;}
     #printSheet *{visibility:visible!important;}
     #printSheet .ps-head{border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:flex-end;}
     #printSheet h1{font-family:'Oswald',sans-serif;font-size:20pt;margin:0;letter-spacing:0.02em;}
@@ -251,7 +289,7 @@
       if(!b){
         b = document.createElement('div');
         b.id = 'erroreBanner';
-        b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:20000;background:#B5473A;color:#fff;' +
+        b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:20000;background:var(--clay);color:#fff;' +
           'font-family:-apple-system,sans-serif;font-size:12.5px;padding:10px 44px 10px 14px;line-height:1.4;';
         document.body.appendChild(b);
       }
@@ -309,6 +347,20 @@ let db = null;
    i dispositivi. Ogni squadra ha rosa, calendario, test e password proprie. */
 const TEAM_DEFAULT = 'alense';
 const TEAM_KEY = 'thp-team';
+const ADMIN_DEVICE_KEY = 'thp-admin-device';
+const TEMA_KEY = 'thp-tema';
+/* Applicato subito, prima di disegnare: cosi' non si vede il lampo bianco */
+function temaCorrente(){
+  try{ return localStorage.getItem(TEMA_KEY) === 'dark' ? 'dark' : 'light'; }catch(e){ return 'light'; }
+}
+function applicaTema(tema){
+  try{
+    if(tema === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    else document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem(TEMA_KEY, tema);
+  }catch(e){}
+}
+applicaTema(temaCorrente());   /* segna i dispositivi da cui si e' entrati da amministratore */
 const TEAM_INDEX_ID = '_index';
 let TEAM_ID = TEAM_DEFAULT;
 let TEAMS = [];
@@ -368,6 +420,43 @@ async function caricaElencoSquadre(){
   if(!TEAMS.some(t => t.id === TEAM_ID)) TEAMS.push({id: TEAM_ID, name: TEAM_ID, profilo: 'completa'});
   return TEAMS;
 }
+/* Indice dei codici valido per tutte le squadre: codice -> {team, tipo, id}.
+   Serve a due cose: non generare mai lo stesso codice in squadre diverse, e far
+   entrare una persona anche se sul dispositivo e' aperta la squadra sbagliata. */
+let CODICI_GLOBALI = {};
+async function caricaCodiciGlobali(){
+  CODICI_GLOBALI = {};
+  if(!db) return CODICI_GLOBALI;
+  try{
+    const doc = await db.collection('teams').doc(TEAM_INDEX_ID).collection('data').doc('codes').get();
+    const v = doc.exists ? doc.data().value : null;
+    if(v && typeof v === 'object') CODICI_GLOBALI = v;
+  }catch(e){ console.warn('Indice codici non letto:', e.message); }
+  return CODICI_GLOBALI;
+}
+async function registraCodiceGlobale(code, tipo, id){
+  const c = normalizeCode(code);
+  if(!c) return false;
+  /* Tolgo i codici precedenti della stessa persona: un codice rigenerato non
+     deve restare valido per sempre nell'indice. */
+  Object.keys(CODICI_GLOBALI).forEach(k => {
+    const v = CODICI_GLOBALI[k];
+    if(v && v.team === TEAM_ID && v.tipo === tipo && String(v.id) === String(id)) delete CODICI_GLOBALI[k];
+  });
+  CODICI_GLOBALI[c] = {team: TEAM_ID, tipo: tipo, id: String(id)};
+  if(!db || LOAD_FAILED) return false;
+  try{
+    await db.collection('teams').doc(TEAM_INDEX_ID).collection('data').doc('codes').set({
+      value: CODICI_GLOBALI, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return true;
+  }catch(e){ console.error('Indice codici non salvato:', e.message); return false; }
+}
+function codiceDiAltraSquadra(code){
+  const v = CODICI_GLOBALI[normalizeCode(code)];
+  return (v && v.team && v.team !== TEAM_ID) ? v : null;
+}
+
 async function salvaElencoSquadre(){
   if(LOAD_FAILED){ showToast('Dati non caricati correttamente: ricarica prima di salvare'); return false; }
   if(!db){ showToast('Senza connessione non posso salvare l elenco squadre'); return false; }
@@ -392,7 +481,7 @@ async function scriviChiaveSquadra(teamId, key, value){
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '3.0';
+const APP_VERSION = '3.5';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -1143,12 +1232,12 @@ const ATHLETIC_PARAMS = {
   'Forza massima': {fields: ['exercise', 'series', 'reps', 'kg', 'recovery']},
   'Forza esplosiva e pliometria': {fields: ['series', 'reps', 'kg', 'recovery']},
   'Forza resistente': {fields: ['series', 'minutes', 'recovery']},
-  'Speed & Agility (Velocità pura)': {fields: ['series', 'distance', 'recovery']},
-  'Cambi di direzione (COD)': {fields: ['series', 'distance', 'recovery']},
-  'Resistenza aerobica a secco': {fields: ['minutes', 'intensita'], groups: true},
-  'Potenza metabolica ed High-Intensity Interval Training (HIIT)': {fields: ['series', 'minutesPerSeries', 'intensita', 'recovery'], groups: true},
-  'Lavoro intermittente': {fields: ['series', 'minutesPerSeries', 'intensita', 'recovery'], groups: true},
-  'Differenziato': {fields: ['series', 'minutesPerSeries', 'intensita', 'recovery'], groups: true},
+  'Speed & Agility (Velocità pura)': {fields: ['series', 'ripetute', 'distance', 'lavoroSec', 'recuperoSec', 'recovery']},
+  'Cambi di direzione (COD)': {fields: ['series', 'ripetute', 'distance', 'lavoroSec', 'recuperoSec', 'recovery']},
+  'Resistenza aerobica a secco': {fields: ['minutes', 'ripetute', 'distance', 'lavoroSec', 'recuperoSec', 'intensita'], groups: true},
+  'Potenza metabolica ed High-Intensity Interval Training (HIIT)': {fields: ['series', 'ripetute', 'minutesPerSeries', 'intensita', 'distance', 'lavoroSec', 'recuperoSec', 'recovery'], groups: true},
+  'Lavoro intermittente': {fields: ['series', 'ripetute', 'minutesPerSeries', 'intensita', 'distance', 'lavoroSec', 'recuperoSec', 'recovery'], groups: true},
+  'Differenziato': {fields: ['series', 'ripetute', 'minutesPerSeries', 'intensita', 'distance', 'lavoroSec', 'recuperoSec', 'recovery'], groups: true},
   'Rigenerazione e scarico (Recovery)': {fields: ['minutes']},
   'Test del Lattato (Test di Mader)': {fields: ['description']},
   'Yo-Yo Intermittent Recovery Test': {fields: ['description']},
@@ -1158,6 +1247,29 @@ const ATHLETIC_PARAMS = {
   'Test di agilità (Illinois Test / 505 Test)': {fields: ['description']},
   'Countermovement Jump (CMJ) / Test di Bosco': {fields: ['description']},
 };
+
+/* Un solo posto in cui e' scritto come si chiama e che limiti ha ogni variabile.
+   Il blocco di corsa si descrive sempre allo stesso modo: serie, ripetute per
+   serie, distanza o durata della ripetuta, recupero fra le ripetute e fra le serie. */
+const CAMPI_ESERCITAZIONE = {
+  series:           {label:'Serie',                          min:1,  max:60,   def:1},
+  ripetute:         {label:'Ripetute per serie',             min:1,  max:200,  def:''},
+  reps:             {label:'Ripetizioni',                    min:1,  max:200,  def:1},
+  minutes:          {label:'Minuti',                          min:1,  max:240,  def:10},
+  minutesPerSeries: {label:'Minuti per serie',                min:1,  max:120,  def:2},
+  distance:         {label:'Distanza per ripetuta (m)',       min:1,  max:10000,def:''},
+  lavoroSec:        {label:'Durata della ripetuta (sec)',     min:1,  max:1200, def:''},
+  recuperoSec:      {label:'Recupero fra le ripetute (sec)',  min:0,  max:1200, def:''},
+  recovery:         {label:'Recupero fra le serie (min)',     min:0,  max:60,   def:1},
+  kg:               {label:'Carico medio (kg)',               min:0,  max:500,  def:'', step:'0.5'},
+  intensita:        {label:'Intensita (% VAM)',               min:30, max:130,  def:''}
+};
+function campoEsercitazioneHTML(nome, valore){
+  const m = CAMPI_ESERCITAZIONE[nome];
+  if(!m) return '';
+  const v = (valore === undefined || valore === null || valore === '') ? '' : valore;
+  return `<div><label>${esc(m.label)}</label><input id="w${nome.charAt(0).toUpperCase()+nome.slice(1)}" type="number" min="${m.min}" max="${m.max}"${m.step ? ' step="'+m.step+'"' : ''} value="${v === '' ? (valore === undefined ? m.def : '') : v}"></div>`;
+}
 
 const FORCE_EXERCISES = ['Squat', 'Stacchi', 'Panca', 'Trazioni', 'Leg Press', 'Chest Press', 'Lat Machine', 'Leg Curl', 'Adduttori'];
 
@@ -1340,6 +1452,7 @@ function showToast(msg){
 
 async function loadAll(){
   await caricaElencoSquadre();
+  await caricaCodiciGlobali();
   // Tutte le letture partono insieme: in sequenza servivano diversi secondi
   const chiavi = [
     ['team-config',      {name:'Alense'}],
@@ -1451,6 +1564,10 @@ function login(role, identifier){
       STATE.loggedIn = true;
       STATE.role = 'admin';
       STATE.page = 'dashboard';
+      /* Da questo dispositivo si amministra: gli mostro il cambio squadra anche
+         nella schermata di accesso, altrimenti entrando in una squadra di cui non
+         si ricorda la password si resta chiusi fuori senza via d'uscita. */
+      try{ localStorage.setItem(ADMIN_DEVICE_KEY, '1'); }catch(e){}
     }else{
       showToast('Password amministratore non corretta');
       return;
@@ -1563,14 +1680,14 @@ function lineChartSVG(opts){
   s.forEach(serie => (serie.data || []).forEach(p => { if(xValues.indexOf(p.x) === -1) xValues.push(p.x); }));
   xValues.sort();
   if(xValues.length === 0){
-    return `<div style="padding:30px;text-align:center;font-size:12px;color:var(--ink-soft);background:#F7F5EC;border-radius:6px;">Dati insufficienti per il grafico.</div>`;
+    return `<div style="padding:30px;text-align:center;font-size:12px;color:var(--ink-soft);background:var(--surface-2);border-radius:6px;">Dati insufficienti per il grafico.</div>`;
   }
 
   /* Y auto scala */
   let allY = [];
   s.forEach(serie => (serie.data || []).forEach(p => { if(p.y != null && !isNaN(p.y)) allY.push(p.y); }));
   if(allY.length === 0){
-    return `<div style="padding:30px;text-align:center;font-size:12px;color:var(--ink-soft);background:#F7F5EC;border-radius:6px;">Nessun valore da rappresentare.</div>`;
+    return `<div style="padding:30px;text-align:center;font-size:12px;color:var(--ink-soft);background:var(--surface-2);border-radius:6px;">Nessun valore da rappresentare.</div>`;
   }
   const yMinRaw = opts.yMin != null ? opts.yMin : Math.min(...allY);
   const yMaxRaw = opts.yMax != null ? opts.yMax : Math.max(...allY);
@@ -1661,7 +1778,7 @@ function barChartSVG(opts){
   const plotH = height - padT - padB;
 
   if(data.length === 0){
-    return `<div style="padding:30px;text-align:center;font-size:12px;color:var(--ink-soft);background:#F7F5EC;border-radius:6px;">Nessun dato.</div>`;
+    return `<div style="padding:30px;text-align:center;font-size:12px;color:var(--ink-soft);background:var(--surface-2);border-radius:6px;">Nessun dato.</div>`;
   }
 
   const maxVal = opts.yMax != null ? opts.yMax : Math.max(...data.map(d=>d.value||0), 1);
@@ -2018,19 +2135,35 @@ function bodyMapSVG(dati, opts){
     <div style="margin-top:12px;font-size:11px;color:var(--ink-soft);display:flex;justify-content:center;gap:14px;flex-wrap:wrap;">
       <span><span style="display:inline-block;width:10px;height:10px;background:#F4C542;border-radius:50%;vertical-align:middle;margin-right:4px;"></span>1 caso</span>
       <span><span style="display:inline-block;width:10px;height:10px;background:#E67B25;border-radius:50%;vertical-align:middle;margin-right:4px;"></span>2-${Math.max(2, Math.ceil(maxCount*0.66))} casi</span>
-      <span><span style="display:inline-block;width:10px;height:10px;background:#B5473A;border-radius:50%;vertical-align:middle;margin-right:4px;"></span>${Math.max(3, Math.ceil(maxCount*0.66)+1)}+ casi</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:var(--clay);border-radius:50%;vertical-align:middle;margin-right:4px;"></span>${Math.max(3, Math.ceil(maxCount*0.66)+1)}+ casi</span>
     </div>
   `;
 }
 
+/* Numero positivo o valore di riserva: senza questo un campo lasciato vuoto
+   faceva diventare la durata NaN, che poi si propagava ai totali della settimana
+   e al carico. Un campo mancante vale zero, non "non so". */
+function numOr(v, def){
+  const x = Number(v);
+  return (isFinite(x) && x > 0) ? x : (def || 0);
+}
 function calcWorkoutDuration(workout){
+  if(!workout) return 0;
+  const daPrescrizione = durataPrescrizione(workout);
+  if(daPrescrizione !== null) return daPrescrizione;
   if(workout.category==='Tecnico-tattico'){
-    const series = workout.series || 1;
-    const minutesPerSeries = workout.minutesPerSeries || 1;
-    const recovery = workout.recovery || 0;
+    const series = numOr(workout.series, 1);
+    const minutesPerSeries = numOr(workout.minutesPerSeries, 1);
+    const recovery = numOr(workout.recovery, 0);
     return (series * minutesPerSeries) + ((series-1) * recovery);
   }
   if(workout.category==='Atletico'){
+    workout = Object.assign({}, workout, {
+      series: numOr(workout.series, 0),
+      minutesPerSeries: numOr(workout.minutesPerSeries, 0),
+      minutes: numOr(workout.minutes, 0),
+      recovery: numOr(workout.recovery, 0)
+    });
     const type = workout.type;
     if(type==='Riscaldamento coordinativo' || type==='Core stability e propriocezione' || type==='Forza resistente' || type==='Potenza metabolica ed High-Intensity Interval Training (HIIT)' || type==='Lavoro intermittente'){
       return (workout.series * workout.minutesPerSeries) + ((workout.series-1) * workout.recovery);
@@ -2157,7 +2290,7 @@ function render(){
 
   // Se il caricamento e' fallito, avviso in cima e blocco i salvataggi
   const bannerErrore = LOAD_FAILED
-    ? '<div style="background:#B5473A;color:white;padding:10px 14px;text-align:center;font-size:12.5px;font-weight:600;">' +
+    ? '<div style="background:var(--clay);color:white;padding:10px 14px;text-align:center;font-size:12.5px;font-weight:600;">' +
       'Dati non caricati correttamente. I salvataggi sono bloccati per non perdere nulla. ' + esc(dettaglioErroreCaricamento()) + ' ' +
       '<button onclick="location.reload()" style="margin-left:8px;padding:4px 10px;border:1px solid rgba(255,255,255,0.6);background:transparent;color:white;border-radius:4px;cursor:pointer;font-size:11px;">Ricarica</button></div>'
     : '';
@@ -2211,7 +2344,10 @@ function render(){
         </div>
         <div class="sidebar-foot">
           <span class="role-label">${STATE.role==='staff'?'Staff':STATE.role==='admin'?'Admin':esc(STATE.currentPlayerName||'Atleta')}</span>
-          <button class="logout-btn" id="logoutBtn" title="Esci dall'account">Esci</button>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="logout-btn" id="temaBtn" title="Cambia tema">${temaCorrente()==='dark'?'Chiaro':'Scuro'}</button>
+            <button class="logout-btn" id="logoutBtn" title="Esci dall'account">Esci</button>
+          </div>
         </div>
       </div>
       <div class="main">
@@ -2224,6 +2360,12 @@ function render(){
   `;
   
   document.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click', ()=>setPage(b.dataset.nav)));
+  const temaBtn = document.getElementById('temaBtn');
+  if(temaBtn) temaBtn.addEventListener('click', ()=>{
+    applicaTema(temaCorrente() === 'dark' ? 'light' : 'dark');
+    render();
+  });
+
   document.getElementById('logoutBtn').addEventListener('click', ()=>{
     if(confirm('Vuoi uscire?' + (STATE.role === 'player' ? '\n\nAl prossimo accesso dovrai reinserire il tuo codice.' : ''))) logout();
   });
@@ -2342,6 +2484,9 @@ function generateAccessCode(taken){
   const used = {};
   const source = taken || (STATE.accessCodes || {});
   Object.keys(source).forEach(k => { used[normalizeCode(source[k])] = true; });
+  /* Anche i codici delle altre squadre: due persone diverse non devono mai
+     ritrovarsi con lo stesso codice. */
+  Object.keys(CODICI_GLOBALI || {}).forEach(k => { used[normalizeCode(k)] = true; });
 
   for(let attempt=0; attempt<5000; attempt++){
     const c = randomDigits(CODE_LENGTH);
@@ -2386,18 +2531,31 @@ async function setAccessCode(playerId, code){
   if(!STATE.accessCodes) STATE.accessCodes = {};
   STATE.accessCodes[playerId] = c;
   await saveKey('accessCodes', STATE.accessCodes);
+  await registraCodiceGlobale(c, 'player', playerId);
   return true;
 }
 
 function renderLogin(el){
   const bannerErrore = LOAD_FAILED
-    ? '<div style="background:#B5473A;color:white;padding:10px;text-align:center;font-size:12.5px;font-weight:600;">Connessione ai dati non riuscita. Ricarica la pagina.' + (dettaglioErroreCaricamento() ? '<div style="font-weight:400;font-size:11.5px;opacity:.92;margin-top:4px;">' + esc(dettaglioErroreCaricamento()) + '</div>' : '') + '</div>'
+    ? '<div style="background:var(--clay);color:white;padding:10px;text-align:center;font-size:12.5px;font-weight:600;">Connessione ai dati non riuscita. Ricarica la pagina.' + (dettaglioErroreCaricamento() ? '<div style="font-weight:400;font-size:11.5px;opacity:.92;margin-top:4px;">' + esc(dettaglioErroreCaricamento()) + '</div>' : '') + '</div>'
     : '';
   el.innerHTML = `${bannerErrore}
     <div class="login-screen">
       <div class="login-card">
         <h1>TEAM HUB PRO</h1>
-        ${TEAM_ID !== TEAM_DEFAULT ? `<div style="margin-bottom:14px;text-align:center;font-size:11px;color:rgba(244,241,232,0.55);letter-spacing:0.06em;text-transform:uppercase;">${esc(squadraCorrente().name)}</div>` : ''}
+        ${(()=>{
+          let amministratore = false;
+          try{ amministratore = localStorage.getItem(ADMIN_DEVICE_KEY) === '1'; }catch(e){}
+          if(amministratore && TEAMS.length > 1){
+            return `<div style="margin-bottom:14px;">
+              <label for="loginTeamSelect" style="font-size:11px;">Squadra</label>
+              <select id="loginTeamSelect">${TEAMS.map(t=>`<option value="${esc(t.id)}" ${t.id===TEAM_ID?'selected':''}>${esc(t.name)}</option>`).join('')}</select>
+            </div>`;
+          }
+          return TEAM_ID !== TEAM_DEFAULT
+            ? `<div style="margin-bottom:14px;text-align:center;font-size:11px;color:rgba(244,241,232,0.55);letter-spacing:0.06em;text-transform:uppercase;">${esc(squadraCorrente().name)}</div>`
+            : '';
+        })()}
         <div id="playerForm" style="display:block;">
           <form id="playerLoginForm" action="#" method="post" autocomplete="on">
             <!-- Campo nascosto: lo riempio io col nome del giocatore appena riconosco il codice,
@@ -2445,6 +2603,9 @@ function renderLogin(el){
     </div>
   `;
   
+  const loginTeamSelect = document.getElementById('loginTeamSelect');
+  if(loginTeamSelect) loginTeamSelect.addEventListener('change', ()=> cambiaSquadra(loginTeamSelect.value));
+
   /* Mostro solo i modi di accesso attivi per questa squadra e nascondo i rimandi
      a quelli spenti. Il blocco vero pero' non e' qui: e' dentro login(), perche'
      nascondere un pulsante non impedisce niente a chi conosce la password. */
@@ -2511,6 +2672,17 @@ function renderLogin(el){
     // Il codice puo' appartenere a un giocatore o a un membro dello staff
     const playerId = findPlayerByCode(code);
     const staff = !playerId ? findStaffByCode(code) : null;
+
+    /* Codice giusto ma squadra sbagliata aperta sul dispositivo: apro la sua. */
+    if(!playerId && !staff){
+      const altrove = codiceDiAltraSquadra(code);
+      if(altrove){
+        try{ localStorage.setItem(DEVICE_CODE_KEY, code); }catch(e){}
+        showToast('Codice di un altra squadra: la apro');
+        cambiaSquadra(altrove.team);
+        return false;
+      }
+    }
 
     if(!playerId && !staff){
       const attempts = registerFailedLogin();
@@ -2592,10 +2764,10 @@ function showTileDetail(opts){
   const sezioni = opts.sections.filter(sec => sec.rows.length > 0);
 
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:680px;width:100%;padding:24px;margin:auto;">
+    <div style="background:var(--paper);border-radius:12px;max-width:680px;width:100%;padding:24px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px;">
         <div>
-          <h2 style="margin:0;color:var(--pitch);">${esc(opts.title)}</h2>
+          <h2 style="margin:0;color:var(--heading);">${esc(opts.title)}</h2>
           ${opts.subtitle ? `<div style="font-size:12px;color:var(--ink-soft);">${opts.subtitle}</div>` : ''}
         </div>
         <button id="closeTileDetail" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">&#10005;</button>
@@ -2621,7 +2793,7 @@ function showTileDetail(opts){
               <div class="td-row" data-player-id="${r.playerId || ''}"
                    style="padding:9px 11px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;${r.playerId ? 'cursor:pointer;' : ''}">
                 <div style="min-width:0;">
-                  <div style="font-size:12.5px;font-weight:600;color:var(--pitch);">${esc(r.name)}</div>
+                  <div style="font-size:12.5px;font-weight:600;color:var(--heading);">${esc(r.name)}</div>
                   ${r.sub ? `<div style="font-size:10.5px;color:var(--ink-soft);">${esc(r.sub)}</div>` : ''}
                 </div>
                 <div style="text-align:right;white-space:nowrap;">
@@ -2647,7 +2819,7 @@ function showTileDetail(opts){
 
   modal.querySelectorAll('.td-row').forEach(row=>{
     if(!row.dataset.playerId) return;
-    row.addEventListener('mouseenter', ()=> row.style.background = '#FAF8F0');
+    row.addEventListener('mouseenter', ()=> row.style.background = 'var(--surface-2)');
     row.addEventListener('mouseleave', ()=> row.style.background = '');
     row.addEventListener('click', ()=>{ close(); showPlayerReport(row.dataset.playerId); });
   });
@@ -3329,8 +3501,8 @@ function renderDashboardProgrammazione(el){
       <h3>Prossime sedute</h3>
       ${settimana.length === 0 ? '<div class="empty">Nessuna seduta nei prossimi 7 giorni.</div>' :
         settimana.map(e => `
-          <div class="prog-sessione" data-event-id="${esc(e.id)}" style="display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:9px 10px;background:#F7F5EC;border-radius:6px;margin-bottom:6px;cursor:pointer;">
-            <div style="font-weight:700;font-size:12.5px;color:var(--pitch);width:76px;">${fmtDate(e.date)}</div>
+          <div class="prog-sessione" data-event-id="${esc(e.id)}" style="display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:9px 10px;background:var(--surface-2);border-radius:6px;margin-bottom:6px;cursor:pointer;">
+            <div style="font-weight:700;font-size:12.5px;color:var(--heading);width:76px;">${fmtDate(e.date)}</div>
             <div style="font-size:12.5px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(e.title || 'Allenamento')}${e.md ? ' · ' + esc(e.md) : ''}${e.differenziato && e.differenziato.attivo ? ' · differenziato' : ''}</div>
             <div style="font-size:11.5px;color:var(--ink-soft);white-space:nowrap;">${getSessionDuration(e) || '—'} min</div>
           </div>`).join('')}
@@ -3344,7 +3516,7 @@ function renderDashboardProgrammazione(el){
           <div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);font-size:12.5px;">
             <span style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(x.p.name)}</span>
             <span style="color:var(--ink-soft);font-size:11.5px;white-space:nowrap;">VIFT ${fmtKmh(x.vift)}</span>
-            <span style="font-weight:700;color:var(--pitch);white-space:nowrap;">VAM ${fmtKmh(x.vam)}</span>
+            <span style="font-weight:700;color:var(--heading);white-space:nowrap;">VAM ${fmtKmh(x.vam)}</span>
           </div>`).join('')}
       ${senzaTest.length ? `<div style="font-size:11.5px;color:var(--ink-soft);margin-top:10px;">Senza test: ${senzaTest.map(p => esc(p.name)).join(', ')}</div>` : ''}
     </div>
@@ -3441,7 +3613,7 @@ function renderDashboardCompleta(el){
     ${mostraPromemoriaBackup ? `
       <div class="card" style="border-left:4px solid var(--amber-dark);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
         <div>
-          <div style="font-size:13px;font-weight:600;color:var(--pitch);">Backup di sicurezza consigliato</div>
+          <div style="font-size:13px;font-weight:600;color:var(--heading);">Backup di sicurezza consigliato</div>
           <div style="font-size:12px;color:var(--ink-soft);">${ggBackup === null ? 'Non hai mai scaricato una copia esterna.' : 'Ultima copia esterna ' + ggBackup + ' giorni fa.'} Scaricala e tienila fuori dal browser.</div>
         </div>
         <button class="btn" id="dashBackupBtn" style="font-size:12px;padding:8px 14px;white-space:nowrap;">Scarica backup</button>
@@ -3514,7 +3686,7 @@ function renderDashboardCompleta(el){
 
         ${w.avgSettimana !== null ? `
           <div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px;font-size:12px;color:var(--ink-soft);">
-            Media squadra ultimi 7 giorni: <strong style="color:var(--pitch);">${w.avgSettimana}/28</strong>
+            Media squadra ultimi 7 giorni: <strong style="color:var(--heading);">${w.avgSettimana}/28</strong>
           </div>` : ''}
       </div>
     </div>
@@ -3658,7 +3830,7 @@ function renderDashboardMister(el){
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
           <div>
             <div style="font-size:14px;font-weight:600;">${esc(lastMatch.opponent || 'Avversario')}</div>
-            ${lastMatch.result ? `<div style="font-size:22px;font-weight:700;color:var(--pitch);">${lastMatch.result.goalsFor} - ${lastMatch.result.goalsAgainst}</div>` : '<div style="font-size:12px;color:var(--ink-soft);">Risultato non registrato</div>'}
+            ${lastMatch.result ? `<div style="font-size:22px;font-weight:700;color:var(--heading);">${lastMatch.result.goalsFor} - ${lastMatch.result.goalsAgainst}</div>` : '<div style="font-size:12px;color:var(--ink-soft);">Risultato non registrato</div>'}
           </div>
           <div style="font-size:12px;color:var(--ink-soft);">
             Modulo: <strong>${esc(lastMatch.modulo || '—')}</strong><br>
@@ -3674,10 +3846,10 @@ function renderDashboardMister(el){
         <h3>Ultime partite</h3>
         <div style="display:flex;flex-direction:column;gap:6px;">
           ${results.map(r=>`
-            <div style="display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:8px 10px;background:#F7F5EC;border-radius:6px;cursor:pointer;" data-open-match="${r.match.id}">
+            <div style="display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:8px 10px;background:var(--surface-2);border-radius:6px;cursor:pointer;" data-open-match="${r.match.id}">
               <div style="width:24px;height:24px;background:${r.color};color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;">${r.esito}</div>
               <div style="font-size:13px;">${esc(r.match.opponent || 'Avversario')}</div>
-              <div style="font-weight:700;font-size:14px;color:var(--pitch);">${r.gf} - ${r.ga}</div>
+              <div style="font-weight:700;font-size:14px;color:var(--heading);">${r.gf} - ${r.ga}</div>
             </div>
           `).join('')}
         </div>
@@ -3792,8 +3964,8 @@ function renderDashboardPreparatore(el){
         <div style="display:flex;flex-direction:column;gap:6px;">
           ${prossimeSessions.map(s=>{
             const dur = getSessionDuration(s);
-            return `<div style="display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:8px 10px;background:#F7F5EC;border-radius:6px;">
-              <div style="font-weight:700;font-size:13px;color:var(--pitch);width:70px;">${fmtDate(s.date)}</div>
+            return `<div style="display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:8px 10px;background:var(--surface-2);border-radius:6px;">
+              <div style="font-weight:700;font-size:13px;color:var(--heading);width:70px;">${fmtDate(s.date)}</div>
               <div style="font-size:12px;">${(s.workoutIds || []).length} esercitazioni ${s.md ? ' · MD-' + s.md : ''}</div>
               <div style="font-size:12px;color:var(--ink-soft);white-space:nowrap;">${dur ? dur + ' min' : '—'}</div>
             </div>`;
@@ -3964,10 +4136,10 @@ function showPresenceModal(workoutId){
   }
 
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:760px;width:100%;padding:24px;margin:auto;">
+    <div style="background:var(--paper);border-radius:12px;max-width:760px;width:100%;padding:24px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <div>
-          <h2 style="margin:0;color:var(--pitch);">Presenze</h2>
+          <h2 style="margin:0;color:var(--heading);">Presenze</h2>
           ${(()=>{
             const ev = STATE.events.find(e => e.id === workoutId);
             if(!ev) return '';
@@ -4225,6 +4397,28 @@ function getTrainingAttendance(playerId){
    Carico sessione = RPE x durata (metodo di Foster).
    ACWR = carico dell'ultima settimana / media settimanale delle ultime 4.
    Sotto 0.8 scarico, 0.8-1.3 zona ottimale, sopra 1.5 rischio. */
+/* Minuti che QUESTO giocatore ha fatto in QUESTA sessione. Non e' sempre la
+   durata della seduta: in partita contano i minuti giocati, e nel differenziato
+   contano i minuti del suo gruppo. Senza questo, chi fa 25 minuti di recupero
+   si prende il carico di tutta la seduta e l'ACWR esce gonfiato. */
+function minutiSessionePerGiocatore(event, playerId){
+  if(!event) return 0;
+  if(event.type === 'Partita'){
+    if(Array.isArray(event.starters) && event.starters.length > 0){
+      const calc = computeMatchMinutes(event);
+      return calc[String(playerId)] ? calc[String(playerId)].minutes : 0;
+    }
+    return Number(matchDuration(event)) || 0;
+  }
+  const d = event.differenziato;
+  if(d && d.attivo){
+    const m = durataDifferenziatoPerGiocatore(event, playerId);
+    /* Chi non sta in nessuno dei due gruppi fa la seduta normale */
+    if(m > 0) return m;
+  }
+  return Number(getSessionDuration(event)) || 0;
+}
+
 function sessionLoad(rpeEntry){
   // Se il singolo RPE ha i suoi minuti, hanno la precedenza su tutto
   if(typeof rpeEntry.minutes === 'number' && rpeEntry.minutes > 0){
@@ -4233,7 +4427,7 @@ function sessionLoad(rpeEntry){
   const ev = STATE.events.find(e => e.id === rpeEntry.sessionId);
   let dur;
   if(ev && ev.importedDuration) dur = ev.importedDuration;      // RPE storici importati
-  else if(ev) dur = getSessionDuration(ev);
+  else if(ev) dur = minutiSessionePerGiocatore(ev, rpeEntry.playerId);
   if(!dur) dur = 65;                                            // sessione non trovata: stima
   return (rpeEntry.rpe || 0) * dur;
 }
@@ -4458,10 +4652,10 @@ function showPlayerReport(playerId){
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:flex-start;justify-content:center;z-index:10000;padding:20px;box-sizing:border-box;overflow-y:auto;';
 
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:820px;width:100%;padding:24px;margin:auto;">
+    <div style="background:var(--paper);border-radius:12px;max-width:820px;width:100%;padding:24px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:18px;">
         <div>
-          <h2 style="margin:0;color:var(--pitch);">${esc(player.name)}</h2>
+          <h2 style="margin:0;color:var(--heading);">${esc(player.name)}</h2>
           <div style="font-size:12px;color:var(--ink-soft);">
             ${calcAge(player.birthDate)} anni &middot; ${esc(player.role||'ruolo non indicato')} &middot; piede ${esc(player.foot||'non indicato')}
             &middot; <span style="color:${meta.color};font-weight:600;">${meta.label}</span>
@@ -4492,17 +4686,17 @@ function showPlayerReport(playerId){
 
         <div style="background:var(--chalk);padding:12px;border-radius:8px;">
           <div style="font-size:10px;text-transform:uppercase;color:var(--ink-soft);font-weight:700;">Allenamenti</div>
-          <div style="font-size:26px;font-weight:700;color:var(--pitch);">${att.present}<span style="font-size:13px;color:var(--ink-soft);">/${att.total}</span></div>
+          <div style="font-size:26px;font-weight:700;color:var(--heading);">${att.present}<span style="font-size:13px;color:var(--ink-soft);">/${att.total}</span></div>
           <div style="font-size:10px;color:var(--ink-soft);">${att.percent !== null ? att.percent + '% di presenza' : 'nessuna sessione'}</div>
         </div>
       </div>
 
       <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px;">
-        <h4 style="margin:0 0 10px 0;font-size:13px;color:var(--pitch);">Stagione</h4>
+        <h4 style="margin:0 0 10px 0;font-size:13px;color:var(--heading);">Stagione</h4>
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;text-align:center;">
-          <div><div style="font-size:22px;font-weight:700;color:var(--pitch);">${season.minutes}</div><div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;">Minuti</div></div>
-          <div><div style="font-size:22px;font-weight:700;color:var(--pitch);">${season.matches}</div><div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;">Partite</div></div>
-          <div><div style="font-size:22px;font-weight:700;color:var(--pitch);">${season.starts}</div><div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;">Da titolare</div></div>
+          <div><div style="font-size:22px;font-weight:700;color:var(--heading);">${season.minutes}</div><div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;">Minuti</div></div>
+          <div><div style="font-size:22px;font-weight:700;color:var(--heading);">${season.matches}</div><div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;">Partite</div></div>
+          <div><div style="font-size:22px;font-weight:700;color:var(--heading);">${season.starts}</div><div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;">Da titolare</div></div>
           <div><div style="font-size:22px;font-weight:700;color:var(--amber-dark);">${season.goals}</div><div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;">Gol</div></div>
           <div><div style="font-size:22px;font-weight:700;color:var(--amber-dark);">${season.assists}</div><div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;">Assist</div></div>
         </div>
@@ -4510,7 +4704,7 @@ function showPlayerReport(playerId){
       </div>
 
       <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px;">
-        <h4 style="margin:0 0 10px 0;font-size:13px;color:var(--pitch);">Hooper Index — storico (${hooper.length})</h4>
+        <h4 style="margin:0 0 10px 0;font-size:13px;color:var(--heading);">Hooper Index — storico (${hooper.length})</h4>
         ${hooper.length === 0 ? '<div style="font-size:12px;color:var(--ink-soft);">Nessuna rilevazione</div>' : `
           <div style="max-height:220px;overflow-y:auto;">
             ${hooper.map(h=>{
@@ -4535,7 +4729,7 @@ function showPlayerReport(playerId){
 
       <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-          <h4 style="margin:0;font-size:13px;color:var(--pitch);">RPE (${rpe.length})</h4>
+          <h4 style="margin:0;font-size:13px;color:var(--heading);">RPE (${rpe.length})</h4>
           <button type="button" id="addRpeStaffBtn" class="btn secondary" style="font-size:11px;padding:5px 10px;">+ Registra</button>
         </div>
         ${rpe.length === 0 ? '<div style="font-size:12px;color:var(--ink-soft);">Nessun dato</div>' : `
@@ -4561,7 +4755,7 @@ function showPlayerReport(playerId){
 
       <div style="border:1px solid var(--line);border-radius:8px;padding:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
-          <h4 style="margin:0 0 4px 0;font-size:13px;color:var(--pitch);">Dolori per zona (${openPain.length} aperti)</h4>
+          <h4 style="margin:0 0 4px 0;font-size:13px;color:var(--heading);">Dolori per zona (${openPain.length} aperti)</h4>
           <button type="button" id="addPainBtn" class="btn secondary" style="font-size:11px;padding:5px 10px;">+ Registra</button>
         </div>
         <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Una zona resta aperta finche' non la chiudi tu. Dopo ${PAIN_SILENT_AFTER} giorni senza nuove segnalazioni passa a "da verificare": non sparisce da sola.</div>
@@ -4570,7 +4764,7 @@ function showPlayerReport(playerId){
           <div style="border:1px solid var(--line);border-left:4px solid ${issue.color};border-radius:6px;padding:10px;margin-bottom:8px;${issue.status==='closed' ? 'opacity:0.6;' : ''}">
             <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;">
               <div style="flex:1;">
-                <div style="font-size:13px;font-weight:700;color:var(--pitch);">
+                <div style="font-size:13px;font-weight:700;color:var(--heading);">
                   ${esc(issue.zone)}
                   <span style="font-size:11px;font-weight:600;color:${issue.color};margin-left:6px;">${issue.label}</span>
                 </div>
@@ -4720,8 +4914,8 @@ function rpeEntryForm(playerId, entry, onDone){
   const val = entry ? entry.rpe : 5;
 
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:460px;width:100%;padding:22px;margin:auto;">
-      <h3 style="margin:0 0 4px 0;color:var(--pitch);">${nuovo ? 'Registra un RPE' : 'Modifica RPE'}</h3>
+    <div style="background:var(--paper);border-radius:12px;max-width:460px;width:100%;padding:22px;margin:auto;">
+      <h3 style="margin:0 0 4px 0;color:var(--heading);">${nuovo ? 'Registra un RPE' : 'Modifica RPE'}</h3>
       <div style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;">
         ${player ? esc(player.name) : ''}${nuovo ? ' — puoi inserire anche sessioni passate' : ''}
       </div>
@@ -4823,8 +5017,8 @@ function addPainEntryForm(playerId, onDone){
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:10002;padding:20px;box-sizing:border-box;overflow-y:auto;';
 
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:460px;width:100%;padding:22px;margin:auto;">
-      <h3 style="margin:0 0 4px 0;color:var(--pitch);">Registra un problema</h3>
+    <div style="background:var(--paper);border-radius:12px;max-width:460px;width:100%;padding:22px;margin:auto;">
+      <h3 style="margin:0 0 4px 0;color:var(--heading);">Registra un problema</h3>
       <div style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;">${player ? esc(player.name) : ''} — puoi inserire anche episodi passati</div>
 
       <label>Data</label>
@@ -4912,10 +5106,10 @@ function showPainHistory(playerId, zone, onDone){
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:10002;padding:20px;box-sizing:border-box;overflow-y:auto;';
 
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:520px;width:100%;padding:22px;margin:auto;">
+    <div style="background:var(--paper);border-radius:12px;max-width:520px;width:100%;padding:22px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:14px;">
         <div>
-          <h3 style="margin:0;color:var(--pitch);">${esc(zone)}</h3>
+          <h3 style="margin:0;color:var(--heading);">${esc(zone)}</h3>
           <div style="font-size:12px;color:var(--ink-soft);">${player ? esc(player.name) : ''} &middot; ${list.length} segnalazioni</div>
         </div>
         <button id="closePainHist" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">&#10005;</button>
@@ -4995,8 +5189,8 @@ function editHooperEntry(entry, onDone){
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:10002;padding:20px;box-sizing:border-box;overflow-y:auto;';
 
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:460px;width:100%;padding:22px;margin:auto;">
-      <h3 style="margin:0 0 4px 0;color:var(--pitch);">Modifica rilevazione</h3>
+    <div style="background:var(--paper);border-radius:12px;max-width:460px;width:100%;padding:22px;margin:auto;">
+      <h3 style="margin:0 0 4px 0;color:var(--heading);">Modifica rilevazione</h3>
       <div style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;">${player ? esc(player.name) : ''} &middot; ${fmtDate(entry.date)}</div>
 
       ${HOOPER_ITEMS.map(it=>`
@@ -5013,7 +5207,7 @@ function editHooperEntry(entry, onDone){
 
       <div style="margin-top:16px;padding:10px;background:var(--chalk);border-radius:6px;text-align:center;">
         <span style="font-size:11px;color:var(--ink-soft);">Punteggio</span>
-        <div id="edTotal" style="font-size:22px;font-weight:700;color:var(--pitch);">—</div>
+        <div id="edTotal" style="font-size:22px;font-weight:700;color:var(--heading);">—</div>
       </div>
 
       <div class="btn-row" style="justify-content:flex-end;">
@@ -5475,7 +5669,7 @@ function renderInfermeria(el){
           <div style="border:1px solid var(--line);border-left:4px solid ${meta.color};border-radius:8px;padding:14px;margin-bottom:10px;">
             <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;">
               <div style="flex:1;min-width:180px;">
-                <div style="font-size:15px;font-weight:700;color:var(--pitch);">${esc(p ? p.name : 'Giocatore rimosso')}</div>
+                <div style="font-size:15px;font-weight:700;color:var(--heading);">${esc(p ? p.name : 'Giocatore rimosso')}</div>
                 <div style="font-size:12.5px;color:var(--ink-soft);">
                   ${esc(inj.zone || '—')} · ${esc(inj.type || '—')}
                   ${inj.diagnosis ? ' · ' + esc(inj.diagnosis) : ''}
@@ -5497,7 +5691,7 @@ function renderInfermeria(el){
                 ${RTP_STAGES.map((st,i)=>`
                   <button class="med-stage" data-id="${inj.id}" data-stage="${st.id}"
                     style="flex:1;min-width:92px;padding:7px 6px;border:1px solid ${i<=idxFase ? 'var(--ok)' : 'var(--line)'};border-radius:6px;cursor:pointer;font-size:10.5px;font-weight:${i===idxFase?'700':'500'};
-                    background:${i<idxFase ? '#E3EFE7' : i===idxFase ? 'var(--ok)' : 'white'};color:${i===idxFase ? 'white' : i<idxFase ? 'var(--ok)' : 'var(--ink-soft)'};">
+                    background:${i<idxFase ? 'var(--ok-bg)' : i===idxFase ? 'var(--ok)' : 'white'};color:${i===idxFase ? 'white' : i<idxFase ? 'var(--ok)' : 'var(--ink-soft)'};">
                     ${st.label}
                   </button>`).join('')}
               </div>
@@ -6090,9 +6284,9 @@ function rigaPianoStaff(p){
   const nEx = (p.exercises || []).length;
   const hasComment = p.playerComment && p.playerComment.trim().length > 0;
   const hasExComments = (p.exercises || []).some(ex => ex.playerComment && ex.playerComment.trim());
-  const rpeInfo = p.playerRPE != null ? `<span style="color:var(--pitch);font-weight:700;">RPE ${p.playerRPE}</span>` : '<span style="color:var(--ink-soft);">RPE non compilato</span>';
+  const rpeInfo = p.playerRPE != null ? `<span style="color:var(--heading);font-weight:700;">RPE ${p.playerRPE}</span>` : '<span style="color:var(--ink-soft);">RPE non compilato</span>';
   return `
-    <div class="pi-plan-row" data-plan-id="${p.id}" style="padding:10px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;cursor:pointer;background:${p.seen?'white':'#FFF8E7'};">
+    <div class="pi-plan-row" data-plan-id="${p.id}" style="padding:10px;border:1px solid var(--line);border-radius:6px;margin-bottom:6px;cursor:pointer;background:${p.seen?'white':'var(--warn-bg)'};">
       <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;">
         <div>
           <div style="font-size:13px;font-weight:600;">${esc(p.title || 'Piano senza titolo')}</div>
@@ -6164,7 +6358,7 @@ function renderPianoEditor(el, planId, tipo){
         </div>
       </div>
 
-      <div id="piDupPanel" style="display:none;margin-bottom:16px;padding:12px;background:#F7F5EC;border:1px solid var(--line);border-radius:6px;">
+      <div id="piDupPanel" style="display:none;margin-bottom:16px;padding:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;">
         <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:8px;">Crea una copia di questo piano (titolo, testo ed esercizi) per un altro giorno o un altro giocatore. I commenti e l'RPE del giocatore non vengono copiati.</div>
         <div class="grid2" style="gap:8px;">
           <div>
@@ -6189,7 +6383,7 @@ function renderPianoEditor(el, planId, tipo){
             const titoloCorrente = piano.title || '';
             const isCustom = titoloCorrente && opzioni.indexOf(titoloCorrente) === -1;
             return `
-              <select id="piTitleSelect" style="width:100%;padding:7px;border:1px solid var(--line);border-radius:6px;font-size:12.5px;background:white;margin-bottom:6px;">
+              <select id="piTitleSelect" style="width:100%;padding:7px;border:1px solid var(--line);border-radius:6px;font-size:12.5px;background:var(--paper);margin-bottom:6px;">
                 <option value="">— Seleziona un titolo —</option>
                 ${opzioni.map(o=>`<option value="${esc(o)}" ${o===titoloCorrente?'selected':''}>${esc(o)}</option>`).join('')}
                 <option value="__custom__" ${isCustom?'selected':''}>Personalizzato...</option>
@@ -6211,7 +6405,7 @@ function renderPianoEditor(el, planId, tipo){
       <button class="btn secondary" id="piAddExercise" style="width:100%;font-size:12px;padding:8px;margin-top:6px;">+ Aggiungi esercizio</button>
 
       ${(piano.playerComment || (piano.exercises||[]).some(ex=>ex.playerComment)) ? `
-        <div style="margin-top:18px;padding:12px;background:#F0F7F1;border:1px solid var(--ok);border-radius:6px;">
+        <div style="margin-top:18px;padding:12px;background:var(--ok-bg);border:1px solid var(--ok);border-radius:6px;">
           <h4 style="margin:0 0 8px 0;color:var(--ok);font-size:12px;">Commenti del giocatore</h4>
           ${piano.playerComment ? `<div style="font-size:12.5px;margin-bottom:8px;"><strong>Sul piano:</strong> ${esc(piano.playerComment)}</div>` : ''}
           ${(piano.exercises||[]).filter(ex=>ex.playerComment).map(ex=>`
@@ -6383,11 +6577,11 @@ function editorEsercizio(ex, i){
   const mostraInputLibero = categoria === '__custom__' || !categoria || nomeNonInElenco;
 
   return `
-    <div style="border:1px solid var(--line);border-radius:6px;padding:10px;margin-bottom:8px;background:#FAFAFA;">
+    <div style="border:1px solid var(--line);border-radius:6px;padding:10px;margin-bottom:8px;background:var(--surface-2);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <strong style="font-size:12px;color:var(--pitch);">Esercizio ${i+1}</strong>
+        <strong style="font-size:12px;color:var(--heading);">Esercizio ${i+1}</strong>
         <div style="display:flex;gap:6px;">
-          <button class="pi-ex-dup" data-idx="${i}" style="background:none;border:1px solid var(--line);border-radius:3px;padding:2px 8px;font-size:11px;color:var(--pitch);cursor:pointer;">Duplica</button>
+          <button class="pi-ex-dup" data-idx="${i}" style="background:none;border:1px solid var(--line);border-radius:3px;padding:2px 8px;font-size:11px;color:var(--heading);cursor:pointer;">Duplica</button>
           <button class="pi-ex-del" data-idx="${i}" style="background:none;border:1px solid var(--line);border-radius:3px;padding:2px 8px;font-size:11px;color:var(--clay);cursor:pointer;">Rimuovi</button>
         </div>
       </div>
@@ -6429,7 +6623,7 @@ function editorEsercizio(ex, i){
       </div>
       <label style="font-size:10px;">Note tecniche</label>
       <textarea id="piExNotes${i}" rows="2" placeholder="Note dello staff, punti di attenzione..." style="width:100%;padding:6px;font-size:12px;font-family:inherit;">${esc(ex.notes||'')}</textarea>
-      ${ex.playerComment ? `<div style="margin-top:6px;padding:6px;background:#F0F7F1;border-left:3px solid var(--ok);font-size:11px;"><strong>Commento giocatore:</strong> ${esc(ex.playerComment)}</div>` : ''}
+      ${ex.playerComment ? `<div style="margin-top:6px;padding:6px;background:var(--ok-bg);border-left:3px solid var(--ok);font-size:11px;"><strong>Commento giocatore:</strong> ${esc(ex.playerComment)}</div>` : ''}
     </div>
   `;
 }
@@ -6446,9 +6640,9 @@ function formInfortunio(inj, onDone){
 
   const v = inj || {};
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:560px;width:100%;padding:24px;margin:auto;">
+    <div style="background:var(--paper);border-radius:12px;max-width:560px;width:100%;padding:24px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h2 style="margin:0;color:var(--pitch);">${nuovo ? 'Registra infortunio' : 'Modifica infortunio'}</h2>
+        <h2 style="margin:0;color:var(--heading);">${nuovo ? 'Registra infortunio' : 'Modifica infortunio'}</h2>
         <button id="infClose" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">&#10005;</button>
       </div>
 
@@ -6606,7 +6800,7 @@ function renderPerfGrafici(el){
   const compareIds = el.dataset.grafCompareIds ? el.dataset.grafCompareIds.split(',').filter(Boolean) : [];
   const rangeDays = parseInt(el.dataset.grafRange || '60', 10);
 
-  const subTabBtn = (id, label) => `<button class="graf-subtab" data-sub="${id}" style="padding:7px 14px;border:none;background:${state===id?'var(--pitch)':'#F7F5EC'};color:${state===id?'white':'var(--ink)'};border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">${label}</button>`;
+  const subTabBtn = (id, label) => `<button class="graf-subtab" data-sub="${id}" style="padding:7px 14px;border:none;background:${state===id?'var(--pitch)':'var(--surface-2)'};color:${state===id?'white':'var(--ink)'};border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">${label}</button>`;
 
   const rosaMovimento = STATE.players.filter(p => !isPortiere(p)).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
 
@@ -6664,8 +6858,8 @@ function renderGrafSquadra(el, days){
   const compilatoriWell = new Set(wellPeriodo.map(h => h.playerId)).size;
 
   el.innerHTML = `
-    <div class="card" style="background:#F7F5EC;border-left:3px solid var(--amber);">
-      <h4 style="margin:0 0 8px 0;font-size:12px;color:var(--pitch);">Copertura dati nel periodo (${days} giorni)</h4>
+    <div class="card" style="background:var(--surface-2);border-left:3px solid var(--amber);">
+      <h4 style="margin:0 0 8px 0;font-size:12px;color:var(--heading);">Copertura dati nel periodo (${days} giorni)</h4>
       <div style="font-size:12px;color:var(--ink);line-height:1.7;">
         <strong>RPE:</strong> ${rpePeriodo.length} inserimenti da ${compilatoriRPE}/${rosaSize} giocatori<br>
         <strong>Wellness:</strong> ${wellPeriodo.length} compilazioni da ${compilatoriWell}/${rosaSize} giocatori
@@ -6907,9 +7101,9 @@ function renderPerfRPE(el){
           const attesi = Array.isArray(e.presentPlayers) ? e.presentPlayers.length : (Array.isArray(e.starters) ? e.starters.length : 0);
           const color = avg !== null ? (avg>=7?'var(--clay)':avg>=5?'var(--amber-dark)':avg>=3?'var(--amber)':'var(--ok)') : 'var(--ink-soft)';
           const isMatch = e.type === 'Partita';
-          return `<div class="rpe-session-row" data-event-id="${e.id}" style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:10px;align-items:center;padding:10px;background:${isMatch?'#FDF3E7':'#F0F7F1'};border-radius:6px;margin-bottom:6px;cursor:pointer;border-left:3px solid ${isMatch?'var(--amber)':'var(--pitch)'};">
+          return `<div class="rpe-session-row" data-event-id="${e.id}" style="display:grid;grid-template-columns:auto 1fr auto auto auto;gap:10px;align-items:center;padding:10px;background:${isMatch?'var(--amber-bg)':'var(--ok-bg)'};border-radius:6px;margin-bottom:6px;cursor:pointer;border-left:3px solid ${isMatch?'var(--amber)':'var(--pitch)'};">
             <span style="font-size:11px;color:var(--ink-soft);width:70px;">${fmtDate(e.date)}</span>
-            <span style="font-size:12.5px;font-weight:600;color:var(--pitch);">${esc(e.title||e.type)}</span>
+            <span style="font-size:12.5px;font-weight:600;color:var(--heading);">${esc(e.title||e.type)}</span>
             <span style="font-size:11px;color:var(--ink-soft);white-space:nowrap;">${rpes.length}${attesi?'/'+attesi:''} compil.</span>
             <span style="font-size:11px;color:var(--ink-soft);white-space:nowrap;">${Math.round(load)} UA</span>
             <span style="font-size:14px;font-weight:700;color:${color};min-width:44px;text-align:right;">${avg !== null ? Math.round(avg*10)/10 : '—'}</span>
@@ -7019,7 +7213,7 @@ function renderPerfConfronti(el){
                 </div>
               </div>
               <div style="text-align:right;white-space:nowrap;">
-                <div style="font-size:16px;font-weight:700;color:var(--pitch);">${sn.ultimo.value}</div>
+                <div style="font-size:16px;font-weight:700;color:var(--heading);">${sn.ultimo.value}</div>
                 <div style="font-size:10px;color:${sn.meglioDellaMedia ? 'var(--ok)' : 'var(--ink-soft)'};">${segno}${diffMedia} vs media</div>
               </div>
             </div>`;
@@ -7189,7 +7383,7 @@ function renderTest(el){
           <div style="border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px;background:var(--chalk);">
             <div style="display:flex;justify-content:space-between;align-items:start;">
               <div>
-                <h4 style="margin:0 0 6px 0;color:var(--pitch);font-size:13px;">${esc(t.name)}</h4>
+                <h4 style="margin:0 0 6px 0;color:var(--heading);font-size:13px;">${esc(t.name)}</h4>
                 <span style="font-size:11px;color:var(--ink-soft);">${fmtDate(t.date)} | ${t.type}${t.unit ? ' (' + t.unit + ')' : ''} | ${t.results?.length||0} giocatori</span>
               </div>
               <div style="display:flex;gap:6px;">
@@ -7199,7 +7393,7 @@ function renderTest(el){
             </div>
             ${selectedTestId===t.id ? `
               <div style="border-top:1px solid var(--line);padding-top:12px;">
-                <h4 style="margin:0 0 12px 0;font-size:13px;color:var(--pitch);">Inserisci valori test${t.unit ? ' (' + t.unit + ')' : ''}${t.type === TEST_VIFT ? ' — scrivi la VIFT, la VAM si calcola da sola (VIFT ÷ ' + rapportoViftVam().toFixed(2) + ')' : ''}</h4>
+                <h4 style="margin:0 0 12px 0;font-size:13px;color:var(--heading);">Inserisci valori test${t.unit ? ' (' + t.unit + ')' : ''}${t.type === TEST_VIFT ? ' — scrivi la VIFT, la VAM si calcola da sola (VIFT ÷ ' + rapportoViftVam().toFixed(2) + ')' : ''}</h4>
                 <table style="width:100%;border-collapse:collapse;">
                   <thead>
                     <tr style="background:var(--chalk);border-bottom:1px solid var(--line);">
@@ -7379,9 +7573,9 @@ function apriCopiaEsercitazioni(onDone){
   modal.id = 'copiaEsercModal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;box-sizing:border-box;overflow-y:auto;';
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:560px;width:100%;padding:22px;margin:auto;">
+    <div style="background:var(--paper);border-radius:12px;max-width:560px;width:100%;padding:22px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <h2 style="margin:0;color:var(--pitch);font-size:18px;">Copia esercitazioni</h2>
+        <h2 style="margin:0;color:var(--heading);font-size:18px;">Copia esercitazioni</h2>
         <button id="ceClose" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">&times;</button>
       </div>
       <div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;">Le esercitazioni vengono duplicate in <strong>${esc(squadraCorrente().name)}</strong>: modificarle qui non tocca la squadra di partenza.</div>
@@ -7459,9 +7653,9 @@ function apriCopiaSeduta(event){
   modal.id = 'copiaSedutaModal';
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10001;padding:20px;box-sizing:border-box;overflow-y:auto;';
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:460px;width:100%;padding:22px;margin:auto;">
+    <div style="background:var(--paper);border-radius:12px;max-width:460px;width:100%;padding:22px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <h2 style="margin:0;color:var(--pitch);font-size:18px;">Copia la seduta</h2>
+        <h2 style="margin:0;color:var(--heading);font-size:18px;">Copia la seduta</h2>
         <button id="csClose" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">&times;</button>
       </div>
       <div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;">Copio titolo ed esercitazioni. Presenze, RPE e differenziato restano qui: sono legati a questi giocatori.</div>
@@ -7567,20 +7761,66 @@ function vamMediaSquadra(){
 
 /* Metri prescritti da una singola esercitazione. Ritorno 0 quando non si possono
    ricavare: meglio un numero mancante che un numero inventato. */
+/* Metri del blocco descritto in modo uniforme: serie x ripetute x (distanza
+   oppure durata per velocita'). E' la strada nuova; sotto restano i vecchi casi
+   per le esercitazioni create prima, che non hanno le ripetute. */
+function metriPrescrizione(w, vam){
+  const serie = numOr(w.series, 1);
+  const rip = numOr(w.ripetute, 0);
+  if(!(rip > 0)) return null;
+  const dist = numOr(w.distance, 0);
+  if(dist > 0) return Math.round(serie * rip * dist);
+  const sec = numOr(w.lavoroSec, 0), pct = numOr(w.intensita, 0);
+  if(sec > 0 && pct > 0 && vam > 0) return Math.round(serie * rip * sec * (vam * pct / 100) / 3.6);
+  return 0;   /* ripetute dichiarate ma senza distanza ne durata: non invento */
+}
+/* Durata del blocco in minuti, quando la prescrizione e' completa */
+function durataPrescrizione(w){
+  const serie = numOr(w.series, 1), rip = numOr(w.ripetute, 0);
+  const lavoro = numOr(w.lavoroSec, 0);
+  if(!(rip > 0) || !(lavoro > 0)) return null;
+  const recRip = numOr(w.recuperoSec, 0), recSerie = numOr(w.recovery, 0);
+  const secondi = serie * (rip * lavoro + (rip - 1) * recRip) + (serie - 1) * recSerie * 60;
+  return Math.round(secondi / 60);
+}
+
+/* I tre tipi in cui, dentro la serie, si corre solo nei secondi di lavoro */
+const TIPI_INTERMITTENTI = ['Potenza metabolica ed High-Intensity Interval Training (HIIT)',
+                            'Lavoro intermittente', 'Differenziato'];
+
+/* Metri prescritti da una singola esercitazione, con la stessa logica per tutti
+   i blocchi: ripetute per distanza, oppure ripetute per secondi alla velocita'
+   bersaglio. Quando un dato manca restituisco 0: meglio un numero mancante che
+   uno inventato. */
 function metriEsercitazione(w, vam){
   if(!w) return 0;
-  const serie = Number(w.series) || 0;
-  /* Navette e sprint: la distanza e' scritta nella prescrizione */
-  if(Number(w.distance) > 0 && serie > 0) return serie * Number(w.distance);
-  /* Corsa a tempo: servono i minuti e la percentuale della VAM */
-  const pct = Number(w.intensita) || 0;
+  const serie = numOr(w.series, 1);
+  const ripetute = numOr(w.ripetute, 0);
+  const distanza = numOr(w.distance, 0);
+
+  /* 1) Distanza scritta nella prescrizione: conto esatto, nessuna stima */
+  if(distanza > 0) return Math.round(serie * (ripetute || 1) * distanza);
+
+  /* 2) Lavoro a tempo: serve la velocita' bersaglio, cioe' la percentuale di VAM */
+  const pct = numOr(w.intensita, 0);
   if(!(pct > 0) || !(vam > 0)) return 0;
-  const velocita = vam * pct / 100;                       /* km/h */
-  const minuti = serie > 0 && Number(w.minutesPerSeries) > 0
-    ? serie * Number(w.minutesPerSeries)
-    : Number(w.minutes) || 0;
+  const vms = vam * pct / 100 / 3.6;                     /* metri al secondo */
+  const lavoro = numOr(w.lavoroSec, 0), riposo = numOr(w.recuperoSec, 0);
+
+  /* 2a) Ripetute con durata: serie per ripetute per secondi di corsa */
+  if(ripetute > 0 && lavoro > 0) return Math.round(serie * ripetute * lavoro * vms);
+
+  /* 2b) Blocco a tempo, senza ripetute dichiarate */
+  const minuti = numOr(w.minutesPerSeries, 0) > 0
+    ? serie * numOr(w.minutesPerSeries, 0)
+    : numOr(w.minutes, 0);
   if(!(minuti > 0)) return 0;
-  return Math.round(minuti * 60 * velocita / 3.6);
+  if(TIPI_INTERMITTENTI.indexOf(w.type) !== -1){
+    /* Senza lavoro e recupero non conosco la proporzione fra corsa e pausa */
+    if(!(lavoro > 0)) return 0;
+    return Math.round(minuti * 60 * (lavoro / (lavoro + riposo)) * vms);
+  }
+  return Math.round(minuti * 60 * vms);                  /* corsa continua */
 }
 function tonnellaggioEsercitazione(w){
   if(!w) return 0;
@@ -7699,13 +7939,13 @@ function renderProgrammazione(el){
         const scarto = (s.piano.targetUA > 0 && s.reale > 0) ? Math.round((s.reale - s.piano.targetUA) / s.piano.targetUA * 100) : null;
         return `
         <details ${s.corrente ? 'open' : ''} style="border:1px solid ${s.corrente ? 'var(--ok)' : 'var(--line)'};border-left:4px solid ${tipo.colore};border-radius:8px;margin-bottom:8px;overflow:hidden;">
-          <summary style="padding:10px 12px;cursor:pointer;list-style:none;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;background:${s.corrente ? '#F0F7F1' : 'white'};">
+          <summary style="padding:10px 12px;cursor:pointer;list-style:none;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;background:${s.corrente ? 'var(--ok-bg)' : 'white'};">
             <div style="min-width:0;">
-              <div style="font-weight:700;font-size:13px;color:var(--pitch);">${fmtData(s.lun)} - ${fmtData(s.dom)}${s.corrente ? ' · questa settimana' : ''}</div>
+              <div style="font-weight:700;font-size:13px;color:var(--heading);">${fmtData(s.lun)} - ${fmtData(s.dom)}${s.corrente ? ' · questa settimana' : ''}</div>
               <div style="font-size:11px;color:var(--ink-soft);">${esc(tipo.label)}${s.piano.obiettivo ? ' · ' + esc(s.piano.obiettivo) : ''} · ${s.sedute.length} ${s.sedute.length === 1 ? 'seduta' : 'sedute'}</div>
             </div>
             <div style="text-align:right;white-space:nowrap;">
-              <div style="font-size:12.5px;font-weight:700;color:var(--pitch);">${s.reale || '—'}<span style="font-size:10px;color:var(--ink-soft);font-weight:400;"> UA</span></div>
+              <div style="font-size:12.5px;font-weight:700;color:var(--heading);">${s.reale || '—'}<span style="font-size:10px;color:var(--ink-soft);font-weight:400;"> UA</span></div>
               ${s.piano.targetUA > 0 ? `<div style="font-size:10px;color:${scarto === null ? 'var(--ink-soft)' : Math.abs(scarto) <= 15 ? 'var(--ok)' : 'var(--amber-dark)'};">obiettivo ${s.piano.targetUA}${scarto !== null ? ` (${scarto > 0 ? '+' : ''}${scarto}%)` : ''}</div>` : ''}
             </div>
           </summary>
@@ -7727,18 +7967,18 @@ function renderProgrammazione(el){
             </div>
 
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:12px;">
-              <div style="padding:8px;background:#F7F5EC;border-radius:6px;">
+              <div style="padding:8px;background:var(--surface-2);border-radius:6px;">
                 <div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;">Minuti</div>
-                <div style="font-size:16px;font-weight:700;color:var(--pitch);">${s.minuti || '—'}</div></div>
-              <div style="padding:8px;background:#F7F5EC;border-radius:6px;">
+                <div style="font-size:16px;font-weight:700;color:var(--heading);">${s.minuti || '—'}</div></div>
+              <div style="padding:8px;background:var(--surface-2);border-radius:6px;">
                 <div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;">Metri prescritti</div>
-                <div style="font-size:16px;font-weight:700;color:var(--pitch);">${s.metri ? s.metri.toLocaleString('it-IT') : '—'}</div></div>
-              <div style="padding:8px;background:#F7F5EC;border-radius:6px;">
+                <div style="font-size:16px;font-weight:700;color:var(--heading);">${s.metri ? s.metri.toLocaleString('it-IT') : '—'}</div></div>
+              <div style="padding:8px;background:var(--surface-2);border-radius:6px;">
                 <div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;">Tonnellaggio</div>
-                <div style="font-size:16px;font-weight:700;color:var(--pitch);">${s.tonn ? Math.round(s.tonn).toLocaleString('it-IT') + ' kg' : '—'}</div></div>
-              <div style="padding:8px;background:#F7F5EC;border-radius:6px;">
+                <div style="font-size:16px;font-weight:700;color:var(--heading);">${s.tonn ? Math.round(s.tonn).toLocaleString('it-IT') + ' kg' : '—'}</div></div>
+              <div style="padding:8px;background:var(--surface-2);border-radius:6px;">
                 <div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;">Carico reale</div>
-                <div style="font-size:16px;font-weight:700;color:var(--pitch);">${s.reale || '—'}</div></div>
+                <div style="font-size:16px;font-weight:700;color:var(--heading);">${s.reale || '—'}</div></div>
             </div>
 
             <div style="margin-top:12px;">
@@ -7750,8 +7990,8 @@ function renderProgrammazione(el){
                     if(v.minuti) parti.push(v.minuti + ' min');
                     if(v.metri) parti.push(v.metri.toLocaleString('it-IT') + ' m');
                     if(v.tonnellaggio) parti.push(Math.round(v.tonnellaggio).toLocaleString('it-IT') + ' kg');
-                    return `<div class="prog-seduta" data-event-id="${esc(ev.id)}" style="display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:7px 9px;background:${ev.type === 'Partita' ? '#FDF3E7' : '#F0F7F1'};border-radius:6px;margin-bottom:5px;cursor:pointer;">
-                      <span style="font-size:11.5px;font-weight:700;color:var(--pitch);width:46px;">${fmtData(ev.date)}</span>
+                    return `<div class="prog-seduta" data-event-id="${esc(ev.id)}" style="display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:7px 9px;background:${ev.type === 'Partita' ? 'var(--amber-bg)' : 'var(--ok-bg)'};border-radius:6px;margin-bottom:5px;cursor:pointer;">
+                      <span style="font-size:11.5px;font-weight:700;color:var(--heading);width:46px;">${fmtData(ev.date)}</span>
                       <span style="font-size:12.5px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(ev.title || ev.type)}${ev.md ? ' · ' + esc(ev.md) : ''}</span>
                       <span style="font-size:11px;color:var(--ink-soft);white-space:nowrap;">${parti.join(' · ') || '—'}</span>
                     </div>`;
@@ -7837,6 +8077,8 @@ function renderAllenamenti(el){
             <div class="workout-item-row">
               <div><span style="font-size:10px;color:var(--ink-soft);">${w.category}</span> - ${esc(w.type)}</div>
               <div>Durata: <span class="workout-item-val">${calcWorkoutDuration(w)}min</span></div>
+              ${(ATHLETIC_PARAMS[w.type] && (ATHLETIC_PARAMS[w.type].fields||[]).indexOf('lavoroSec') !== -1 && !(Number(w.lavoroSec) > 0))
+                ? '<div style="font-size:10.5px;color:var(--amber-dark);">metri non calcolati: manca lavoro/recupero in secondi</div>' : ''}
               <div style="display:flex;gap:8px;">
                 <button style="background:none;border:none;color:var(--amber);cursor:pointer;font-size:12px;" data-edit-workout="${w.id}">Modifica</button>
                 <button style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;" data-del-workout="${w.id}">Elimina</button>
@@ -7855,7 +8097,7 @@ function renderAllenamenti(el){
             ${w.groups && w.groups.length>0 ? `
               <div style="margin-top:8px;padding:8px;background:#F9F5ED;border-radius:4px;border-left:3px solid var(--amber);">
                 ${w.groups.map(g=>`
-                  <div style="font-size:10px;margin-bottom:4px;color:var(--pitch);">
+                  <div style="font-size:10px;margin-bottom:4px;color:var(--heading);">
                     <strong>${esc(g.name)}</strong>: ${g.players.length} giocatori
                   </div>
                 `).join('')}
@@ -7977,8 +8219,11 @@ function renderAllenamenti(el){
       if(params.fields.includes('minutesPerSeries')){
         html += `<div><label>Minuti per serie</label><input id="wMinutesPerSeries" type="number" min="1" value="2"></div>`;
       }
+      if(params.fields.includes('ripetute')){
+        html += campoEsercitazioneHTML('ripetute');
+      }
       if(params.fields.includes('distance')){
-        html += `<div><label>Distanza (m)</label><select id="wDistance"><option value="10">10m</option><option value="20">20m</option><option value="30">30m</option><option value="40">40m</option></select></div>`;
+        html += campoEsercitazioneHTML('distance');
       }
       if(params.fields.includes('kg')){
         html += `<div><label>Carico medio (kg)</label><input id="wKg" type="number" min="0" step="0.5" placeholder="per il tonnellaggio"></div>`;
@@ -7986,6 +8231,8 @@ function renderAllenamenti(el){
       if(params.fields.includes('intensita')){
         html += `<div><label>Intensita (% VAM)</label><input id="wIntensita" type="number" min="30" max="130" placeholder="per i metri"></div>`;
       }
+      if(params.fields.includes('lavoroSec')) html += campoEsercitazioneHTML('lavoroSec');
+      if(params.fields.includes('recuperoSec')) html += campoEsercitazioneHTML('recuperoSec');
       if(params.fields.includes('recovery')){
         html += `<div><label>Recupero (min)</label><input id="wRecovery" type="number" min="0" value="1"></div>`;
       }
@@ -8003,7 +8250,7 @@ function renderAllenamenti(el){
       if(params.groups){
         paramsDiv.innerHTML += `
           <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--line);">
-            <h4 style="margin:0 0 12px 0;font-size:13px;color:var(--pitch);">Crea gruppi di lavoro</h4>
+            <h4 style="margin:0 0 12px 0;font-size:13px;color:var(--heading);">Crea gruppi di lavoro</h4>
             
             <div style="margin-bottom:16px;padding:12px;background:#F0F9FF;border-left:4px solid #3B82F6;border-radius:6px;">
               <label>Auto-grouping da Test (Bucheit)</label>
@@ -8093,7 +8340,7 @@ function renderAllenamenti(el){
                 <div style="font-size:11px;color:var(--ink-soft);margin-bottom:6px;">${vMin.toFixed(1)}–${vMax.toFixed(1)} km/h${test.type === TEST_VIFT ? ' · VAM ' + fmtKmh(vamDaVift(vMin)) + '–' + fmtKmh(vamDaVift(vMax)) : ''} · 15" al 100%: ${coni(vMin)}–${coni(vMax)} m</div>
                 <div style="display:flex;flex-wrap:wrap;gap:4px;">${g.righe.map(r => {
                   const p = STATE.players.find(pl => String(pl.id) === String(r.playerId));
-                  return `<span style="background:white;padding:3px 7px;border-radius:3px;font-size:11px;">${esc(p ? p.name : '?')} ${r.value.toFixed(1)}</span>`;
+                  return `<span style="background:var(--paper);padding:3px 7px;border-radius:3px;font-size:11px;">${esc(p ? p.name : '?')} ${r.value.toFixed(1)}</span>`;
                 }).join('')}</div>
               </div>`;
             }).join('');
@@ -8151,9 +8398,12 @@ function renderAllenamenti(el){
       if(params.fields.includes('reps')) workout.reps = parseInt(document.getElementById('wReps').value)||1;
       if(params.fields.includes('minutes')) workout.minutes = parseInt(document.getElementById('wMinutes').value)||1;
       if(params.fields.includes('minutesPerSeries')) workout.minutesPerSeries = parseInt(document.getElementById('wMinutesPerSeries').value)||1;
-      if(params.fields.includes('distance')) workout.distance = parseInt(document.getElementById('wDistance').value)||20;
+      if(params.fields.includes('distance')) workout.distance = parseInt((document.getElementById('wDistance')||{}).value, 10) || null;
+      if(params.fields.includes('ripetute')) workout.ripetute = parseInt((document.getElementById('wRipetute')||{}).value, 10) || null;
       if(params.fields.includes('kg')) workout.kg = parseFloat((document.getElementById('wKg')||{}).value) || null;
       if(params.fields.includes('intensita')) workout.intensita = parseInt((document.getElementById('wIntensita')||{}).value, 10) || null;
+      if(params.fields.includes('lavoroSec')) workout.lavoroSec = parseInt((document.getElementById('wLavoroSec')||{}).value, 10) || null;
+      if(params.fields.includes('recuperoSec')) workout.recuperoSec = parseInt((document.getElementById('wRecuperoSec')||{}).value, 10) || null;
       if(params.fields.includes('recovery')) workout.recovery = parseInt(document.getElementById('wRecovery').value)||0;
       if(params.fields.includes('description')) workout.description = document.getElementById('wDescription').value.trim();
       
@@ -8202,9 +8452,9 @@ function renderEditWorkoutModal(workout){
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;box-sizing:border-box;overflow-y:auto;';
   
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:600px;width:100%;padding:24px;margin:auto;">
+    <div style="background:var(--paper);border-radius:12px;max-width:600px;width:100%;padding:24px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-        <h2 style="margin:0;color:var(--pitch);">Modifica Esercitazione</h2>
+        <h2 style="margin:0;color:var(--heading);">Modifica Esercitazione</h2>
         <button id="closeEditModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">×</button>
       </div>
       
@@ -8223,6 +8473,18 @@ function renderEditWorkoutModal(workout){
         <input type="text" value="${esc(workout.type)}" readonly style="width:100%;padding:10px;border:1px solid var(--line);border-radius:6px;font-size:14px;background:var(--chalk);cursor:not-allowed;">
       </div>
       
+      ${(()=>{
+        const params = ATHLETIC_PARAMS[workout.type];
+        const campi = (workout.category === 'Atletico' && params) ? (params.fields || []) : ['series','minutesPerSeries','recovery'];
+        const modificabili = campi.filter(f => CAMPI_ESERCITAZIONE[f]);
+        if(!modificabili.length) return '';
+        return `<div style="margin-bottom:16px;">
+          <label style="display:block;margin-bottom:8px;font-weight:600;color:var(--ink-soft);">Parametri</label>
+          <div class="grid2">${modificabili.map(f => campoEsercitazioneHTML(f, workout[f])).join('')}</div>
+          <div style="font-size:11px;color:var(--ink-soft);margin-top:8px;">Lasciare un campo vuoto non da errore: quel dato semplicemente non viene calcolato.</div>
+        </div>`;
+      })()}
+
       <div style="font-size:11px;color:var(--ink-soft);background:var(--chalk);padding:12px;border-radius:6px;margin-bottom:20px;">
         <strong>Nota:</strong> Per modificare categoria e tipo, elimina questa esercitazione e creane una nuova.
       </div>
@@ -8245,6 +8507,13 @@ function renderEditWorkoutModal(workout){
     if(!newName){ showToast('Inserisci un nome'); return; }
     
     workout.name = newName;
+    /* Rileggo i parametri modificabili: prima si poteva cambiare solo il nome */
+    Object.keys(CAMPI_ESERCITAZIONE).forEach(f => {
+      const campo = document.getElementById('w' + f.charAt(0).toUpperCase() + f.slice(1));
+      if(!campo) return;
+      const v = parseFloat(String(campo.value).replace(',', '.'));
+      workout[f] = (isFinite(v) && v >= 0 && String(campo.value).trim() !== '') ? v : null;
+    });
     const idx = STATE.workouts.findIndex(w => w.id === workout.id);
     if(idx >= 0){
       STATE.workouts[idx] = workout;
@@ -8530,7 +8799,7 @@ function renderPitchSVG(match){
   const modulo = match.modulo;
   const formation = FORMATIONS[modulo];
   if(!formation){
-    return '<div style="padding:24px;text-align:center;font-size:12.5px;color:var(--ink-soft);background:#F7F5EC;border-radius:8px;border:1px dashed var(--line);">Seleziona un modulo dall\'elenco per disegnare la formazione sul campo.</div>';
+    return '<div style="padding:24px;text-align:center;font-size:12.5px;color:var(--ink-soft);background:var(--surface-2);border-radius:8px;border:1px dashed var(--line);">Seleziona un modulo dall\'elenco per disegnare la formazione sul campo.</div>';
   }
   let svg = `<svg viewBox="0 0 100 100" style="width:100%;max-width:360px;height:auto;display:block;margin:0 auto;background:linear-gradient(180deg,#2F7A4E 0%,#276941 100%);border-radius:8px;border:2px solid var(--pitch-dark);" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
     <rect x="2" y="2" width="96" height="96" fill="none" stroke="white" stroke-width="0.4" opacity="0.85"/>
@@ -8576,7 +8845,7 @@ function renderPitchSVG(match){
   const unassigned = starters.filter(pid => !assigned.has(pid));
   let extra = '';
   if(unassigned.length){
-    extra = `<div style="margin-top:10px;padding:8px 10px;background:#FFF8E7;border:1px solid var(--amber);border-radius:6px;font-size:11.5px;color:var(--ink);">
+    extra = `<div style="margin-top:10px;padding:8px 10px;background:var(--warn-bg);border:1px solid var(--amber);border-radius:6px;font-size:11.5px;color:var(--ink);">
       <strong>Titolari senza posizione:</strong> ${unassigned.map(pid=>{
         const p = STATE.players.find(x => String(x.id) === pid);
         return p ? esc(p.name) : 'giocatore rimosso';
@@ -8645,16 +8914,16 @@ function openPitchPicker(match, slotIdx){
       });
 
     picker.innerHTML = `
-      <div style="border:1px solid var(--amber);background:#FFFBEF;border-radius:8px;padding:12px;margin-top:12px;">
+      <div style="border:1px solid var(--amber);background:var(--warn-bg);border-radius:8px;padding:12px;margin-top:12px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <strong style="font-size:12.5px;color:var(--pitch);">Assegna posizione: ${FORMATION_ROLE_LABELS[slotDef.r] || 'Giocatore'}</strong>
+          <strong style="font-size:12.5px;color:var(--heading);">Assegna posizione: ${FORMATION_ROLE_LABELS[slotDef.r] || 'Giocatore'}</strong>
           <button type="button" class="btn secondary" id="pitchPickerCloseBtn" style="font-size:11px;padding:4px 10px;">Annulla</button>
         </div>
         ${candidates.length === 0
           ? '<div style="font-size:12px;color:var(--ink-soft);padding:8px 0;">Nessun convocato disponibile. Aggiungi convocati nella sezione qui sopra, oppure imposta lo stato dei giocatori su Disponibile.</div>'
           : `<div style="max-height:220px;overflow-y:auto;">
               ${candidates.map(p=>`
-                <button type="button" class="pitch-assign-btn" data-player-id="${p.id}" style="width:100%;text-align:left;padding:8px 10px;margin-bottom:4px;background:white;border:1px solid var(--line);border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+                <button type="button" class="pitch-assign-btn" data-player-id="${p.id}" style="width:100%;text-align:left;padding:8px 10px;margin-bottom:4px;background:var(--paper);border:1px solid var(--line);border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
                   <span style="font-size:12.5px;font-weight:600;">${esc(p.name)}</span>
                   <span style="font-size:10.5px;color:var(--ink-soft);">${esc(p.role || '—')}</span>
                 </button>
@@ -8686,9 +8955,9 @@ function openPitchPicker(match, slotIdx){
   const plName = pl ? pl.name : 'giocatore';
   const isPast = match.date && match.date < todayStr();
   picker.innerHTML = `
-    <div style="border:1px solid var(--amber);background:#FFFBEF;border-radius:8px;padding:12px;margin-top:12px;">
+    <div style="border:1px solid var(--amber);background:var(--warn-bg);border-radius:8px;padding:12px;margin-top:12px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <strong style="font-size:12.5px;color:var(--pitch);">${esc(plName)}${occ.subbedOut ? ' (entrato al posto di ' + esc((STATE.players.find(x=>String(x.id)===occ.originalPlayerId)||{}).name||'') + ')' : ''}</strong>
+        <strong style="font-size:12.5px;color:var(--heading);">${esc(plName)}${occ.subbedOut ? ' (entrato al posto di ' + esc((STATE.players.find(x=>String(x.id)===occ.originalPlayerId)||{}).name||'') + ')' : ''}</strong>
         <button type="button" class="btn secondary" id="pitchPickerCloseBtn" style="font-size:11px;padding:4px 10px;">Chiudi</button>
       </div>
       ${isPast ? `
@@ -8765,9 +9034,9 @@ function openPitchSubDialog(match, slotIdx, occ){
 
   const outName = (STATE.players.find(x=>String(x.id)===String(occ.playerId))||{}).name || '';
   picker.innerHTML = `
-    <div style="border:1px solid var(--amber);background:#FFFBEF;border-radius:8px;padding:12px;margin-top:12px;">
+    <div style="border:1px solid var(--amber);background:var(--warn-bg);border-radius:8px;padding:12px;margin-top:12px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <strong style="font-size:12.5px;color:var(--pitch);">Sostituisci ${esc(outName)}</strong>
+        <strong style="font-size:12.5px;color:var(--heading);">Sostituisci ${esc(outName)}</strong>
         <button type="button" class="btn secondary" id="pitchPickerCloseBtn" style="font-size:11px;padding:4px 10px;">Annulla</button>
       </div>
       <label style="font-size:11.5px;color:var(--ink-soft);">Minuto della sostituzione</label>
@@ -8811,7 +9080,7 @@ function openPitchRedDialog(match, slotIdx, occ){
   const dur = matchDuration(match);
   const plName = (STATE.players.find(x=>String(x.id)===String(occ.playerId))||{}).name || '';
   picker.innerHTML = `
-    <div style="border:1px solid var(--clay);background:#F9E4E0;border-radius:8px;padding:12px;margin-top:12px;">
+    <div style="border:1px solid var(--clay);background:var(--bad-bg);border-radius:8px;padding:12px;margin-top:12px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <strong style="font-size:12.5px;color:var(--clay);">Espulsione: ${esc(plName)}</strong>
         <button type="button" class="btn secondary" id="pitchPickerCloseBtn" style="font-size:11px;padding:4px 10px;">Annulla</button>
@@ -8942,7 +9211,7 @@ const DIFF_TEST_PER_MODALITA = { VAM: '30-15 Intermittent', VIFT: '30-15 Intermi
 
 /* Sottogruppi di velocita': Rosso = piu' veloci, Blu = piu' lenti (convenzione dell'app) */
 const DIFF_SOTTOGRUPPI = {
-  1: [{nome:'Gruppo unico', colore:'#3F7A5C', bg:'#E3EFE7'}],
+  1: [{nome:'Gruppo unico', colore:'#3F7A5C', bg:'var(--ok-bg)'}],
   2: [{nome:'Rosso', colore:'#EF4444', bg:'#FEE2E2'}, {nome:'Blu', colore:'#3B82F6', bg:'#DBEAFE'}],
   3: [{nome:'Rosso', colore:'#EF4444', bg:'#FEE2E2'}, {nome:'Giallo', colore:'#D4A017', bg:'#FEF3C7'}, {nome:'Blu', colore:'#3B82F6', bg:'#DBEAFE'}]
 };
@@ -9096,7 +9365,7 @@ function colonnaGruppoDiff(event, chiave){
   const g = event.differenziato[chiave];
   const isRec = chiave === 'recupero';
   const accent = isRec ? 'var(--ok)' : 'var(--clay)';
-  const bg = isRec ? '#F0F7F1' : '#FDF3E7';
+  const bg = isRec ? 'var(--ok-bg)' : 'var(--amber-bg)';
   const freccia = isRec ? '→ Int' : '← Rec';
   const sg = sottogruppiDifferenziato(g);
   const lavoro = Number(g.lavoroSec) || 0;
@@ -9108,10 +9377,10 @@ function colonnaGruppoDiff(event, chiave){
   const rigaGiocatore = (p, info) => {
     const meta = statusMeta(p.status);
     return `
-    <div style="display:flex;align-items:center;gap:5px;padding:3px 6px;background:white;border-radius:4px;margin-bottom:3px;font-size:11.5px;">
+    <div style="display:flex;align-items:center;gap:5px;padding:3px 6px;background:var(--paper);border-radius:4px;margin-bottom:3px;font-size:11.5px;">
       <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(p.name)}${p.status !== 'Disponibile' ? ` <span style="font-size:9.5px;color:${meta.color};font-weight:700;">${esc(meta.label)}</span>` : ''}</span>
       ${info ? `<span style="font-size:10.5px;color:var(--ink-soft);white-space:nowrap;">${info}</span>` : ''}
-      <button type="button" data-diff-act="sposta" data-diff-g="${chiave}" data-pid="${esc(p.id)}" style="background:none;border:1px solid var(--line);border-radius:3px;padding:0 5px;font-size:10px;cursor:pointer;color:var(--pitch);white-space:nowrap;">${freccia}</button>
+      <button type="button" data-diff-act="sposta" data-diff-g="${chiave}" data-pid="${esc(p.id)}" style="background:none;border:1px solid var(--line);border-radius:3px;padding:0 5px;font-size:10px;cursor:pointer;color:var(--heading);white-space:nowrap;">${freccia}</button>
       <button type="button" data-diff-act="togli" data-diff-g="${chiave}" data-pid="${esc(p.id)}" title="Togli dal differenziato" style="background:none;border:none;font-size:14px;cursor:pointer;color:var(--ink-soft);line-height:1;padding:0 2px;">×</button>
     </div>`;
   };
@@ -9131,7 +9400,7 @@ function colonnaGruppoDiff(event, chiave){
 
   const nessunTestTipo = !(STATE.tests || []).some(t => t.type === sg.tipoTest);
   const bloccoSenzaTest = sg.senzaTest.length ? `
-      <div style="border-left:3px solid var(--line);background:#F7F5EC;border-radius:4px;padding:6px;margin-bottom:6px;">
+      <div style="border-left:3px solid var(--line);background:var(--surface-2);border-radius:4px;padding:6px;margin-bottom:6px;">
         <div style="font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:4px;">Senza test ${g.modalita} · ${sg.senzaTest.length}</div>
         ${sg.senzaTest.map(p => rigaGiocatore(p, '')).join('')}
         ${nessunTestTipo ? `<div style="font-size:10.5px;color:var(--ink-soft);margin-top:4px;">Nessun test "${esc(sg.tipoTest)}" registrato: aggiungilo in Performance → Test. La VAM viene stimata in automatico dalla VIFT.</div>` : ''}
@@ -9139,13 +9408,13 @@ function colonnaGruppoDiff(event, chiave){
 
   const esercitazioni = g.esercitazioniIds.map(wid => {
     const w = STATE.workouts.find(x => x.id === wid);
-    return `<div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:white;border-radius:4px;margin-bottom:3px;font-size:11.5px;">
+    return `<div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:var(--paper);border-radius:4px;margin-bottom:3px;font-size:11.5px;">
       <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w ? esc(w.name) : 'esercitazione eliminata dall\'archivio'}</span>
       <span style="font-size:10.5px;color:var(--ink-soft);">${w ? calcWorkoutDuration(w) + "'" : ''}</span>
       <button type="button" data-diff-act="togliEse" data-diff-g="${chiave}" data-wid="${esc(wid)}" style="background:none;border:none;font-size:14px;cursor:pointer;color:var(--clay);line-height:1;padding:0 2px;">×</button>
     </div>`;
   }).join('') + (g.extra || []).map((x, i) => `
-    <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:white;border-radius:4px;margin-bottom:3px;font-size:11.5px;">
+    <div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:var(--paper);border-radius:4px;margin-bottom:3px;font-size:11.5px;">
       <span style="flex:1;min-width:0;">${esc(x.nome || 'attivita extra')}</span>
       <span style="font-size:10.5px;color:var(--ink-soft);">${Number(x.durataMinuti) || 0}'</span>
       <button type="button" data-diff-act="togliExtra" data-diff-g="${chiave}" data-idx="${i}" style="background:none;border:none;font-size:14px;cursor:pointer;color:var(--clay);line-height:1;padding:0 2px;">×</button>
@@ -9197,7 +9466,7 @@ function renderDifferenziatoInline(event){
       <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:20px;">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
           <div style="flex:1;min-width:200px;">
-            <h4 style="margin:0 0 4px 0;color:var(--pitch);font-size:13px;">Lavoro differenziato</h4>
+            <h4 style="margin:0 0 4px 0;color:var(--heading);font-size:13px;">Lavoro differenziato</h4>
             <div style="font-size:11.5px;color:var(--ink-soft);">Due gruppi dai minuti dell'ultima partita (soglia ${DIFF_SOGLIA_MINUTI_DEFAULT}'), ognuno diviso in sottogruppi dai test VAM o VIFT. Portieri esclusi.</div>
           </div>
           <button type="button" class="btn secondary" data-diff-act="attiva" style="font-size:12px;padding:7px 14px;white-space:nowrap;">Attiva differenziato</button>
@@ -9218,7 +9487,7 @@ function renderDifferenziatoInline(event){
   return `
     <div style="border:1px solid var(--amber);border-radius:8px;padding:12px;margin-bottom:20px;background:#FFFCF5;">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-        <h4 style="margin:0;color:var(--pitch);font-size:13px;">Lavoro differenziato</h4>
+        <h4 style="margin:0;color:var(--heading);font-size:13px;">Lavoro differenziato</h4>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
           <span style="font-size:10.5px;color:var(--ink-soft);">Soglia</span>
           <input type="number" data-diff-field="sogliaMinuti" value="${d.sogliaMinuti}" min="10" max="120" style="width:50px;padding:4px 5px;font-size:11.5px;border:1px solid var(--line);border-radius:4px;">
@@ -9235,11 +9504,11 @@ function renderDifferenziatoInline(event){
       </div>
 
       ${nonAssegnati.length ? `
-        <div style="margin-top:10px;padding:8px;border:1px dashed var(--line);border-radius:6px;background:white;">
+        <div style="margin-top:10px;padding:8px;border:1px dashed var(--line);border-radius:6px;background:var(--paper);">
           <div style="font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">Non assegnati (${nonAssegnati.length})</div>
           <div style="display:flex;flex-wrap:wrap;gap:5px;">
             ${nonAssegnati.map(p => `
-              <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;background:#F7F5EC;border-radius:12px;font-size:11px;">
+              <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 7px;background:var(--surface-2);border-radius:12px;font-size:11px;">
                 ${esc(p.name)}
                 <button type="button" data-diff-act="assegna" data-diff-g="recupero" data-pid="${esc(p.id)}" style="background:none;border:1px solid var(--ok);color:var(--ok);border-radius:3px;padding:0 5px;font-size:10px;cursor:pointer;">+Rec</button>
                 <button type="button" data-diff-act="assegna" data-diff-g="intensivo" data-pid="${esc(p.id)}" style="background:none;border:1px solid var(--clay);color:var(--clay);border-radius:3px;padding:0 5px;font-size:10px;cursor:pointer;">+Int</button>
@@ -9406,7 +9675,7 @@ function renderCalendario(el){
             const dayEvents = upcoming.filter(e => e.date === dateStr);
             const dayNamesFull = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
 
-            let card = `<div style="min-height:150px;border:${isToday?'2px solid var(--ok)':'1px solid var(--line)'};border-radius:8px;padding:10px 8px;background:${isToday?'#E3EFE7':'white'};display:flex;flex-direction:column;">`;
+            let card = `<div style="min-height:150px;border:${isToday?'2px solid var(--ok)':'1px solid var(--line)'};border-radius:8px;padding:10px 8px;background:${isToday?'var(--ok-bg)':'white'};display:flex;flex-direction:column;">`;
             card += `<div style="text-align:center;margin-bottom:8px;">`;
             card += `<div style="font-size:10px;font-weight:700;color:${isToday?'var(--ok)':'var(--ink-soft)'};text-transform:uppercase;">${dayNamesFull[d.getDay()]}</div>`;
             card += `<div style="font-size:16px;font-weight:700;color:${isToday?'var(--ok)':'var(--pitch)'};">${d.getDate()}/${d.getMonth()+1}</div>`;
@@ -9417,7 +9686,7 @@ function renderCalendario(el){
             } else {
               dayEvents.forEach(e => {
                 const isMatch = e.type === 'Partita';
-                const bg = isMatch ? '#FDF3E7' : '#F0F7F1';
+                const bg = isMatch ? 'var(--amber-bg)' : 'var(--ok-bg)';
                 const border = isMatch ? 'var(--amber)' : 'var(--pitch)';
                 card += `<div class="strip-event" data-event-id="${e.id}" style="background:${bg};border-left:3px solid ${border};padding:5px 6px;border-radius:4px;margin-bottom:5px;cursor:pointer;">`;
                 card += `<div style="font-size:10px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${isMatch ? (e.opponent ? esc(e.opponent) : 'Partita') : esc(e.title || 'Allenamento')}</div>`;
@@ -9534,7 +9803,7 @@ function renderCalendario(el){
             const dayNum = i - startOffset + 1;
             if(dayNum < 1 || dayNum > lastDay.getDate()){
               /* Casella vuota (padding) */
-              cells.push('<div style="min-height:72px;background:#FAFAFA;border-radius:4px;"></div>');
+              cells.push('<div style="min-height:72px;background:var(--surface-2);border-radius:4px;"></div>');
               continue;
             }
             const dateStr = `${cm.year}-${String(cm.month+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
@@ -9542,7 +9811,7 @@ function renderCalendario(el){
             const dayEvents = upcoming.filter(e => e.date === dateStr)
               .sort((a,b)=>(a.time||'00:00').localeCompare(b.time||'00:00'));
 
-            let cell = `<div style="min-height:72px;border:${isToday?'2px solid var(--ok)':'1px solid var(--line)'};border-radius:4px;padding:4px;background:${isToday?'#E3EFE7':'white'};overflow:hidden;">`;
+            let cell = `<div style="min-height:72px;border:${isToday?'2px solid var(--ok)':'1px solid var(--line)'};border-radius:4px;padding:4px;background:${isToday?'var(--ok-bg)':'white'};overflow:hidden;">`;
             cell += `<div style="font-size:11px;font-weight:${isToday?'700':'600'};color:${isToday?'var(--ok)':'var(--ink)'};margin-bottom:2px;">${dayNum}</div>`;
 
             if(dayEvents.length > 0){
@@ -9551,7 +9820,7 @@ function renderCalendario(el){
               visible.forEach(e=>{
                 const isMatch = e.type === 'Partita';
                 const colorLeft = isMatch ? 'var(--amber)' : (e.type === 'Allenamento' ? 'var(--pitch)' : 'var(--ink-soft)');
-                const bg = isMatch ? '#FDF3E7' : (e.type === 'Allenamento' ? '#F0F7F1' : '#F7F5EC');
+                const bg = isMatch ? 'var(--amber-bg)' : (e.type === 'Allenamento' ? 'var(--ok-bg)' : 'var(--surface-2)');
                 const label = isMatch ? (e.opponent ? esc(e.opponent) : 'Partita') : (e.title ? esc(e.title) : e.type);
                 /* Indicatore RPE: pallino verde piccolo se ci sono dati per questa sessione */
                 const rpeCount = (STATE.rpeLog || []).filter(r => r.sessionId === e.id && r.source !== 'plan').length;
@@ -9589,10 +9858,10 @@ function renderCalendario(el){
             <div style="padding:14px;border:1px solid var(--line);border-radius:8px;margin-bottom:12px;">
               <div style="display:flex;justify-content:space-between;align-items:start;">
                 <div style="flex:1;">
-                  <h4 style="margin:0 0 6px 0;color:var(--pitch);">${isMatch ? '' : ''} ${esc(e.title)}</h4>
+                  <h4 style="margin:0 0 6px 0;color:var(--heading);">${isMatch ? '' : ''} ${esc(e.title)}</h4>
                   <div style="font-size:12px;color:var(--ink-soft);">
                     ${fmtDate(e.date)} ${e.time ? ''+e.time : ''}
-                    ${isMatch ? `<div style="margin-top:4px;">${esc(e.matchType||'Partita')} ${e.result ? `| <strong style="color:var(--pitch);">${e.result.goalsFor}-${e.result.goalsAgainst}</strong>` : ''}</div>` : ''}
+                    ${isMatch ? `<div style="margin-top:4px;">${esc(e.matchType||'Partita')} ${e.result ? `| <strong style="color:var(--heading);">${e.result.goalsFor}-${e.result.goalsAgainst}</strong>` : ''}</div>` : ''}
                     ${!isMatch ? `<div style="margin-top:4px;font-size:11px;color:var(--amber);font-weight:600;">${e.md ? e.md + ' · ' : ''}Durata: ${getSessionDuration(e)}min</div>` : ''}
                   </div>
                 </div>
@@ -9602,7 +9871,7 @@ function renderCalendario(el){
                 const b = getPresenceBreakdown(e.id);
                 const nWork = e.workoutIds ? e.workoutIds.length : 0;
                 return `
-                <div style="margin-top:8px;font-size:11px;color:var(--pitch);padding:6px;background:var(--chalk);border-radius:4px;">
+                <div style="margin-top:8px;font-size:11px;color:var(--heading);padding:6px;background:var(--chalk);border-radius:4px;">
                   Movimento ${b.movement.present.length}/${b.movement.available.length} &middot;
                   Portieri ${b.keepers.present.length}/${b.keepers.available.length} &middot;
                   Infortunati ${b.movement.injured.length + b.keepers.injured.length} &middot;
@@ -9851,10 +10120,10 @@ function renderAllenamentoDetails(event){
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;box-sizing:border-box;overflow-y:auto;';
   
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:${event.differenziato && event.differenziato.attivo ? 820 : 600}px;width:100%;padding:24px;margin:auto;">
+    <div style="background:var(--paper);border-radius:12px;max-width:${event.differenziato && event.differenziato.attivo ? 820 : 600}px;width:100%;padding:24px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
         <div>
-          <h2 style="margin:0;color:var(--pitch);">${esc(event.title)}</h2>
+          <h2 style="margin:0;color:var(--heading);">${esc(event.title)}</h2>
           <div style="font-size:12px;color:var(--ink-soft);">${fmtDate(event.date)} ${event.time || '-'} ${event.md ? '| ' + esc(event.md) : ''}</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
@@ -9866,7 +10135,7 @@ function renderAllenamentoDetails(event){
       </div>
       
       <div style="border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:20px;">
-        <h4 style="margin:0 0 12px 0;color:var(--pitch);font-size:13px;">Esercitazioni</h4>
+        <h4 style="margin:0 0 12px 0;color:var(--heading);font-size:13px;">Esercitazioni</h4>
         
         ${event.workoutIds && event.workoutIds.length > 0 ? `
           <div style="margin-bottom:12px;">
@@ -9899,24 +10168,24 @@ function renderAllenamentoDetails(event){
       <!-- BLOCCO RPE PER GIOCATORE -->
       <div style="border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:20px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-          <h4 style="margin:0;color:var(--pitch);font-size:13px;">RPE per giocatore</h4>
+          <h4 style="margin:0;color:var(--heading);font-size:13px;">RPE per giocatore</h4>
           ${(()=>{
             const rpes = (STATE.rpeLog || []).filter(r => r.sessionId === event.id && r.source !== 'plan');
             if(rpes.length === 0) return '<span style="font-size:11px;color:var(--ink-soft);">Nessun RPE inserito</span>';
             const avg = rpes.reduce((s,r)=>s + Number(r.rpe||0), 0) / rpes.length;
             const load = rpes.reduce((s,r)=>s + Number(r.rpe||0) * Number(r.minutes||0), 0);
-            return `<span style="font-size:11px;color:var(--ink-soft);">Media <strong style="color:var(--pitch);">${(Math.round(avg*10)/10)}</strong> · Carico totale <strong style="color:var(--pitch);">${Math.round(load)}</strong> UA</span>`;
+            return `<span style="font-size:11px;color:var(--ink-soft);">Media <strong style="color:var(--heading);">${(Math.round(avg*10)/10)}</strong> · Carico totale <strong style="color:var(--heading);">${Math.round(load)}</strong> UA</span>`;
           })()}
         </div>
         ${(()=>{
           const rpes = (STATE.rpeLog || []).filter(r => r.sessionId === event.id && r.source !== 'plan');
           if(rpes.length === 0){
-            return '<div style="font-size:12px;color:var(--ink-soft);padding:10px;text-align:center;background:#F7F5EC;border-radius:6px;">I giocatori presenti compileranno il proprio RPE dalla loro area wellness dopo la sessione.</div>';
+            return '<div style="font-size:12px;color:var(--ink-soft);padding:10px;text-align:center;background:var(--surface-2);border-radius:6px;">I giocatori presenti compileranno il proprio RPE dalla loro area wellness dopo la sessione.</div>';
           }
           const righe = rpes.map(r=>{
             const p = STATE.players.find(x => String(x.id) === String(r.playerId));
             const color = r.rpe >= 8 ? 'var(--clay)' : r.rpe >= 6 ? 'var(--amber-dark)' : r.rpe >= 4 ? 'var(--amber)' : 'var(--ok)';
-            return `<div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:6px 10px;background:#F9F9F9;border-radius:4px;margin-bottom:4px;font-size:12px;">
+            return `<div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:6px 10px;background:var(--surface-2);border-radius:4px;margin-bottom:4px;font-size:12px;">
               <span>${p ? esc(p.name) : 'giocatore rimosso'}</span>
               <span style="color:var(--ink-soft);font-size:11px;">${r.minutes || 0} min</span>
               <span style="font-weight:700;color:${color};min-width:34px;text-align:right;">${r.rpe}/10</span>
@@ -10053,25 +10322,25 @@ function showWorkoutDetailsModal(workout){
   }
   
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:500px;width:100%;padding:24px;margin:auto;">
+    <div style="background:var(--paper);border-radius:12px;max-width:500px;width:100%;padding:24px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
         <div>
-          <h2 style="margin:0 0 4px 0;color:var(--pitch);">${esc(workout.name)}</h2>
+          <h2 style="margin:0 0 4px 0;color:var(--heading);">${esc(workout.name)}</h2>
           <div style="font-size:12px;color:var(--ink-soft);">${esc(workout.category)} · ${esc(workout.type)}</div>
         </div>
         <button id="closeDetailsModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">×</button>
       </div>
       
       <div style="background:var(--chalk);padding:16px;border-radius:8px;margin-bottom:16px;border-left:4px solid var(--amber);">
-        <div style="font-size:14px;margin-bottom:8px;font-weight:600;color:var(--pitch);">Dettagli</div>
+        <div style="font-size:14px;margin-bottom:8px;font-weight:600;color:var(--heading);">Dettagli</div>
         ${detailsHTML || '<div style="font-size:12px;color:#999;">Nessun dettaglio disponibile</div>'}
       </div>
       
       ${workout.groups && workout.groups.length > 0 ? `
         <div style="background:var(--chalk);padding:16px;border-radius:8px;margin-bottom:16px;">
-          <div style="font-size:14px;margin-bottom:8px;font-weight:600;color:var(--pitch);">Gruppi</div>
+          <div style="font-size:14px;margin-bottom:8px;font-weight:600;color:var(--heading);">Gruppi</div>
           ${workout.groups.map(g=>`
-            <div style="padding:8px;background:white;border-radius:4px;margin-bottom:6px;font-size:12px;">
+            <div style="padding:8px;background:var(--paper);border-radius:4px;margin-bottom:6px;font-size:12px;">
               <strong>${esc(g.name)}</strong> (${g.players.length} giocatori)
             </div>
           `).join('')}
@@ -10106,9 +10375,9 @@ function renderEditAllenamentoModal(event){
   }, 0);
 
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:640px;width:100%;padding:24px;margin:auto;">
+    <div style="background:var(--paper);border-radius:12px;max-width:640px;width:100%;padding:24px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:18px;">
-        <h2 style="margin:0;color:var(--pitch);">Modifica allenamento</h2>
+        <h2 style="margin:0;color:var(--heading);">Modifica allenamento</h2>
         <div style="display:flex;gap:8px;align-items:center;">
           <button id="printTrainingBtn" data-event-id="${event.id}" class="btn secondary" style="font-size:11px;padding:6px 12px;">Recap PDF</button>
           <button id="closeAllenamentoModal" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">&#10005;</button>
@@ -10140,7 +10409,7 @@ function renderEditAllenamentoModal(event){
 
       <div style="border:1px solid var(--line);border-radius:8px;padding:16px;margin-top:18px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <h4 style="margin:0;color:var(--pitch);font-size:13px;">Esercitazioni (${ids.length})</h4>
+          <h4 style="margin:0;color:var(--heading);font-size:13px;">Esercitazioni (${ids.length})</h4>
           <span style="font-size:12px;color:var(--ink-soft);">Totale ${totalMin} min</span>
         </div>
 
@@ -10362,10 +10631,10 @@ function renderMatchDetails(match){
   const tab = (id, label) => `<button type="button" class="match-vista" data-vista="${id}" style="flex:1;padding:8px;border:1px solid ${vista===id?'var(--pitch)':'var(--line)'};background:${vista===id?'var(--pitch)':'white'};color:${vista===id?'white':'var(--ink)'};font-size:12px;font-weight:600;cursor:pointer;border-radius:6px;">${label}</button>`;
 
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:700px;width:100%;padding:24px;margin:auto;">
+    <div style="background:var(--paper);border-radius:12px;max-width:700px;width:100%;padding:24px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:14px;">
         <div>
-          <h2 style="margin:0;color:var(--pitch);">${esc(match.title)}</h2>
+          <h2 style="margin:0;color:var(--heading);">${esc(match.title)}</h2>
           <div style="font-size:12px;color:var(--ink-soft);">${fmtDate(match.date)} ${match.time || '-'} | ${esc(match.matchType || 'Partita')}</div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
@@ -10386,7 +10655,7 @@ function renderMatchDetails(match){
             <div style="text-align:center;">
               <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">${esc(isHome ? teamName : match.opponent || 'Avversario')}</div>
               ${isHome
-                ? `<div style="font-size:30px;font-weight:700;color:var(--pitch);line-height:1;">${gf}</div><div style="font-size:10px;color:var(--ink-soft);margin-top:4px;">dai marcatori</div>`
+                ? `<div style="font-size:30px;font-weight:700;color:var(--heading);line-height:1;">${gf}</div><div style="font-size:10px;color:var(--ink-soft);margin-top:4px;">dai marcatori</div>`
                 : `<input id="golSubiti" type="number" min="0" max="30" value="${gs}" style="width:78px;padding:8px;font-size:22px;font-weight:700;border:1px solid var(--line);border-radius:6px;text-align:center;">`}
             </div>
             <div style="font-size:18px;font-weight:700;color:var(--ink-soft);">-</div>
@@ -10394,16 +10663,16 @@ function renderMatchDetails(match){
               <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">${esc(isHome ? (match.opponent || 'Avversario') : teamName)}</div>
               ${isHome
                 ? `<input id="golSubiti" type="number" min="0" max="30" value="${gs}" style="width:78px;padding:8px;font-size:22px;font-weight:700;border:1px solid var(--line);border-radius:6px;text-align:center;">`
-                : `<div style="font-size:30px;font-weight:700;color:var(--pitch);line-height:1;">${gf}</div><div style="font-size:10px;color:var(--ink-soft);margin-top:4px;">dai marcatori</div>`}
+                : `<div style="font-size:30px;font-weight:700;color:var(--heading);line-height:1;">${gf}</div><div style="font-size:10px;color:var(--ink-soft);margin-top:4px;">dai marcatori</div>`}
             </div>
           </div>
-          ${discordanza ? `<div style="margin-top:12px;padding:8px 10px;background:#FFF6E0;border:1px solid var(--amber);border-radius:6px;font-size:11.5px;color:var(--ink);">Il punteggio salvato in precedenza diceva ${salvato}, i marcatori registrati sono ${marcatori}. Ora vale la timeline: aggiungi i gol mancanti, anche senza marcatore.</div>` : ''}
-          ${soloAMano ? `<div style="margin-top:12px;padding:8px 10px;background:#F7F5EC;border:1px solid var(--line);border-radius:6px;font-size:11.5px;color:var(--ink-soft);">Punteggio inserito a mano, nessun marcatore registrato. Aggiungi i marcatori qui sotto se vuoi che finiscano nelle statistiche.</div>` : ''}
+          ${discordanza ? `<div style="margin-top:12px;padding:8px 10px;background:var(--warn-bg);border:1px solid var(--amber);border-radius:6px;font-size:11.5px;color:var(--ink);">Il punteggio salvato in precedenza diceva ${salvato}, i marcatori registrati sono ${marcatori}. Ora vale la timeline: aggiungi i gol mancanti, anche senza marcatore.</div>` : ''}
+          ${soloAMano ? `<div style="margin-top:12px;padding:8px 10px;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;font-size:11.5px;color:var(--ink-soft);">Punteggio inserito a mano, nessun marcatore registrato. Aggiungi i marcatori qui sotto se vuoi che finiscano nelle statistiche.</div>` : ''}
         </div>
 
         <!-- TIMELINE UNICA -->
         <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px;">
-          <h4 style="margin:0 0 10px 0;color:var(--pitch);font-size:13px;">Cronologia della partita</h4>
+          <h4 style="margin:0 0 10px 0;color:var(--heading);font-size:13px;">Cronologia della partita</h4>
           ${(() => {
             const items = eventiPartita(match);
             if(!items.length) return '<div style="font-size:12px;color:var(--ink-soft);text-align:center;padding:10px;">Niente ancora. Aggiungi i gol qui sotto; cambi ed espulsioni si registrano dal campo.</div>';
@@ -10416,7 +10685,7 @@ function renderMatchDetails(match){
             return `<div style="max-height:260px;overflow-y:auto;">${items.map(e => {
               const s = stile[e.kind];
               return `<div style="display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center;padding:7px 8px;border-bottom:1px solid var(--line);font-size:12.5px;">
-                <span style="font-weight:700;color:var(--pitch);">${e.minute}'</span>
+                <span style="font-weight:700;color:var(--heading);">${e.minute}'</span>
                 <span style="min-width:0;"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${s.col};margin-right:6px;"></span>${s.testo(e)}</span>
                 <button type="button" class="tl-del" data-kind="${e.kind}" data-id="${esc(e.id || '')}" data-idx="${typeof e.idx === 'number' ? e.idx : ''}" style="background:none;border:1px solid var(--line);border-radius:4px;padding:2px 8px;font-size:11px;color:var(--clay);cursor:pointer;">Elimina</button>
               </div>`;
@@ -10443,7 +10712,7 @@ function renderMatchDetails(match){
         <!-- CONVOCAZIONI -->
         <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-            <h4 style="margin:0;color:var(--pitch);font-size:13px;">Convocati</h4>
+            <h4 style="margin:0;color:var(--heading);font-size:13px;">Convocati</h4>
             <span id="convocatiCount" style="font-size:12px;font-weight:700;color:var(--ink-soft);"></span>
           </div>
           <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Ogni giocatore vede nella sua pagina se e' stato convocato.</div>
@@ -10471,10 +10740,10 @@ function renderMatchDetails(match){
       <!-- MODULO, CAMPO E FORMAZIONE -->
       <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;flex-wrap:wrap;">
-          <h4 style="margin:0;color:var(--pitch);font-size:13px;">Modulo e formazione</h4>
+          <h4 style="margin:0;color:var(--heading);font-size:13px;">Modulo e formazione</h4>
           <span id="pitchStarterCount" style="font-size:12px;font-weight:700;color:var(--ink-soft);"></span>
         </div>
-        <select id="modulo" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;background:white;font-size:13px;margin-bottom:12px;">
+        <select id="modulo" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--paper);font-size:13px;margin-bottom:12px;">
           <option value="">— Nessun modulo —</option>
           ${Object.keys(FORMATIONS).map(m=>`<option value="${m}" ${match.modulo===m?'selected':''}>${m}</option>`).join('')}
         </select>
@@ -10488,7 +10757,7 @@ function renderMatchDetails(match){
 
       <!-- DURATA -->
       <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px;">
-        <h4 style="margin:0 0 10px 0;color:var(--pitch);font-size:13px;">Durata partita</h4>
+        <h4 style="margin:0 0 10px 0;color:var(--heading);font-size:13px;">Durata partita</h4>
         <div style="display:flex;gap:8px;align-items:center;">
           <input id="matchDuration" type="number" min="1" max="150" value="${matchDuration(match)}" style="width:80px;padding:8px;border:1px solid var(--line);border-radius:6px;text-align:center;">
           <span style="font-size:12px;color:var(--ink-soft);">minuti — usa 120 per i supplementari</span>
@@ -10499,22 +10768,22 @@ function renderMatchDetails(match){
         <!-- RPE -->
         <div style="border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:16px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <h4 style="margin:0;color:var(--pitch);font-size:13px;">RPE partita</h4>
+            <h4 style="margin:0;color:var(--heading);font-size:13px;">RPE partita</h4>
             ${(()=>{
               const rpes = (STATE.rpeLog || []).filter(r => r.sessionId === match.id && r.source !== 'plan');
               if(!rpes.length) return '<span style="font-size:11px;color:var(--ink-soft);">Nessun RPE inserito</span>';
               const avg = rpes.reduce((s,r)=>s + Number(r.rpe||0), 0) / rpes.length;
               const load = rpes.reduce((s,r)=>s + Number(r.rpe||0) * Number(r.minutes||0), 0);
-              return `<span style="font-size:11px;color:var(--ink-soft);">Media <strong style="color:var(--pitch);">${Math.round(avg*10)/10}</strong> · Carico <strong style="color:var(--pitch);">${Math.round(load)}</strong> UA</span>`;
+              return `<span style="font-size:11px;color:var(--ink-soft);">Media <strong style="color:var(--heading);">${Math.round(avg*10)/10}</strong> · Carico <strong style="color:var(--heading);">${Math.round(load)}</strong> UA</span>`;
             })()}
           </div>
           ${(()=>{
             const rpes = (STATE.rpeLog || []).filter(r => r.sessionId === match.id && r.source !== 'plan');
-            if(!rpes.length) return '<div style="font-size:12px;color:var(--ink-soft);padding:10px;text-align:center;background:#F7F5EC;border-radius:6px;">Nessun RPE registrato per questa partita.</div>';
+            if(!rpes.length) return '<div style="font-size:12px;color:var(--ink-soft);padding:10px;text-align:center;background:var(--surface-2);border-radius:6px;">Nessun RPE registrato per questa partita.</div>';
             return '<div style="max-height:240px;overflow-y:auto;">' + rpes.map(r=>{
               const p = STATE.players.find(x => String(x.id) === String(r.playerId));
               const col = r.rpe >= 8 ? 'var(--clay)' : r.rpe >= 6 ? 'var(--amber-dark)' : r.rpe >= 4 ? 'var(--amber)' : 'var(--ok)';
-              return `<div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:6px 10px;background:#F9F9F9;border-radius:4px;margin-bottom:4px;font-size:12px;">
+              return `<div style="display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:6px 10px;background:var(--surface-2);border-radius:4px;margin-bottom:4px;font-size:12px;">
                 <span>${p ? esc(p.name) : 'giocatore rimosso'}</span>
                 <span style="color:var(--ink-soft);font-size:11px;">${r.minutes || 0} min</span>
                 <span style="font-weight:700;color:${col};min-width:34px;text-align:right;">${r.rpe}/10</span>
@@ -10665,7 +10934,7 @@ function renderWellness(el){
   try {
     console.log('renderWellness called, currentPlayerId:', STATE.currentPlayerId);
     if(!STATE.currentPlayerId){
-      el.innerHTML = `<div class="page-head"><h1>Wellness</h1></div><div class="card" style="background:#F0DAD6;border:1px solid #B5473A;color:#8B3429;"><p>Errore: ID giocatore non valido. currentPlayerId=${STATE.currentPlayerId}. Accedi di nuovo.</p></div>`;
+      el.innerHTML = `<div class="page-head"><h1>Wellness</h1></div><div class="card" style="background:var(--clay-soft);border:1px solid #B5473A;color:#8B3429;"><p>Errore: ID giocatore non valido. currentPlayerId=${STATE.currentPlayerId}. Accedi di nuovo.</p></div>`;
       return;
     }
     
@@ -10696,9 +10965,9 @@ function renderWellness(el){
     ${nextMatch ? `
       <div class="card" style="border-left:4px solid ${sonoConvocato ? 'var(--ok)' : convocazioniAperte ? 'var(--amber)' : 'var(--clay)'};">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft);font-weight:700;">Prossima partita</div>
-        <div style="font-size:15px;font-weight:600;color:var(--pitch);margin:4px 0;">${esc(nextMatch.title)}</div>
+        <div style="font-size:15px;font-weight:600;color:var(--heading);margin:4px 0;">${esc(nextMatch.title)}</div>
         <div style="font-size:12px;color:var(--ink-soft);margin-bottom:10px;">${fmtDate(nextMatch.date)}${nextMatch.time ? ' · ' + esc(nextMatch.time) : ''}${nextMatch.location ? ' · ' + esc(nextMatch.location) : ''}</div>
-        <div style="display:inline-block;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;background:${sonoConvocato ? '#E3EFE7' : convocazioniAperte ? '#FDF3E7' : 'var(--clay-soft)'};color:${sonoConvocato ? 'var(--ok)' : convocazioniAperte ? 'var(--amber-dark)' : '#8B3429'};">
+        <div style="display:inline-block;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:700;background:${sonoConvocato ? 'var(--ok-bg)' : convocazioniAperte ? 'var(--amber-bg)' : 'var(--clay-soft)'};color:${sonoConvocato ? 'var(--ok)' : convocazioniAperte ? 'var(--amber-dark)' : '#8B3429'};">
           ${sonoConvocato ? 'SEI CONVOCATO' : convocazioniAperte ? 'In attesa di convocazione' : 'Non convocato'}
         </div>
       </div>
@@ -10735,7 +11004,7 @@ function renderWellness(el){
                 ${HOOPER_ITEMS.map(it=>`
                   <div style="text-align:center;">
                     <div style="font-size:10px;color:var(--ink-soft);">${it.label.split(' ')[0]}</div>
-                    <div style="font-size:16px;font-weight:600;color:var(--pitch);">${hooperToday[it.key]}</div>
+                    <div style="font-size:16px;font-weight:600;color:var(--heading);">${hooperToday[it.key]}</div>
                   </div>`).join('')}
               </div>
             ` : '<div style="font-size:12px;color:var(--ink-soft);text-align:center;">Voce registrata con la vecchia scala</div>'}
@@ -10813,7 +11082,7 @@ function renderWellness(el){
               <button style="background:none;border:none;color:var(--clay);cursor:pointer;font-size:12px;" data-del-pain="${p.id}">Elimina</button>
             </div>
             <div style="font-size:11px;color:var(--ink-soft);margin-bottom:4px;">${fmtDate(p.date)} | Intensità: <span style="color:var(--amber);font-weight:600;">${p.intensity}/10</span></div>
-            ${p.notes ? `<div style="font-size:11px;margin-top:4px;padding:6px;background:white;border-radius:4px;">${esc(p.notes)}</div>` : ''}
+            ${p.notes ? `<div style="font-size:11px;margin-top:4px;padding:6px;background:var(--paper);border-radius:4px;">${esc(p.notes)}</div>` : ''}
           </div>
         `).join('')}
     </div>
@@ -10914,7 +11183,7 @@ function renderWellness(el){
   });
   } catch(err) {
     console.error('Errore in renderWellness:', err);
-    el.innerHTML = `<div class="page-head"><h1>Wellness</h1></div><div class="card" style="background:#F0DAD6;border:1px solid #B5473A;color:#8B3429;"><p>Errore interno: ${esc(err.message)}</p></div>`;
+    el.innerHTML = `<div class="page-head"><h1>Wellness</h1></div><div class="card" style="background:var(--clay-soft);border:1px solid #B5473A;color:#8B3429;"><p>Errore interno: ${esc(err.message)}</p></div>`;
   }
 }
 
@@ -10928,8 +11197,8 @@ function formRpeGiocatore(playerId, evento, onDone){
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:10002;padding:20px;box-sizing:border-box;overflow-y:auto;';
 
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:420px;width:100%;padding:24px;margin:auto;">
-      <h3 style="margin:0 0 4px 0;color:var(--pitch);">Quanto e stato faticoso?</h3>
+    <div style="background:var(--paper);border-radius:12px;max-width:420px;width:100%;padding:24px;margin:auto;">
+      <h3 style="margin:0 0 4px 0;color:var(--heading);">Quanto e stato faticoso?</h3>
       <div style="font-size:12px;color:var(--ink-soft);margin-bottom:18px;">${esc(evento.title)} · ${fmtDate(evento.date)}</div>
 
       <div style="text-align:center;margin-bottom:8px;">
@@ -10940,7 +11209,7 @@ function formRpeGiocatore(playerId, evento, onDone){
       <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--ink-soft);margin-top:4px;">
         <span>0 · nessuno sforzo</span><span>10 · sforzo massimale</span>
       </div>
-      <div id="prDesc" style="font-size:13px;color:var(--pitch);margin-top:12px;text-align:center;font-weight:600;"></div>
+      <div id="prDesc" style="font-size:13px;color:var(--heading);margin-top:12px;text-align:center;font-weight:600;"></div>
 
       <div class="btn-row" style="justify-content:flex-end;margin-top:20px;">
         <button id="prCancel" class="btn secondary">Annulla</button>
@@ -10969,11 +11238,10 @@ function formRpeGiocatore(playerId, evento, onDone){
     // Evito doppioni sullo stesso evento
     const gia = STATE.rpeLog.find(r => String(r.playerId)===String(playerId) && r.sessionId===evento.id);
     /* Se e' una partita calcolo i minuti giocati; per allenamento la durata la stima sessionLoad */
-    let minuti = null;
-    if(evento.type === 'Partita' && Array.isArray(evento.starters) && evento.starters.length > 0){
-      const calc = computeMatchMinutes(evento);
-      if(calc[playerId]) minuti = calc[playerId].minutes;
-    }
+    /* Registro i minuti veri: partita = minuti giocati, differenziato = minuti del
+       suo gruppo, altrimenti la durata della seduta. */
+    let minuti = minutiSessionePerGiocatore(evento, playerId);
+    if(!(minuti > 0)) minuti = null;
     if(gia){
       gia.rpe = rpe;
       gia.editedBy = 'giocatore';
@@ -11075,7 +11343,7 @@ function renderProfiloGiocatore(el){
 
       <div style="margin-top:16px;padding:10px;background:var(--chalk);border-radius:6px;font-size:11px;color:var(--ink-soft);">
         Lo stato (Disponibile / Infortunato / In rientro) e le informazioni mediche sono gestiti dallo staff e non modificabili da qui.
-        ${codice ? '<br>Il tuo codice di accesso: <strong style="color:var(--pitch);">' + esc(formatCode(codice)) + '</strong>' : ''}
+        ${codice ? '<br>Il tuo codice di accesso: <strong style="color:var(--heading);">' + esc(formatCode(codice)) + '</strong>' : ''}
       </div>
     </div>
   `;
@@ -11155,7 +11423,7 @@ function rigaPianoGiocatore(p){
   const tipoLabel = p.type === 'riabilitazione' ? 'RIABILITAZIONE' : 'INTEGRAZIONE';
   const nEx = (p.exercises || []).length;
   return `
-    <div class="gp-plan-row" data-plan-id="${p.id}" style="padding:12px;border:1px solid ${!p.seen ? tipoColor : 'var(--line)'};border-left:4px solid ${tipoColor};border-radius:6px;margin-bottom:8px;cursor:pointer;background:${!p.seen ? '#FFF8E7' : 'white'};">
+    <div class="gp-plan-row" data-plan-id="${p.id}" style="padding:12px;border:1px solid ${!p.seen ? tipoColor : 'var(--line)'};border-left:4px solid ${tipoColor};border-radius:6px;margin-bottom:8px;cursor:pointer;background:${!p.seen ? 'var(--warn-bg)' : 'white'};">
       <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;">
         <div style="flex:1;">
           <div style="font-size:9px;font-weight:700;color:${tipoColor};letter-spacing:0.05em;margin-bottom:3px;">${tipoLabel}${!p.seen ? ' · NUOVO' : ''}</div>
@@ -11165,7 +11433,7 @@ function rigaPianoGiocatore(p){
           </div>
         </div>
         <div style="text-align:right;">
-          ${p.completed ? '<span style="color:var(--ok);font-size:11px;font-weight:700;">Completato</span>' : (p.playerRPE != null ? `<span style="color:var(--pitch);font-size:11px;">RPE ${p.playerRPE}</span>` : '<span style="color:var(--amber-dark);font-size:11px;">Da fare</span>')}
+          ${p.completed ? '<span style="color:var(--ok);font-size:11px;font-weight:700;">Completato</span>' : (p.playerRPE != null ? `<span style="color:var(--heading);font-size:11px;">RPE ${p.playerRPE}</span>` : '<span style="color:var(--amber-dark);font-size:11px;">Da fare</span>')}
         </div>
       </div>
     </div>
@@ -11305,9 +11573,9 @@ function rigaEsercizioGiocatore(ex, i, planId){
   if(ex.recovery) specs.push('rec. ' + ex.recovery + '"');
   if(ex.rpeTarget) specs.push('RPE target ' + ex.rpeTarget);
   return `
-    <div style="padding:12px;background:#FAFAFA;border-radius:6px;margin-bottom:10px;border-left:3px solid var(--pitch);">
+    <div style="padding:12px;background:var(--surface-2);border-radius:6px;margin-bottom:10px;border-left:3px solid var(--pitch);">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px;">
-        <div style="font-size:14px;font-weight:700;color:var(--pitch);">${i+1}. ${esc(ex.name || 'esercizio')}</div>
+        <div style="font-size:14px;font-weight:700;color:var(--heading);">${i+1}. ${esc(ex.name || 'esercizio')}</div>
         ${ex.timesPerWeek ? `<div style="font-size:11px;font-weight:700;color:white;background:var(--amber-dark);padding:2px 8px;border-radius:10px;white-space:nowrap;">${ex.timesPerWeek}×/settimana</div>` : ''}
       </div>
       ${specs.length > 0 ? `<div style="font-size:12px;color:var(--ink);margin-bottom:6px;">${specs.join(' · ')}</div>` : ''}
@@ -11408,7 +11676,7 @@ function renderOggiGiocatore(el){
           <h3 style="margin:0;">${titolo}</h3>
           ${sotto ? `<div style="font-size:12.5px;color:var(--ink-soft);margin-top:2px;">${sotto}</div>` : ''}
         </div>
-        ${stato ? `<span style="font-size:10px;font-weight:700;letter-spacing:.05em;padding:3px 8px;border-radius:10px;white-space:nowrap;background:${stato === 'fare' ? '#FFF6E0' : '#E3EFE7'};color:${stato === 'fare' ? 'var(--amber-dark)' : 'var(--ok)'};">${stato === 'fare' ? 'DA FARE' : 'FATTO'}</span>` : ''}
+        ${stato ? `<span style="font-size:10px;font-weight:700;letter-spacing:.05em;padding:3px 8px;border-radius:10px;white-space:nowrap;background:${stato === 'fare' ? 'var(--warn-bg)' : 'var(--ok-bg)'};color:${stato === 'fare' ? 'var(--amber-dark)' : 'var(--ok)'};">${stato === 'fare' ? 'DA FARE' : 'FATTO'}</span>` : ''}
       </div>
       ${corpo || ''}
     </div>`;
@@ -11441,7 +11709,7 @@ function renderOggiGiocatore(el){
           <div style="font-size:13.5px;font-weight:600;">${esc(it.label)}</div>
           <div style="display:flex;justify-content:space-between;gap:8px;font-size:10.5px;color:var(--ink-soft);margin:2px 0 6px 0;"><span>1 = ${esc(it.low)}</span><span style="text-align:right;">7 = ${esc(it.high)}</span></div>
           <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">
-            ${[1,2,3,4,5,6,7].map(v => `<button type="button" class="hq-btn" data-key="${it.key}" data-v="${v}" style="padding:12px 0;border:1px solid var(--line);border-radius:6px;background:white;font-size:15px;font-weight:600;cursor:pointer;color:var(--ink);">${v}</button>`).join('')}
+            ${[1,2,3,4,5,6,7].map(v => `<button type="button" class="hq-btn" data-key="${it.key}" data-v="${v}" style="padding:12px 0;border:1px solid var(--line);border-radius:6px;background:var(--paper);font-size:15px;font-weight:600;cursor:pointer;color:var(--ink);">${v}</button>`).join('')}
           </div>
         </div>`).join('') +
       `<button class="btn" id="oggiWellnessBtn" disabled style="width:100%;padding:13px;font-size:15px;opacity:.45;">Salva wellness</button>`));
@@ -11449,7 +11717,7 @@ function renderOggiGiocatore(el){
 
   /* --- RPE da inserire --- */
   const rigaRpe = e => `
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;background:#FAFAF7;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;margin-bottom:6px;">
       <div style="min-width:0;">
         <div style="font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nomeSessione(e)}</div>
         <div style="font-size:11.5px;color:var(--ink-soft);">${quando(e.date)}</div>
@@ -11500,7 +11768,7 @@ function renderOggiGiocatore(el){
   const n = c.daFare;
   el.innerHTML = `
     <div class="page-head"><h1>Oggi</h1><p>${giorniNomi[oggiD.getDay()]} ${fmtDate(todayStr())} · ${esc(c.player.name)}</p></div>
-    <div style="padding:16px;border-radius:10px;margin-bottom:16px;background:${n ? '#FFF6E0' : '#E3EFE7'};border:1px solid ${n ? 'var(--amber)' : 'var(--ok)'};">
+    <div style="padding:16px;border-radius:10px;margin-bottom:16px;background:${n ? 'var(--warn-bg)' : 'var(--ok-bg)'};border:1px solid ${n ? 'var(--amber)' : 'var(--ok)'};">
       <div style="font-family:Oswald,sans-serif;font-size:22px;font-weight:600;color:${n ? 'var(--amber-dark)' : 'var(--ok)'};">${n ? (n === 1 ? 'Hai 1 cosa da fare' : 'Hai ' + n + ' cose da fare') : 'Tutto fatto per oggi'}</div>
       <div style="font-size:12.5px;color:var(--ink-soft);margin-top:2px;">${n ? 'Ci vuole meno di un minuto.' : 'Grazie. Se senti un dolore o un fastidio, segnalalo qui sotto.'}</div>
     </div>
@@ -11534,7 +11802,7 @@ function renderOggiGiocatore(el){
   el.querySelectorAll('.hq-btn').forEach(b => b.addEventListener('click', ()=>{
     const k = b.dataset.key, v = parseInt(b.dataset.v, 10);
     scelte[k] = v;
-    const tono = v <= 2 ? ['#E3EFE7', 'var(--ok)'] : v <= 5 ? ['#FFF6E0', 'var(--amber-dark)'] : ['#F9E4E0', 'var(--clay)'];
+    const tono = v <= 2 ? ['var(--ok-bg)', 'var(--ok)'] : v <= 5 ? ['var(--warn-bg)', 'var(--amber-dark)'] : ['var(--bad-bg)', 'var(--clay)'];
     el.querySelectorAll(`.hq-btn[data-key="${k}"]`).forEach(x => {
       const sel = parseInt(x.dataset.v, 10) === v;
       x.style.background = sel ? tono[0] : 'white';
@@ -11635,7 +11903,7 @@ function renderPlayerCalendario(el){
             <div style="padding:12px;background:var(--chalk);border-radius:6px;margin-bottom:8px;">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
                 <div>
-                  <div style="font-weight:600;color:var(--pitch);margin-bottom:4px;">${isMatch ? '' : ''} ${esc(e.title)}</div>
+                  <div style="font-weight:600;color:var(--heading);margin-bottom:4px;">${isMatch ? '' : ''} ${esc(e.title)}</div>
                   <div style="font-size:12px;color:var(--ink-soft);">
                     ${e.time || ''} ${e.md ? '· ' + esc(e.md) : ''} ${!isMatch ? '· Durata: ' + getSessionDuration(e) + 'min' : ''}
                   </div>
@@ -11643,7 +11911,7 @@ function renderPlayerCalendario(el){
                 </div>
                 ${puoRpe ? (rpeGia
                   ? `<div style="text-align:right;"><div style="font-size:11px;color:var(--ink-soft);">RPE inserito</div><div style="font-size:18px;font-weight:700;color:var(--amber-dark);">${rpeGia.rpe}/10</div></div>`
-                  : `<button class="player-rpe-btn" data-event-id="${e.id}" style="padding:8px 14px;background:var(--amber);color:var(--pitch);border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap;">Inserisci RPE</button>`)
+                  : `<button class="player-rpe-btn" data-event-id="${e.id}" style="padding:8px 14px;background:var(--amber);color:var(--heading);border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap;">Inserisci RPE</button>`)
                 : ''}
               </div>
             </div>
@@ -11659,17 +11927,17 @@ function renderPlayerCalendario(el){
           const isMatch = e.type === 'Partita';
           return `
             <div style="padding:12px;border:1px solid var(--line);border-radius:6px;margin-bottom:8px;">
-              <div style="font-weight:600;color:var(--pitch);margin-bottom:4px;">${isMatch ? '' : ''} ${esc(e.title)}</div>
+              <div style="font-weight:600;color:var(--heading);margin-bottom:4px;">${isMatch ? '' : ''} ${esc(e.title)}</div>
               <div style="font-size:12px;color:var(--ink-soft);">
                 ${fmtDate(e.date)} ${e.time ? '' + e.time : ''} ${e.md ? '· ' + esc(e.md) : ''} ${!isMatch ? '· Durata: ' + getSessionDuration(e) + 'min' : ''}
               </div>
               ${isMatch ? (()=>{
                 const conv = Array.isArray(e.convocati) ? e.convocati : [];
                 if(conv.length === 0){
-                  return `<div style="margin-top:8px;display:inline-block;padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:700;background:#FDF3E7;color:var(--amber-dark);">In attesa di convocazione</div>`;
+                  return `<div style="margin-top:8px;display:inline-block;padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:700;background:var(--amber-bg);color:var(--amber-dark);">In attesa di convocazione</div>`;
                 }
                 const io = isConvocato(e, playerId);
-                return `<div style="margin-top:8px;display:inline-block;padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:700;background:${io ? '#E3EFE7' : 'var(--clay-soft)'};color:${io ? 'var(--ok)' : '#8B3429'};">${io ? 'CONVOCATO' : 'Non convocato'}</div>`;
+                return `<div style="margin-top:8px;display:inline-block;padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:700;background:${io ? 'var(--ok-bg)' : 'var(--clay-soft)'};color:${io ? 'var(--ok)' : '#8B3429'};">${io ? 'CONVOCATO' : 'Non convocato'}</div>`;
               })() : ''}
               ${isMatch ? `<div style="font-size:11px;color:var(--amber);margin-top:4px;">${esc(e.matchType || 'Partita')}</div>` : ''}
             </div>
@@ -11689,16 +11957,16 @@ function renderPlayerCalendario(el){
           /* Regola centralizzata: vedi canEnterRPE. */
           const puoRpe = canEnterRPE(e, playerId);
           return `
-            <div style="padding:12px;background:#F9F9F9;border-radius:6px;margin-bottom:8px;">
+            <div style="padding:12px;background:var(--surface-2);border-radius:6px;margin-bottom:8px;">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
                 <div>
-                  <div style="font-weight:600;color:var(--pitch);">${esc(e.title)}</div>
+                  <div style="font-weight:600;color:var(--heading);">${esc(e.title)}</div>
                   <div style="font-size:12px;color:var(--ink-soft);">${fmtDate(e.date)}${e.time ? ' · ' + e.time : ''}${isMatch ? ' · Partita' : ''}</div>
                   ${isMatch && e.result ? `<div style="font-size:12px;color:var(--amber);font-weight:600;margin-top:4px;">${e.result.goalsFor}-${e.result.goalsAgainst}</div>` : ''}
                 </div>
                 ${puoRpe ? (rpeGia
                   ? `<div style="text-align:right;"><div style="font-size:11px;color:var(--ink-soft);">RPE inserito</div><div style="font-size:18px;font-weight:700;color:var(--amber-dark);">${rpeGia.rpe}/10</div></div>`
-                  : `<button class="player-rpe-btn" data-event-id="${e.id}" style="padding:8px 14px;background:var(--amber);color:var(--pitch);border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap;">Inserisci RPE</button>`)
+                  : `<button class="player-rpe-btn" data-event-id="${e.id}" style="padding:8px 14px;background:var(--amber);color:var(--heading);border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap;">Inserisci RPE</button>`)
                 : ''}
               </div>
             </div>
@@ -11733,7 +12001,7 @@ function renderPlayerCalendario(el){
   });
  }catch(err){
   console.error('Errore calendario giocatore:', err);
-  el.innerHTML = `<div class="page-head"><h1>Calendario</h1></div><div class="card" style="background:#F0DAD6;border:1px solid #B5473A;color:#8B3429;"><p style="margin:0;">Errore nel caricamento del calendario: ${esc(err.message)}</p></div>`;
+  el.innerHTML = `<div class="page-head"><h1>Calendario</h1></div><div class="card" style="background:var(--clay-soft);border:1px solid #B5473A;color:#8B3429;"><p style="margin:0;">Errore nel caricamento del calendario: ${esc(err.message)}</p></div>`;
  }
 }
 
@@ -11820,9 +12088,9 @@ function formStaff(membro, onDone){
   modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:flex-start;justify-content:center;z-index:10001;padding:20px;box-sizing:border-box;overflow-y:auto;';
 
   modal.innerHTML = `
-    <div style="background:white;border-radius:12px;max-width:520px;width:100%;padding:24px;margin:auto;">
+    <div style="background:var(--paper);border-radius:12px;max-width:520px;width:100%;padding:24px;margin:auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h2 style="margin:0;color:var(--pitch);">${nuovo ? 'Nuovo membro dello staff' : 'Modifica membro'}</h2>
+        <h2 style="margin:0;color:var(--heading);">${nuovo ? 'Nuovo membro dello staff' : 'Modifica membro'}</h2>
         <button id="stClose" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">&times;</button>
       </div>
 
@@ -11882,10 +12150,12 @@ function formStaff(membro, onDone){
       (STATE.staffMembers||[]).forEach(x=>{ if(x.code) presi[normalizeCode(x.code)] = true; });
       const code = generateAccessCode(presi);
       if(!code){ showToast('Errore generazione codice'); return; }
-      STATE.staffMembers.push({
+      const nuovoMembro = {
         id: uid(), name, roleKey, roleLabel: RUOLI_STAFF[roleKey].label,
         sezioni, code
-      });
+      };
+      STATE.staffMembers.push(nuovoMembro);
+      await registraCodiceGlobale(code, 'staff', nuovoMembro.id);
       showToast('Membro creato con codice ' + formatCode(code));
     } else {
       membro.name = name;
@@ -11920,18 +12190,78 @@ function bindGestioneSquadre(){
     });
   });
 
+  /* Configurazione di una squadra qualsiasi, anche senza entrarci: leggo la sua
+     configurazione, la mostro nei campi e la riscrivo dove serve. */
+  const selConfig = document.getElementById('teamConfigSel');
+  const statoConfig = document.getElementById('teamConfigStato');
+  const nomeInput = document.getElementById('teamConfigNome');
+  const profiloSel = document.getElementById('teamProfilo');
+  const spunte = ()=> Array.from(document.querySelectorAll('.team-modulo'));
+
+  const mostraConfig = (cfg, id)=>{
+    if(nomeInput) nomeInput.value = (cfg && cfg.name) || '';
+    if(profiloSel) profiloSel.value = (cfg && cfg.profilo) || 'completa';
+    spunte().forEach(chk=>{
+      const m = cfg && cfg.moduli;
+      chk.checked = (!m || typeof m[chk.dataset.modulo] === 'undefined') ? true : !!m[chk.dataset.modulo];
+    });
+    if(statoConfig) statoConfig.textContent = id === TEAM_ID
+      ? 'Stai configurando la squadra aperta.'
+      : 'Stai configurando un altra squadra senza entrarci.';
+  };
+
+  if(selConfig) selConfig.addEventListener('change', async ()=>{
+    const id = selConfig.value;
+    if(id === TEAM_ID){ mostraConfig(STATE.teamConfig, id); return; }
+    if(statoConfig) statoConfig.textContent = 'Carico la configurazione...';
+    const res = await leggiChiaveSquadra(id, 'team-config');
+    if(!res.ok){
+      if(statoConfig) statoConfig.textContent = 'Non riesco a leggere quella squadra: non salvare, ricarica.';
+      return;
+    }
+    mostraConfig(res.value || {}, id);
+  });
+
   const salva = document.getElementById('teamSaveProfiloBtn');
   if(salva) salva.addEventListener('click', async ()=>{
+    const id = selConfig ? selConfig.value : TEAM_ID;
     const moduli = {};
-    document.querySelectorAll('.team-modulo').forEach(chk=>{ moduli[chk.dataset.modulo] = chk.checked; });
-    STATE.teamConfig.profilo = (document.getElementById('teamProfilo') || {}).value || 'completa';
-    STATE.teamConfig.moduli = moduli;
-    const ok = await saveKey('team-config', STATE.teamConfig);
-    if(ok === false) return;
-    const voce = TEAMS.find(t => t.id === TEAM_ID);
-    if(voce){ voce.profilo = STATE.teamConfig.profilo; voce.name = STATE.teamConfig.name || voce.name; await salvaElencoSquadre(); }
-    showToast('Profilo squadra salvato');
+    spunte().forEach(chk=>{ moduli[chk.dataset.modulo] = chk.checked; });
+    const nome = (nomeInput && nomeInput.value.trim()) || '';
+    const profilo = (profiloSel && profiloSel.value) || 'completa';
+
+    if(id === TEAM_ID){
+      if(nome) STATE.teamConfig.name = nome;
+      STATE.teamConfig.profilo = profilo;
+      STATE.teamConfig.moduli = moduli;
+      const ok = await saveKey('team-config', STATE.teamConfig);
+      if(ok === false) return;
+    } else {
+      /* Rileggo prima di scrivere, cosi' non cancello campi che non gestisco qui */
+      const res = await leggiChiaveSquadra(id, 'team-config');
+      if(!res.ok){ showToast('Lettura fallita: non ho scritto niente'); return; }
+      const cfg = Object.assign({}, res.value || {}, {profilo, moduli});
+      if(nome) cfg.name = nome;
+      const ok = await scriviChiaveSquadra(id, 'team-config', cfg);
+      if(!ok){ showToast('Salvataggio non riuscito'); return; }
+    }
+    const voce = TEAMS.find(t => t.id === id);
+    if(voce){ voce.profilo = profilo; if(nome) voce.name = nome; await salvaElencoSquadre(); }
+    showToast(id === TEAM_ID ? 'Configurazione salvata' : 'Configurazione salvata per ' + (voce ? voce.name : id));
     render();
+  });
+
+  /* Password uguali fra squadre: senza questo, entrando in una squadra creata
+     altrove si rischia di restare chiusi fuori. */
+  const allinea = document.getElementById('teamAllineaPwdBtn');
+  if(allinea) allinea.addEventListener('click', async ()=>{
+    const id = selConfig ? selConfig.value : TEAM_ID;
+    if(id === TEAM_ID){ showToast('E la squadra aperta: le password sono gia queste'); return; }
+    const nome = (TEAMS.find(t => t.id === id) || {}).name || id;
+    if(!confirm('Copiare le password di questa squadra su "' + nome + '"? Le sue password attuali verranno sostituite.')) return;
+    const a = await scriviChiaveSquadra(id, 'admin-password', STATE.adminPassword);
+    const b = await scriviChiaveSquadra(id, 'staff-password', STATE.staffPassword);
+    showToast(a && b ? 'Password allineate su ' + nome : 'Non riuscito: controlla la connessione');
   });
 
   const crea = document.getElementById('teamCreateBtn');
@@ -11971,7 +12301,12 @@ function renderImpostazioniAdmin(el){
 
       <div style="border-top:1px solid var(--line);margin:16px 0;"></div>
 
-      <label>Profilo di <strong>${esc(squadraCorrente().name)}</strong></label>
+      <label>Configura la squadra</label>
+      <select id="teamConfigSel">${TEAMS.map(t=>`<option value="${esc(t.id)}" ${t.id===TEAM_ID?'selected':''}>${esc(t.name)}${t.id===TEAM_ID?' (aperta)':''}</option>`).join('')}</select>
+      <div id="teamConfigStato" style="font-size:11.5px;color:var(--ink-soft);margin:6px 0 10px 0;">Stai configurando la squadra aperta.</div>
+      <label>Nome</label>
+      <input id="teamConfigNome" type="text" value="${esc(STATE.teamConfig.name || '')}">
+      <label style="margin-top:10px;display:block;">Profilo</label>
       <select id="teamProfilo">
         ${Object.keys(PROFILI_SQUADRA).map(k=>`<option value="${k}" ${(STATE.teamConfig.profilo||'completa')===k?'selected':''}>${esc(PROFILI_SQUADRA[k].label)}</option>`).join('')}
       </select>
@@ -11980,7 +12315,10 @@ function renderImpostazioniAdmin(el){
         ${MODULI_SQUADRA.map(m=>`<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:6px;font-weight:400;text-transform:none;letter-spacing:0;">
           <input type="checkbox" class="team-modulo" data-modulo="${m.id}" ${moduloAttivo(m.id)?'checked':''} style="width:18px;height:18px;margin:0;"> ${esc(m.label)}</label>`).join('')}
       </div>
-      <div class="btn-row"><button class="btn" id="teamSaveProfiloBtn">Salva profilo</button></div>
+      <div class="btn-row">
+        <button class="btn" id="teamSaveProfiloBtn">Salva configurazione</button>
+        <button class="btn secondary" id="teamAllineaPwdBtn">Allinea le password a questa squadra</button>
+      </div>
 
       <div style="border-top:1px solid var(--line);margin:16px 0;"></div>
 
@@ -11994,23 +12332,23 @@ function renderImpostazioniAdmin(el){
     </div>
 
     <details style="margin-bottom:20px;border:1px solid var(--line);border-radius:8px;padding:0;overflow:hidden;">
-      <summary style="padding:14px 16px;cursor:pointer;font-weight:600;color:var(--pitch);background:var(--chalk);list-style:none;display:flex;justify-content:space-between;align-items:center;">
+      <summary style="padding:14px 16px;cursor:pointer;font-weight:600;color:var(--heading);background:var(--chalk);list-style:none;display:flex;justify-content:space-between;align-items:center;">
         <span>Guida rapida — backup e ripristino</span>
         <span style="font-size:11px;color:var(--ink-soft);font-weight:400;">tocca per aprire</span>
       </summary>
       <div style="padding:16px;font-size:13px;line-height:1.6;color:var(--ink-soft);">
-        <p style="margin:0 0 12px 0;"><strong style="color:var(--pitch);">L'app si salva da sola.</strong> Ogni 15 minuti, quando chiudi la pagina e prima di ogni operazione delicata, viene creato un punto di ripristino su questo dispositivo. Non devi fare niente.</p>
+        <p style="margin:0 0 12px 0;"><strong style="color:var(--heading);">L'app si salva da sola.</strong> Ogni 15 minuti, quando chiudi la pagina e prima di ogni operazione delicata, viene creato un punto di ripristino su questo dispositivo. Non devi fare niente.</p>
 
-        <p style="margin:0 0 6px 0;font-weight:600;color:var(--pitch);">Se qualcosa va perso o inserito per sbaglio</p>
+        <p style="margin:0 0 6px 0;font-weight:600;color:var(--heading);">Se qualcosa va perso o inserito per sbaglio</p>
         <p style="margin:0 0 12px 0;">Scendi al riquadro <strong>Backup automatico</strong>, scegli un punto <em>prima</em> del problema guardando data e ora, premi <strong>Ripristina</strong>. Lo stato di adesso viene comunque conservato, quindi puoi anche tornare indietro se sbagli punto.</p>
 
-        <p style="margin:0 0 6px 0;font-weight:600;color:var(--pitch);">La copia di sicurezza vera</p>
+        <p style="margin:0 0 6px 0;font-weight:600;color:var(--heading);">La copia di sicurezza vera</p>
         <p style="margin:0 0 12px 0;">I punti automatici vivono solo in questo browser. Una volta a settimana premi <strong>Scarica backup completo</strong>: ottieni un file da conservare (mail a te stesso, chiavetta, cloud). Se il computer si rompe o si cancella la cronologia, quel file e l'unico modo per recuperare tutto. L'app ti ricorda da sola quando e ora di scaricarlo.</p>
 
-        <p style="margin:0 0 6px 0;font-weight:600;color:var(--pitch);">Per ripristinare da un file</p>
+        <p style="margin:0 0 6px 0;font-weight:600;color:var(--heading);">Per ripristinare da un file</p>
         <p style="margin:0 0 12px 0;">Riquadro <strong>Backup e ripristino</strong> → <strong>Ripristina da backup</strong> → scegli il file. Funziona anche da un altro computer.</p>
 
-        <p style="margin:0;padding:10px;background:var(--chalk);border-radius:6px;"><strong style="color:var(--pitch);">Consiglio:</strong> prova adesso a freddo. Premi <strong>Salva ora</strong> e poi <strong>Ripristina</strong> sullo stesso punto: non cambia niente, ma impari dove sono i pulsanti prima che serva davvero.</p>
+        <p style="margin:0;padding:10px;background:var(--chalk);border-radius:6px;"><strong style="color:var(--heading);">Consiglio:</strong> prova adesso a freddo. Premi <strong>Salva ora</strong> e poi <strong>Ripristina</strong> sullo stesso punto: non cambia niente, ma impari dove sono i pulsanti prima che serva davvero.</p>
       </div>
     </details>
 
@@ -12032,7 +12370,7 @@ function renderImpostazioniAdmin(el){
                 ${code
                   ? `<button class="code-copy" data-player-id="${p.id}" style="background:none;border:1px solid var(--line);border-radius:4px;padding:4px 9px;font-size:11px;cursor:pointer;">Copia</button>
                      <button class="code-regen" data-player-id="${p.id}" style="background:none;border:1px solid var(--line);border-radius:4px;padding:4px 9px;font-size:11px;cursor:pointer;color:var(--clay);">Rigenera</button>`
-                  : `<button class="code-gen" data-player-id="${p.id}" style="background:var(--amber);border:none;border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;color:var(--pitch);font-weight:600;">Genera</button>`}
+                  : `<button class="code-gen" data-player-id="${p.id}" style="background:var(--amber);border:none;border-radius:4px;padding:4px 10px;font-size:11px;cursor:pointer;color:var(--heading);font-weight:600;">Genera</button>`}
               </div>
             </div>`;
         }).join('')}
@@ -12056,12 +12394,12 @@ function renderImpostazioniAdmin(el){
             <div style="border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:8px;">
               <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap;">
                 <div style="flex:1;min-width:160px;">
-                  <div style="font-size:13.5px;font-weight:700;color:var(--pitch);">${esc(m.name)}</div>
+                  <div style="font-size:13.5px;font-weight:700;color:var(--heading);">${esc(m.name)}</div>
                   <div style="font-size:11px;color:var(--ink-soft);">${esc(m.roleLabel || 'Staff')}</div>
                   <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">Accesso: ${sez.length ? sez.join(', ') : 'nessuna sezione'}</div>
                 </div>
                 <div style="text-align:right;">
-                  <div style="font-family:monospace;font-size:18px;letter-spacing:0.1em;font-weight:700;color:var(--pitch);">${m.code ? formatCode(m.code) : '—'}</div>
+                  <div style="font-family:monospace;font-size:18px;letter-spacing:0.1em;font-weight:700;color:var(--heading);">${m.code ? formatCode(m.code) : '—'}</div>
                   <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;justify-content:flex-end;">
                     <button class="staff-copy" data-id="${m.id}" style="background:none;border:1px solid var(--line);border-radius:4px;padding:4px 9px;font-size:11px;cursor:pointer;">Copia</button>
                     <button class="staff-edit" data-id="${m.id}" style="background:none;border:1px solid var(--line);border-radius:4px;padding:4px 9px;font-size:11px;cursor:pointer;">Modifica</button>
@@ -12114,8 +12452,8 @@ function renderImpostazioniAdmin(el){
         dal log CR10, dal 21 luglio al 2 settembre. Durata sessione assunta: 65 minuti.
       </p>
       <div style="background:var(--chalk);border-radius:6px;padding:10px;font-size:11.5px;color:var(--ink-soft);margin-bottom:12px;">
-        Stato attuale: <strong style="color:var(--pitch);">${STATE.players.length} giocatori</strong> in rosa,
-        <strong style="color:var(--pitch);">${STATE.rpeLog.length} RPE</strong> registrati.
+        Stato attuale: <strong style="color:var(--heading);">${STATE.players.length} giocatori</strong> in rosa,
+        <strong style="color:var(--heading);">${STATE.rpeLog.length} RPE</strong> registrati.
         ${STATE.rpeLog.filter(r=>{const pl=STATE.players.find(x=>String(x.id)===String(r.playerId)); return !pl;}).length > 0
           ? '<br><span style="color:var(--clay);font-weight:600;">Attenzione: ' + STATE.rpeLog.filter(r=>!STATE.players.find(x=>String(x.id)===String(r.playerId))).length + ' RPE non risultano collegati a nessun giocatore.</span>'
           : ''}
@@ -12206,19 +12544,19 @@ function renderImpostazioniAdmin(el){
           Cancella partite, allenamenti, RPE, wellness e dolori.
           <strong>Mantiene</strong> la rosa, i codici di accesso e le esercitazioni.
         </div>
-        <button class="btn secondary" id="resetSeasonBtn" style="background:#F0DAD6;border-color:#B5473A;color:#8B3429;font-size:12px;">Azzera la stagione</button>
+        <button class="btn secondary" id="resetSeasonBtn" style="background:var(--clay-soft);border-color:#B5473A;color:#8B3429;font-size:12px;">Azzera la stagione</button>
       </div>
 
       <div style="border:1px solid var(--line);border-radius:6px;padding:12px;margin-bottom:10px;">
         <div style="font-size:12.5px;font-weight:600;margin-bottom:4px;">Elimina solo le partite (${STATE.events.filter(e=>e.type==='Partita').length})</div>
         <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">Rimuove risultati, formazioni, gol e minutaggi. Gli allenamenti restano.</div>
-        <button class="btn secondary" id="deleteAllMatchesBtn" style="background:#F0DAD6;border-color:#B5473A;color:#8B3429;font-size:12px;">Elimina partite</button>
+        <button class="btn secondary" id="deleteAllMatchesBtn" style="background:var(--clay-soft);border-color:#B5473A;color:#8B3429;font-size:12px;">Elimina partite</button>
       </div>
 
       <div style="border:1px solid var(--line);border-radius:6px;padding:12px;">
         <div style="font-size:12.5px;font-weight:600;margin-bottom:4px;">Cancella tutto</div>
         <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;">Riporta l'applicazione allo stato iniziale, rosa e codici compresi.</div>
-        <button class="btn secondary" id="wipeAllBtn" style="background:#B5473A;border-color:#B5473A;color:white;font-size:12px;">Cancella tutti i dati</button>
+        <button class="btn secondary" id="wipeAllBtn" style="background:var(--clay);border-color:#B5473A;color:white;font-size:12px;">Cancella tutti i dati</button>
       </div>
     </div>
   `;;
