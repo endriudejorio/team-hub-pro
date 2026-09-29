@@ -481,7 +481,7 @@ async function scriviChiaveSquadra(teamId, key, value){
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '3.6';
+const APP_VERSION = '3.7';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -2208,10 +2208,16 @@ function playerLoadStats(playerId){
 }
 
 /* Voci valide (nuova scala 1-7) di un giocatore, dalla piu' recente */
+/* Ordine delle liste: prima i piu' recenti. A parita' di giorno vale l'ordine di
+   inserimento, che l'id conserva perche' comincia con l'orario di creazione. */
+function piuRecentiPrima(a, b){
+  const d = String(b.date || '').localeCompare(String(a.date || ''));
+  return d !== 0 ? d : String(b.id || '').localeCompare(String(a.id || ''));
+}
 function getHooperEntries(playerId){
   return STATE.hooperLog
     .filter(h => h.playerId === playerId && !isLegacyHooper(h))
-    .sort((a,b) => String(b.date).localeCompare(String(a.date)));
+    .sort(piuRecentiPrima);
 }
 
 function getLatestHooperIndex(playerId){
@@ -4663,8 +4669,8 @@ function showPlayerReport(playerId){
   const hooper = getHooperEntries(playerId);
   const trend = getHooperTrend(playerId, 7);
   const latest = getLatestHooperIndex(playerId);
-  const rpe = STATE.rpeLog.filter(r => String(r.playerId)===String(playerId)).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
-  const pain = STATE.painLog.filter(x => String(x.playerId)===String(playerId)).sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const rpe = STATE.rpeLog.filter(r => String(r.playerId)===String(playerId)).sort(piuRecentiPrima);
+  const pain = STATE.painLog.filter(x => String(x.playerId)===String(playerId)).sort(piuRecentiPrima);
 
   const season = getSeasonStats(playerId);
   const att = getTrainingAttendance(playerId);
@@ -9662,6 +9668,202 @@ function bindDifferenziatoInline(modal, eventId){
   });
 }
 
+/* ============================================================
+   IMPORTAZIONE CALENDARIO
+   Il browser non puo' leggere il contenuto di un altro sito: glielo vieta una
+   regola di sicurezza. Quindi non si "pesca" dal sito della lega, si incolla.
+   Qui leggo il testo incollato, riconosco data, ora, avversario, casa o
+   trasferta ed eventuale risultato, e mostro una anteprima da confermare:
+   niente viene creato prima che tu lo abbia visto.
+   ============================================================ */
+
+function _senzaAccenti(s){
+  return String(s || '').toLowerCase()
+    .replace(/[àáâä]/g,'a').replace(/[èéêë]/g,'e').replace(/[ìíîï]/g,'i')
+    .replace(/[òóôö]/g,'o').replace(/[ùúûü]/g,'u')
+    .replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+}
+
+/* Due nomi si riferiscono alla stessa squadra? Confronto morbido: i siti
+   scrivono "A.S.D. Alense" o "Alense Calcio", tu scrivi "Alense". */
+function _stessaSquadra(a, b){
+  const x = _senzaAccenti(a), y = _senzaAccenti(b);
+  if(!x || !y) return false;
+  if(x === y) return true;
+  const parole = w => w.split(' ').filter(p => p.length > 3 &&
+    ['asd','ssd','polisportiva','calcio','football','club','sport','associazione','societa','squadra','under'].indexOf(p) === -1);
+  const px = parole(x), py = parole(y);
+  if(!px.length || !py.length) return x.indexOf(y) !== -1 || y.indexOf(x) !== -1;
+  return px.some(p => py.some(q => p === q || (p.length > 4 && q.indexOf(p) !== -1) || (q.length > 4 && p.indexOf(q) !== -1)));
+}
+
+/* Anno della stagione: da luglio in poi la stagione e' quella che inizia adesso */
+function _annoStagione(mese){
+  const oggi = new Date(todayStr() + 'T00:00:00');
+  const annoBase = oggi.getMonth() + 1 >= 7 ? oggi.getFullYear() : oggi.getFullYear() - 1;
+  return mese >= 7 ? annoBase : annoBase + 1;
+}
+
+function analizzaRigaCalendario(rigaOriginale, nomeSquadra){
+  let riga = String(rigaOriginale || '').replace(/\t/g, ' ').replace(/\s+/g, ' ').trim();
+  if(riga.length < 5) return null;
+
+  /* 1) Data: giorno e mese separati da / - . con anno facoltativo */
+  const mData = riga.match(/(\b\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?\b/);
+  if(!mData) return null;
+  const giorno = parseInt(mData[1], 10), mese = parseInt(mData[2], 10);
+  if(!(giorno >= 1 && giorno <= 31 && mese >= 1 && mese <= 12)) return null;
+  let anno = mData[3] ? parseInt(mData[3], 10) : _annoStagione(mese);
+  if(anno < 100) anno += 2000;
+  const data = anno + '-' + String(mese).padStart(2,'0') + '-' + String(giorno).padStart(2,'0');
+  riga = riga.replace(mData[0], ' ');
+
+  /* 2) Risultato: due numeri col trattino in fondo alla riga */
+  let gf = null, gs = null;
+  const mRis = riga.match(/(\d{1,2})\s*[-–—]\s*(\d{1,2})\s*$/);
+  if(mRis){
+    gf = parseInt(mRis[1], 10); gs = parseInt(mRis[2], 10);
+    riga = riga.slice(0, riga.length - mRis[0].length);
+  }
+
+  /* 3) Ora */
+  let ora = '';
+  const mOra = riga.match(/\b(\d{1,2})[:.](\d{2})\b/);
+  if(mOra){
+    const h = parseInt(mOra[1], 10), m = parseInt(mOra[2], 10);
+    if(h <= 23 && m <= 59){ ora = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0'); riga = riga.replace(mOra[0], ' '); }
+  }
+
+  /* 4) Rumore: numero di giornata, giorni della settimana, parole di servizio */
+  riga = riga
+    .replace(/\b\d{1,2}\s*[ªa°]\s*giornata\b/gi, ' ')
+    .replace(/\bgiornata\b/gi, ' ')
+    .replace(/\b(lun|mar|mer|gio|ven|sab|dom)[a-zà-ù]*\b/gi, ' ')
+    .replace(/\bore\b/gi, ' ')
+    .replace(/\s+/g, ' ').trim();
+
+  /* 5) Le due squadre */
+  const parti = riga.split(/\s+(?:[-–—]|vs\.?|contro)\s+/i).map(s => s.trim()).filter(Boolean);
+  if(!parti.length) return null;
+
+  let casa = null, avversario = '';
+  if(parti.length >= 2){
+    const noi = _stessaSquadra(parti[0], nomeSquadra), loro = _stessaSquadra(parti[1], nomeSquadra);
+    if(noi && !loro){ casa = true; avversario = parti[1]; }
+    else if(loro && !noi){ casa = false; avversario = parti[0]; }
+    else { casa = null; avversario = parti[1]; }   /* nome non riconosciuto: decidi tu */
+  } else {
+    casa = null; avversario = parti[0];
+  }
+  avversario = avversario.replace(/\s+/g,' ').trim();
+  if(!avversario || avversario.length < 2) return null;
+
+  return {data, ora, casa, avversario, gf, gs, riga: String(rigaOriginale).trim()};
+}
+
+function analizzaCalendario(testo, nomeSquadra){
+  const righe = String(testo || '').split(/\r?\n/);
+  const partite = [], scartate = [];
+  righe.forEach(r => {
+    if(String(r).trim().length < 5) return;
+    const p = analizzaRigaCalendario(r, nomeSquadra);
+    if(p) partite.push(p); else scartate.push(String(r).trim());
+  });
+  return {partite, scartate};
+}
+
+function apriImportCalendario(onDone){
+  const modal = document.createElement('div');
+  modal.id = 'importCalModal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;box-sizing:border-box;overflow-y:auto;';
+  modal.innerHTML = `
+    <div style="background:var(--paper);border-radius:12px;max-width:720px;width:100%;padding:22px;margin:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h2 style="margin:0;color:var(--heading);font-size:18px;">Importa il calendario</h2>
+        <button id="icClose" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">&times;</button>
+      </div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:10px;">
+        Copia il calendario dal sito della lega e incollalo qui: una partita per riga. Riconosco data, ora, avversario, casa o trasferta ed eventuale risultato. Prima di creare qualcosa ti mostro l anteprima.
+      </div>
+      <textarea id="icTesto" rows="7" placeholder="Esempio:&#10;1ª giornata 14/09/2026 15:30 Alense - Villazzano 2-1&#10;21/09/2026 15:30 Mori Santo Stefano - Alense" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:6px;font-family:inherit;font-size:12.5px;"></textarea>
+      <div class="btn-row" style="margin-top:10px;"><button class="btn secondary" id="icAnalizza">Analizza</button></div>
+      <div id="icAnteprima" style="margin-top:12px;"></div>
+      <div class="btn-row" style="margin-top:14px;">
+        <button class="btn" id="icConferma" style="display:none;">Aggiungi le partite selezionate</button>
+        <button class="btn secondary" id="icClose2">Chiudi</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  let trovate = [];
+  const chiudi = ()=> modal.remove();
+  document.getElementById('icClose').addEventListener('click', chiudi);
+  document.getElementById('icClose2').addEventListener('click', chiudi);
+
+  document.getElementById('icAnalizza').addEventListener('click', ()=>{
+    const nomeSquadra = STATE.teamConfig.name || 'Squadra';
+    const res = analizzaCalendario(document.getElementById('icTesto').value, nomeSquadra);
+    trovate = res.partite;
+    const box = document.getElementById('icAnteprima');
+    const conferma = document.getElementById('icConferma');
+    if(!trovate.length){
+      conferma.style.display = 'none';
+      box.innerHTML = '<div style="font-size:12.5px;color:var(--clay);padding:10px;">Non ho riconosciuto nessuna partita. Serve almeno una data per riga, per esempio 14/09 oppure 14/09/2026.</div>';
+      return;
+    }
+    box.innerHTML = `
+      <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:6px;">${trovate.length} partite riconosciute${res.scartate.length ? ' · ' + res.scartate.length + ' righe ignorate' : ''}. Controlla casa e trasferta dove non ero sicuro.</div>
+      <div style="max-height:300px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;">
+        ${trovate.map((p, i)=>{
+          const gia = STATE.events.some(e => e.type === 'Partita' && e.date === p.data && _stessaSquadra(e.opponent || '', p.avversario));
+          return `<div style="display:grid;grid-template-columns:auto 76px 1fr 108px auto;gap:8px;align-items:center;padding:7px 8px;border-bottom:1px solid var(--line);font-size:12px;">
+            <input type="checkbox" class="ic-chk" data-idx="${i}" ${gia ? '' : 'checked'} style="width:17px;height:17px;margin:0;">
+            <span style="white-space:nowrap;">${fmtDate(p.data)}</span>
+            <span style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(p.avversario)}${p.gf !== null ? ' <span style="color:var(--ink-soft);">' + p.gf + '-' + p.gs + '</span>' : ''}${gia ? ' <span style="color:var(--amber-dark);font-size:10.5px;">gia in calendario</span>' : ''}</span>
+            <select class="ic-casa" data-idx="${i}" style="padding:4px;font-size:11.5px;">
+              <option value="home" ${p.casa === true ? 'selected' : ''}>In casa</option>
+              <option value="away" ${p.casa === false ? 'selected' : ''}>In trasferta</option>
+            </select>
+            <span style="color:var(--ink-soft);white-space:nowrap;">${p.ora || '—'}</span>
+          </div>`;
+        }).join('')}
+      </div>
+      ${res.scartate.length ? `<details style="margin-top:8px;"><summary style="font-size:11.5px;color:var(--ink-soft);cursor:pointer;">Righe che non ho capito (${res.scartate.length})</summary>
+        <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">${res.scartate.slice(0,12).map(r=>esc(r)).join('<br>')}</div></details>` : ''}`;
+    conferma.style.display = '';
+  });
+
+  document.getElementById('icConferma').addEventListener('click', async ()=>{
+    const scelte = Array.from(modal.querySelectorAll('.ic-chk')).filter(c => c.checked).map(c => parseInt(c.dataset.idx, 10));
+    if(!scelte.length){ showToast('Non hai selezionato niente'); return; }
+    const teamName = STATE.teamConfig.name || 'Squadra';
+    const creati = [];
+    scelte.forEach(i => {
+      const p = trovate[i];
+      const sel = modal.querySelector('.ic-casa[data-idx="' + i + '"]');
+      const position = sel ? sel.value : 'home';
+      const title = position === 'home' ? (teamName + ' - ' + p.avversario) : (p.avversario + ' - ' + teamName);
+      const ev = {
+        id: uid(), date: p.data, time: p.ora || '', title: title, type: 'Partita',
+        matchType: 'Campionato', opponent: p.avversario, position: position,
+        result: (p.gf !== null && p.gs !== null) ? {goalsFor: p.gf, goalsAgainst: p.gs} : null,
+        events: [], lineup: [], duration: 90,
+        convocati: [], starters: [], formationSlots: {}, substitutions: [], redCards: []
+      };
+      STATE.events.push(ev);
+      creati.push(ev);
+    });
+    const ok = await saveKey('events', STATE.events);
+    if(ok === false){
+      creati.forEach(ev => { STATE.events = STATE.events.filter(x => x.id !== ev.id); });
+      return;
+    }
+    showToast(creati.length === 1 ? 'Partita aggiunta' : creati.length + ' partite aggiunte');
+    chiudi();
+    if(onDone) onDone();
+  });
+}
+
 function renderCalendario(el){
   const isStaff = STATE.role==='staff' || STATE.role==='admin';
   const upcoming = STATE.events.slice().filter(e=>e.id !== 'rpe-import-session').sort((a,b)=>String(a.date).localeCompare(String(b.date)));
@@ -9679,7 +9881,10 @@ function renderCalendario(el){
   const dayNamesShort = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
   
   el.innerHTML = `
-    <div class="page-head"><h1>Calendario</h1><p>${STATE.teamConfig.name || 'Squadra'}</p></div>
+    <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;">
+      <div><h1>Calendario</h1><p>${STATE.teamConfig.name || 'Squadra'}</p></div>
+      ${isStaff ? '<button class="btn secondary" id="importCalBtn" style="font-size:12px;padding:8px 14px;">Importa calendario</button>' : ''}
+    </div>
     
     <!-- STRISCIA 5 GIORNI SCORREVOLE (partite + allenamenti) -->
     <div class="card" style="margin-bottom:24px;">
@@ -10108,6 +10313,9 @@ function renderCalendario(el){
     STATE.calendarMonth = {year: t.getFullYear(), month: t.getMonth()};
     renderCalendario(el);
   });
+
+  const importCalBtn = document.getElementById('importCalBtn');
+  if(importCalBtn) importCalBtn.addEventListener('click', ()=> apriImportCalendario(()=> renderCalendario(el)));
 
   // Navigazione striscia 5 giorni
   const stripPrev = document.getElementById('stripPrevBtn');
@@ -10967,9 +11175,9 @@ function renderWellness(el){
     const hooper = getLatestHooperIndex(STATE.currentPlayerId);
     const today = todayStr();
     const hooperToday = STATE.hooperLog.find(h=>h.playerId===STATE.currentPlayerId && h.date===today);
-    const rpeEntries = STATE.rpeLog.filter(r=>r.playerId===STATE.currentPlayerId).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
-    const painEntries = STATE.painLog.filter(p=>p.playerId===STATE.currentPlayerId).sort((a,b)=>b.date.localeCompare(a.date));
-    const hooperEntries = STATE.hooperLog.filter(h=>h.playerId===STATE.currentPlayerId).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+    const rpeEntries = STATE.rpeLog.filter(r=>r.playerId===STATE.currentPlayerId).sort(piuRecentiPrima).slice(0,10);
+    const painEntries = STATE.painLog.filter(p=>p.playerId===STATE.currentPlayerId).sort(piuRecentiPrima);
+    const hooperEntries = STATE.hooperLog.filter(h=>h.playerId===STATE.currentPlayerId).sort(piuRecentiPrima).slice(0,10);
     
     const me = STATE.players.find(p=>p.id===STATE.currentPlayerId);
     const todayEvent = getTodayWorkout();
