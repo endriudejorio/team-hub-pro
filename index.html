@@ -481,7 +481,7 @@ async function scriviChiaveSquadra(teamId, key, value){
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '3.5';
+const APP_VERSION = '3.6';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -2594,8 +2594,10 @@ function renderLogin(el){
           <label>Password amministratore</label>
           <input id="adminPassword" type="password" placeholder="Inserisci password">
           <button class="login-btn" id="adminLoginBtn">Accedi come admin</button>
-          <div style="text-align:center;margin-top:20px;font-size:11px;">
+          <div style="text-align:center;margin-top:20px;font-size:11px;display:flex;gap:12px;justify-content:center;">
             <button id="playerToggleBtn2" style="background:none;border:none;color:var(--ink-soft);cursor:pointer;text-transform:uppercase;">← Giocatore</button>
+            <span style="color:#555;">|</span>
+            <button id="staffToggleBtn2" style="background:none;border:none;color:var(--ink-soft);cursor:pointer;text-transform:uppercase;">Staff</button>
           </div>
         </div>
       </div>
@@ -2618,10 +2620,34 @@ function renderLogin(el){
     mostra('playerForm', iniziale === 'playerForm');
     mostra('staffForm',  iniziale === 'staffForm');
     mostra('adminForm',  iniziale === 'adminForm');
-    const nascondiRiga = id=>{ const b = document.getElementById(id); if(b && b.parentNode) b.parentNode.style.display = 'none'; };
-    if(!puoGiocatore){ nascondiRiga('playerToggleBtn'); nascondiRiga('playerToggleBtn2'); }
-    if(!puoStaff) nascondiRiga('staffToggleBtn');
+    /* Nascondo il singolo pulsante, non la riga: "Giocatore" e "Admin" stanno
+       nella stessa riga, e nascondendola sparirebbe anche l'accesso admin,
+       lasciando chi apre l'app senza alcuna via d'uscita. */
+    const nascondiPulsante = id=>{
+      const b = document.getElementById(id);
+      if(!b) return;
+      b.style.display = 'none';
+      const dopo = b.nextElementSibling, prima = b.previousElementSibling;
+      if(dopo && dopo.tagName === 'SPAN') dopo.style.display = 'none';
+      else if(prima && prima.tagName === 'SPAN') prima.style.display = 'none';
+    };
+    if(!puoGiocatore){ nascondiPulsante('playerToggleBtn'); nascondiPulsante('playerToggleBtn2'); }
+    if(!puoStaff){ nascondiPulsante('staffToggleBtn'); nascondiPulsante('staffToggleBtn2'); }
+    /* L'accesso amministratore resta sempre raggiungibile, qualunque sia la
+       configurazione della squadra. */
+    ['adminToggleBtn','adminToggleBtn2'].forEach(id=>{
+      const b = document.getElementById(id);
+      if(b) b.style.display = '';
+    });
   })();
+
+  const staffToggleBtn2 = document.getElementById('staffToggleBtn2');
+  if(staffToggleBtn2) staffToggleBtn2.addEventListener('click', (e)=>{
+    e.preventDefault();
+    document.getElementById('playerForm').style.display = 'none';
+    document.getElementById('staffForm').style.display = 'block';
+    document.getElementById('adminForm').style.display = 'none';
+  });
 
   document.getElementById('staffToggleBtn').addEventListener('click', (e)=>{
     e.preventDefault();
