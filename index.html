@@ -481,7 +481,7 @@ async function scriviChiaveSquadra(teamId, key, value){
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '3.9';
+const APP_VERSION = '4.3';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -1232,12 +1232,12 @@ const ATHLETIC_PARAMS = {
   'Forza massima': {fields: ['exercise', 'series', 'reps', 'kg', 'recovery']},
   'Forza esplosiva e pliometria': {fields: ['series', 'reps', 'kg', 'recovery']},
   'Forza resistente': {fields: ['series', 'minutes', 'recovery']},
-  'Speed & Agility (Velocità pura)': {fields: ['series', 'ripetute', 'distance', 'lavoroSec', 'recuperoSec', 'recovery']},
-  'Cambi di direzione (COD)': {fields: ['series', 'ripetute', 'distance', 'lavoroSec', 'recuperoSec', 'recovery']},
+  'Speed & Agility (Velocità pura)': {fields: ['series', 'ripetute', 'distance', 'navettaM', 'lavoroSec', 'recuperoSec', 'recovery']},
+  'Cambi di direzione (COD)': {fields: ['series', 'ripetute', 'distance', 'navettaM', 'lavoroSec', 'recuperoSec', 'recovery']},
   'Resistenza aerobica a secco': {fields: ['minutes', 'ripetute', 'distance', 'lavoroSec', 'recuperoSec', 'intensita'], groups: true},
-  'Potenza metabolica ed High-Intensity Interval Training (HIIT)': {fields: ['series', 'ripetute', 'minutesPerSeries', 'intensita', 'distance', 'lavoroSec', 'recuperoSec', 'recovery'], groups: true},
-  'Lavoro intermittente': {fields: ['series', 'ripetute', 'minutesPerSeries', 'intensita', 'distance', 'lavoroSec', 'recuperoSec', 'recovery'], groups: true},
-  'Differenziato': {fields: ['series', 'ripetute', 'minutesPerSeries', 'intensita', 'distance', 'lavoroSec', 'recuperoSec', 'recovery'], groups: true},
+  'Potenza metabolica ed High-Intensity Interval Training (HIIT)': {fields: ['series', 'ripetute', 'minutesPerSeries', 'intensita', 'distance', 'navettaM', 'lavoroSec', 'recuperoSec', 'recovery'], groups: true},
+  'Lavoro intermittente': {fields: ['series', 'ripetute', 'minutesPerSeries', 'intensita', 'distance', 'navettaM', 'lavoroSec', 'recuperoSec', 'recovery'], groups: true},
+  'Differenziato': {fields: ['series', 'ripetute', 'minutesPerSeries', 'intensita', 'distance', 'navettaM', 'lavoroSec', 'recuperoSec', 'recovery'], groups: true},
   'Rigenerazione e scarico (Recovery)': {fields: ['minutes']},
   'Test del Lattato (Test di Mader)': {fields: ['description']},
   'Yo-Yo Intermittent Recovery Test': {fields: ['description']},
@@ -1262,8 +1262,29 @@ const CAMPI_ESERCITAZIONE = {
   recuperoSec:      {label:'Recupero fra le ripetute (sec)',  min:0,  max:1200, def:''},
   recovery:         {label:'Recupero fra le serie (min)',     min:0,  max:60,   def:1},
   kg:               {label:'Carico medio (kg)',               min:0,  max:500,  def:'', step:'0.5'},
-  intensita:        {label:'Intensita (% VAM)',               min:30, max:130,  def:''}
+  intensita:        {label:'Intensita (% VAM)',               min:30, max:130,  def:''},
+  /* Stima dell'intensita' nel lavoro tecnico e nelle partitelle: non e' una
+     prescrizione, e' una previsione basata su quanto corrono di solito. */
+  mMin:             {label:'Metri per minuto stimati',        min:0,  max:250,  def:''},
+  mMinHI:           {label:'Metri alta intensita per minuto', min:0,  max:120,  def:''},
+  accDecMin:        {label:'Acc/dec per minuto',              min:0,  max:30,   def:''},
+  navettaM:         {label:'Lunghezza navetta (m)',            min:2,  max:200,  def:''}
 };
+/* Riferimento per calcolare la velocita' bersaglio.
+   VIFT: velocita' finale del 30-15, che e' un test intermittente a navetta,
+   quindi comprende gia' pause e cambi di direzione. E' il riferimento corretto
+   per il lavoro intermittente. VAM: velocita' aerobica massimale stimata, adatta
+   alla corsa continua in linea. */
+const RIFERIMENTI_VELOCITA = {VAM: 'VAM (corsa continua)', VIFT: 'VIFT (intermittente)'};
+/* Ogni inversione a 180 gradi costa tempo: decelerare, girare, riaccelerare.
+   In letteratura il costo e' nell'ordine del mezzo secondo o poco piu' per
+   cambio; il valore e' modificabile perche' dipende da eta', superficie e
+   ampiezza della navetta. */
+const COSTO_COD_DEFAULT = 0.7;
+function costoCambioDirezione(){
+  const v = Number(STATE && STATE.teamConfig && STATE.teamConfig.costoCOD);
+  return (v >= 0 && v <= 3) ? v : COSTO_COD_DEFAULT;
+}
 function campoEsercitazioneHTML(nome, valore){
   const m = CAMPI_ESERCITAZIONE[nome];
   if(!m) return '';
@@ -2147,6 +2168,301 @@ function numOr(v, def){
   const x = Number(v);
   return (isFinite(x) && x > 0) ? x : (def || 0);
 }
+/* ============================================================
+   ANTEPRIMA DEL LAVORO
+   Mentre scrivi la prescrizione mostra cosa ne esce: durata, volume totale,
+   metri ad alta intensita' e, per i lavori a tempo, quanto percorre ogni
+   gruppo VAM. I lavori si comportano in modo diverso e vanno trattati diversi:
+   a distanza (sprint, cambi di direzione) i metri sono uguali per tutti e a
+   cambiare e' il tempo; a tempo (aerobico, intermittente) il tempo e' uguale
+   per tutti e a cambiare sono i metri, perche' dipendono dalla VAM di ciascuno.
+   ============================================================ */
+
+/* Soglia oltre la quale considero i metri "ad alta intensita'".
+   Sopra il 90% della VAM si e' nell'intorno della soglia di corsa veloce. */
+const SOGLIA_ALTA_INTENSITA_VAM = 90;
+
+/* Rosa divisa per VAM, come il differenziato: stessi criteri, stessi nomi */
+function gruppiVamRosa(){
+  const atleti = STATE.players
+    .filter(p => !isPortiere(p))
+    .map(p => {
+      const t = playerTestHistory(p.id, TEST_VIFT)[0];
+      return (t && t.value > 0) ? {p, vift: t.value, vam: vamDaVift(t.value)} : null;
+    })
+    .filter(Boolean)
+    .sort((a,b) => b.vam - a.vam);
+  if(!atleti.length) return [];
+  const nomi = ['Rosso','Giallo','Blu'];
+  const k = atleti.length >= 7 ? 3 : atleti.length >= 4 ? 2 : 1;
+  const base = Math.floor(atleti.length / k), resto = atleti.length % k;
+  const gruppi = [];
+  let i = 0;
+  for(let g = 0; g < k; g++){
+    const quanti = base + (g < resto ? 1 : 0);
+    const membri = atleti.slice(i, i + quanti); i += quanti;
+    if(!membri.length) continue;
+    const vals = membri.map(x => x.vam);
+    const valsVift = membri.map(x => x.vift);
+    gruppi.push({
+      nome: k === 1 ? 'Squadra' : nomi[g],
+      n: membri.length,
+      viftMedia: Math.round((valsVift.reduce((s,v)=>s+v,0) / valsVift.length) * 10) / 10,
+      vamMedia: Math.round((vals.reduce((s,v)=>s+v,0) / vals.length) * 10) / 10,
+      vamMin: Math.round(Math.min.apply(null, vals) * 10) / 10,
+      vamMax: Math.round(Math.max.apply(null, vals) * 10) / 10
+    });
+  }
+  return gruppi;
+}
+
+/* Che tipo di lavoro e', ai fini del calcolo del volume */
+function tipoLavoro(w){
+  if(!w) return 'altro';
+  if(w.category === 'Tecnico-tattico') return 'tecnico';
+  const campi = (ATHLETIC_PARAMS[w.type] || {}).fields || [];
+  const haIntensita = campi.indexOf('intensita') !== -1;
+  /* Una distanza prescritta a percentuale di VAM e' un lavoro aerobico con la
+     distanza fissa: li' il tempo cambia da gruppo a gruppo e si puo' calcolare.
+     Senza percentuale (sprint, cambi di direzione) si corre al massimo, e la VAM
+     non predice il tempo: e' una qualita' diversa e il conto non sarebbe lecito. */
+  if(numOr(w.distance, 0) > 0) return haIntensita ? 'tempo' : 'distanza';
+  if(haIntensita) return 'tempo';
+  if(campi.indexOf('kg') !== -1) return 'forza';
+  return 'altro';
+}
+
+/* Ripetute per serie: scritte, oppure ricavate dal tempo della serie */
+function ripetutePerSerie(w){
+  const scritte = numOr(w.ripetute, 0);
+  if(scritte > 0) return scritte;
+  const ciclo = numOr(w.lavoroSec, 0) + numOr(w.recuperoSec, 0);
+  const minSerie = numOr(w.minutesPerSeries, 0);
+  if(ciclo > 0 && minSerie > 0) return Math.floor(minSerie * 60 / ciclo);
+  return 0;
+}
+
+function anteprimaLavoro(w){
+  const tipo = tipoLavoro(w);
+  const serie = numOr(w.series, 1);
+  const rip = ripetutePerSerie(w);
+  const lavoro = numOr(w.lavoroSec, 0), riposo = numOr(w.recuperoSec, 0);
+  const pct = numOr(w.intensita, 0);
+  const durata = calcWorkoutDuration(w);
+  const avvisi = [];
+  const righe = [];
+  let metri = 0, metriHI = 0, note = '';
+
+  if(tipo === 'tempo'){
+    const dist = numOr(w.distance, 0);
+    /* Navetta: dentro una ripetuta di 60 m fatta su navette da 20 ci sono due
+       inversioni, e ognuna costa tempo. Quel tempo non e' corsa, quindi a parita'
+       di secondi la distanza percorsa e' minore. */
+    const navetta = numOr(w.navettaM, 0);
+    const costoCod = costoCambioDirezione();
+    const riferimento = (w.riferimento === 'VIFT' || (navetta > 0 && !w.riferimento)) ? 'VIFT' : 'VAM';
+    const nCod = (navetta > 0 && dist > navetta) ? Math.max(0, Math.round(dist / navetta) - 1) : 0;
+    /* Quante inversioni si pagano davvero dipende dal riferimento:
+       con la VAM, che viene da un test in linea, si paga ogni inversione;
+       con la VIFT no, perche' il 30-15 e' gia' un test a navette da 40 m e quel
+       costo e' dentro il numero. Si paga solo cio' che eccede quel formato. */
+    const NAVETTA_TEST = 40;
+    const codDaPagare = (nInversioni, distanza) => {
+      if(!(nInversioni > 0)) return 0;
+      if(riferimento !== 'VIFT') return nInversioni;
+      const nelTest = Math.max(0, Math.round(distanza / NAVETTA_TEST) - 1);
+      return Math.max(0, nInversioni - nelTest);
+    };
+    /* Il riferimento: la VIFT viene da un test intermittente a navetta, quindi
+       comprende gia' il costo delle inversioni. */
+
+    if(!(pct > 0) && !(dist > 0 && lavoro > 0)) avvisi.push('Manca l intensita in percentuale di VAM: senza quella non posso calcolare ne metri ne tempi.');
+    if(!(rip > 0) && !(numOr(w.minutes, 0) > 0)) avvisi.push('Mancano le ripetute, oppure i secondi di lavoro e recupero da cui ricavarle.');
+    const gruppi = gruppiVamRosa();
+    if(!gruppi.length) avvisi.push('Nessun atleta ha un 30-15 registrato: i gruppi non si possono calcolare.');
+
+    /* Tre modi di prescrivere lo stesso lavoro:
+       1. secondi e percentuale -> ricavo i metri, diversi per gruppo
+       2. metri e percentuale   -> ricavo i secondi, diversi per gruppo
+       3. metri e secondi       -> ricavo a che percentuale della VAM sta ciascun gruppo */
+    const modo = (dist > 0 && lavoro > 0) ? 'verifica' : (dist > 0 ? 'metriFissi' : 'tempoFisso');
+
+    gruppi.forEach(g => {
+      const base = riferimento === 'VIFT' ? (g.viftMedia || g.vamMedia) : g.vamMedia;
+      const vms = base * pct / 100 / 3.6;
+      let mRip = 0, mTot = 0, secRip = null, pctReale = null, codRipetuta = nCod;
+      let vKmh = Math.round(base * pct / 100 * 10) / 10;
+      if(modo === 'tempoFisso'){
+        /* Tolgo dal tempo di lavoro i secondi spesi nelle inversioni: quelli non
+           producono metri. Con la navetta scritta, i metri calano di conseguenza. */
+        /* Quante inversioni ci stanno nei secondi disponibili dipende da quanta
+           strada si fa, che e' quello che sto calcolando: ci arrivo per tentativi,
+           tre passaggi bastano a stabilizzarsi. */
+        let secCorsa = lavoro, inversioni = 0;
+        if(navetta > 0 && lavoro > 0){
+          for(let it = 0; it < 4; it++){
+            secCorsa = Math.max(1, lavoro - codDaPagare(inversioni, vms * secCorsa) * costoCod);
+            inversioni = Math.max(0, Math.floor(vms * secCorsa / navetta));
+          }
+          codRipetuta = inversioni;
+        }
+        if(rip > 0 && lavoro > 0){ mRip = Math.round(vms * secCorsa); mTot = mRip * rip * serie; }
+        else if(numOr(w.minutes, 0) > 0){ mTot = Math.round(numOr(w.minutes, 0) * 60 * vms); }
+        secRip = lavoro || null;
+      } else if(modo === 'metriFissi'){
+        mRip = dist;
+        mTot = Math.round(dist * (rip || 1) * serie);
+        /* Sui metri fissi le inversioni si pagano in tempo: servono piu' secondi */
+        secRip = vms > 0 ? Math.round((dist / vms + codDaPagare(nCod, dist) * costoCod) * 10) / 10 : null;
+      } else {
+        mRip = dist;
+        mTot = Math.round(dist * (rip || 1) * serie);
+        secRip = lavoro;
+        /* Nella verifica scorporo il tempo delle inversioni, altrimenti la
+           velocita' risulta piu' bassa di quella davvero richiesta in corsa. */
+        const secCorsa = Math.max(1, lavoro - codDaPagare(nCod, dist) * costoCod);
+        const vRichiesta = dist / secCorsa * 3.6;
+        pctReale = Math.round(vRichiesta / base * 100);
+        vKmh = Math.round(vRichiesta * 10) / 10;
+      }
+      righe.push({gruppo: g.nome, n: g.n, vam: g.vamMedia, range: g.vamMin + '-' + g.vamMax,
+                  velocita: vKmh, perRipetuta: mRip, secondi: secRip, pctReale: pctReale,
+                  inversioni: codRipetuta, totale: mTot});
+    });
+
+    if(righe.length){
+      metri = Math.round(righe.reduce((s,r)=>s+r.totale,0) / righe.length);
+      const pctRif = modo === 'verifica'
+        ? Math.max.apply(null, righe.map(r => r.pctReale || 0))
+        : pct;
+      if(pctRif >= SOGLIA_ALTA_INTENSITA_VAM) metriHI = metri;
+    }
+
+    /* Ripetute molto brevi: nei primi secondi si accelera, non si va a velocita'
+       costante, quindi la conversione fra tempo e distanza non e' affidabile. */
+    if(lavoro > 0 && lavoro < 6) avvisi.push('Ripetute sotto i 6 secondi: gran parte del tempo e accelerazione, la conversione fra secondi e metri non e attendibile.');
+    if(modo !== 'tempoFisso' && dist > 0 && dist < 40) avvisi.push('Distanze sotto i 40 metri: il tempo calcolato dalla VAM sottostima quello reale, perche non tiene conto della partenza.');
+    if(modo === 'verifica'){
+      const fuori = righe.filter(r => r.pctReale && (r.pctReale < 70 || r.pctReale > 115));
+      if(fuori.length) avvisi.push('Per ' + fuori.map(r=>r.gruppo.toLowerCase()).join(' e ') + ' questa prescrizione esce dalla fascia utile (70-115% della VAM).');
+    }
+
+    const invMostrate = righe.length ? (righe[0].inversioni || 0) : 0;
+    if(navetta > 0 && invMostrate > 0){
+      const pagate = codDaPagare(invMostrate, righe[0].perRipetuta * (righe[0].perRipetuta ? 1 : 0) || dist);
+      avvisi.push('Navetta da ' + navetta + ' m: circa ' + invMostrate + ' inversioni per ripetuta' +
+        (pagate > 0 ? ', ' + Math.round(pagate * costoCod * 10) / 10 + '" scontati per i cambi di direzione' : ', gia comprese nel riferimento VIFT') + '.');
+    }
+    if(navetta > 0 && dist > 0 && nCod === 0) avvisi.push('La distanza della ripetuta non supera la navetta: nessuna inversione conteggiata.');
+    if(riferimento === 'VIFT') avvisi.push('Riferimento VIFT: il 30-15 e gia un test intermittente su navette da 40 m, quindi il costo delle inversioni e in parte gia dentro il valore.');
+
+    note = modo === 'tempoFisso'
+      ? (rip > 0 && lavoro > 0 ? serie + ' serie da ' + rip + ' ripetute di ' + lavoro + '" con ' + riposo + '" di recupero' : 'lavoro continuo')
+      : modo === 'metriFissi'
+        ? serie + ' serie da ' + (rip || 1) + ' ripetute di ' + dist + ' m al ' + pct + '% VAM: il tempo cambia per gruppo'
+        : serie + ' serie da ' + (rip || 1) + ' ripetute di ' + dist + ' m in ' + lavoro + '": verifica di che percentuale sia per ciascun gruppo';
+  }
+
+  else if(tipo === 'distanza'){
+    const dist = numOr(w.distance, 0);
+    const ripD = rip || 1;
+    metri = Math.round(serie * ripD * dist);
+    metriHI = metri;   /* sprint e cambi di direzione sono per definizione ad alta intensita' */
+    note = serie + ' serie da ' + ripD + ' ripetute di ' + dist + ' m';
+    const gruppi = gruppiVamRosa();
+    gruppi.forEach(g => {
+      righe.push({gruppo: g.nome, n: g.n, vam: g.vamMedia, range: g.vamMin + '-' + g.vamMax,
+                  velocita: null, perRipetuta: dist, totale: metri});
+    });
+    if(righe.length) avvisi.push('Nella corsa a distanza i metri sono uguali per tutti: a cambiare e il tempo di percorrenza, non il volume.');
+    if(riposo > 0 && lavoro > 0) note += ', rapporto lavoro-recupero 1:' + (Math.round(riposo / lavoro * 10) / 10);
+  }
+
+  else if(tipo === 'tecnico'){
+    const minutiLavoro = serie * numOr(w.minutesPerSeries, 0) || numOr(w.minutes, 0);
+    const mMin = numOr(w.mMin, 0), mMinHI = numOr(w.mMinHI, 0), accDec = numOr(w.accDecMin, 0);
+    if(!(minutiLavoro > 0)) avvisi.push('Mancano serie e minuti per serie.');
+    if(!(mMin > 0) && !(mMinHI > 0)) avvisi.push('Inserisci i metri per minuto stimati per avere la previsione del lavoro.');
+    metri = Math.round(mMin * minutiLavoro);
+    metriHI = Math.round(mMinHI * minutiLavoro);
+    note = minutiLavoro + ' minuti effettivi di gioco';
+    righe.push({gruppo: 'Per atleta', n: numOr(w.totalPlayers, 0), vam: null, range: '',
+                velocita: null, perRipetuta: null, totale: metri,
+                extra: (accDec > 0 ? Math.round(accDec * minutiLavoro) + ' acc/dec' : '')});
+  }
+
+  else if(tipo === 'forza'){
+    note = numOr(w.series,0) + ' serie da ' + numOr(w.reps,0) + ' ripetizioni';
+  }
+
+  return {tipo, durata, metri, metriHI, righe, note, avvisi, stimato: tipo === 'tecnico'};
+}
+
+function anteprimaLavoroHTML(w){
+  const a = anteprimaLavoro(w);
+  if(a.tipo === 'altro') return '';
+  const riquadro = (etichetta, valore, nota) => `
+    <div style="flex:1;min-width:92px;padding:8px;background:var(--surface-2);border-radius:6px;">
+      <div style="font-size:10px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;">${etichetta}</div>
+      <div style="font-size:17px;font-weight:700;color:var(--heading);">${valore}</div>
+      ${nota ? `<div style="font-size:10px;color:var(--ink-soft);">${nota}</div>` : ''}
+    </div>`;
+
+  return `
+    <div style="margin-top:16px;padding:12px;border:1px solid var(--line);border-radius:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px;">
+        <h4 style="margin:0;font-size:13px;color:var(--heading);">Previsione del lavoro</h4>
+        <span style="font-size:10.5px;color:var(--ink-soft);">${esc(a.note)}</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        ${riquadro('Durata', a.durata + "'", 'recuperi inclusi')}
+        ${riquadro(a.stimato ? 'Volume stimato' : 'Volume prescritto', a.metri ? a.metri + ' m' : '—', a.stimato ? 'per atleta' : 'medio di squadra')}
+        ${riquadro('Alta intensita', a.metriHI ? a.metriHI + ' m' : '—', a.tipo === 'tempo' ? 'oltre il ' + SOGLIA_ALTA_INTENSITA_VAM + '% VAM' : a.tipo === 'distanza' ? 'tutta la distanza' : 'stimati')}
+      </div>
+      ${a.righe.length ? `
+        <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:11.5px;">
+          <tr style="color:var(--ink-soft);text-align:left;">
+            <th style="font-weight:600;padding:3px 0;">Gruppo</th>
+            <th style="font-weight:600;">VAM</th>
+            <th style="font-weight:600;">Velocita</th>
+            <th style="font-weight:600;">Per ripetuta</th>
+            <th style="font-weight:600;">Tempo</th>
+            <th style="font-weight:600;text-align:right;">Totale</th>
+          </tr>
+          ${a.righe.map(r => `<tr style="border-top:1px solid var(--line);">
+            <td style="padding:4px 0;">${esc(r.gruppo)}${r.n ? ' <span style="color:var(--ink-soft);">(' + r.n + ')</span>' : ''}</td>
+            <td>${r.vam !== null ? r.vam + ' km/h' : '—'}</td>
+            <td>${r.velocita !== null ? r.velocita + ' km/h' : '—'}</td>
+            <td>${r.perRipetuta ? r.perRipetuta + ' m' : '—'}</td>
+            <td>${r.secondi ? r.secondi + '"' : '—'}${r.pctReale ? ' <span style="color:' + (r.pctReale < 70 || r.pctReale > 115 ? 'var(--clay)' : 'var(--ink-soft)') + ';">' + r.pctReale + '% VAM</span>' : ''}</td>
+            <td style="text-align:right;font-weight:700;color:var(--heading);">${r.totale ? r.totale + ' m' : '—'}${r.extra ? ' <span style="font-weight:400;color:var(--ink-soft);">· ' + esc(r.extra) + '</span>' : ''}</td>
+          </tr>`).join('')}
+        </table>` : ''}
+      ${a.avvisi.length ? `<div style="margin-top:8px;font-size:11px;color:var(--amber-dark);">${a.avvisi.map(x=>esc(x)).join('<br>')}</div>` : ''}
+    </div>`;
+}
+
+/* Legge dal form i campi che servono all'anteprima, senza salvare niente */
+function esercitazioneDaForm(){
+  const v = id => { const e = document.getElementById(id); return e ? e.value : ''; };
+  const categoria = v('workoutCategory'), tipo = v('workoutType');
+  return {
+    category: categoria, type: tipo,
+    series: v('wSeries'), ripetute: v('wRipetute'), reps: v('wReps'),
+    minutes: v('wMinutes'), minutesPerSeries: v('wMinutesPerSeries'),
+    distance: v('wDistance'), lavoroSec: v('wLavoroSec'), recuperoSec: v('wRecuperoSec'),
+    recovery: v('wRecovery'), intensita: v('wIntensita'), kg: v('wKg'),
+    mMin: v('wMMin'), mMinHI: v('wMMinHI'), accDecMin: v('wAccDecMin'),
+    navettaM: v('wNavettaM'), riferimento: v('wRiferimento'),
+    totalPlayers: v('wTotalPlayers')
+  };
+}
+function aggiornaAnteprimaLavoro(){
+  const box = document.getElementById('anteprimaLavoroBox');
+  if(!box) return;
+  box.innerHTML = anteprimaLavoroHTML(esercitazioneDaForm());
+}
+
 function calcWorkoutDuration(workout){
   if(!workout) return 0;
   const daPrescrizione = durataPrescrizione(workout);
@@ -8327,6 +8643,7 @@ function renderAllenamenti(el){
           <div><label>Con portieri</label><input id="wWithGoalkeepers" type="checkbox"></div>
         </div>
         <div id="wTeamsPlayersDiv"></div>
+        <div id="anteprimaLavoroBoxTecnico"></div>
         <div class="grid2" style="margin-top:12px;">
           <div><label>Totale giocatori (auto)</label><input id="wTotalPlayers" type="number" readonly></div>
           <div></div>
@@ -8338,6 +8655,17 @@ function renderAllenamenti(el){
         <div class="grid2" style="margin-top:12px;">
           <div><label>Metri quadri/giocatore (auto)</label><input id="wSquareMetersPerPlayer" type="number" readonly></div>
           <div></div>
+        </div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">
+          <div style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;">Stima dell intensita, per la previsione del lavoro. Lasciali vuoti se non li conosci.</div>
+          <div class="grid2">
+            <div><label>Metri per minuto stimati</label><input id="wMMin" type="number" min="0" max="250" placeholder="es. 95"></div>
+            <div><label>Metri alta intensita per minuto</label><input id="wMMinHI" type="number" min="0" max="120" placeholder="es. 12"></div>
+          </div>
+          <div class="grid2">
+            <div><label>Acc/dec per minuto</label><input id="wAccDecMin" type="number" min="0" max="30" placeholder="es. 2"></div>
+            <div></div>
+          </div>
         </div>
         <div class="grid2" style="margin-top:12px;">
           <div><label>Serie</label><input id="wSeries" type="number" min="1" value="1"></div>
@@ -8440,6 +8768,7 @@ function renderAllenamenti(el){
       }else{
         paramsDiv.innerHTML = '';
       }
+      paramsDiv.innerHTML += '<div id="anteprimaLavoroBox"></div>';
       
       // Add groups section for aerobic workouts
       if(params.groups){
@@ -8561,6 +8890,13 @@ function renderAllenamenti(el){
   
   updateTypeOptions();
 
+  /* L'anteprima si aggiorna a ogni tasto: e' il modo piu' rapido per capire se
+     i numeri che stai scrivendo danno il lavoro che avevi in mente. */
+  paramsDiv.addEventListener('input', aggiornaAnteprimaLavoro);
+  paramsDiv.addEventListener('change', aggiornaAnteprimaLavoro);
+  if(typeSelect) typeSelect.addEventListener('change', ()=> setTimeout(aggiornaAnteprimaLavoro, 0));
+  if(categorySelect) categorySelect.addEventListener('change', ()=> setTimeout(aggiornaAnteprimaLavoro, 0));
+
   const copiaEsercBtn = document.getElementById('copiaEsercBtn');
   if(copiaEsercBtn) copiaEsercBtn.addEventListener('click', ()=> apriCopiaEsercitazioni(()=> renderAllenamenti(el)));
 
@@ -8586,6 +8922,9 @@ function renderAllenamenti(el){
       workout.series = parseInt(document.getElementById('wSeries').value)||1;
       workout.minutesPerSeries = parseInt(document.getElementById('wMinutesPerSeries').value)||1;
       workout.recovery = parseInt(document.getElementById('wRecovery').value)||0;
+      workout.mMin = parseFloat((document.getElementById('wMMin')||{}).value) || null;
+      workout.mMinHI = parseFloat((document.getElementById('wMMinHI')||{}).value) || null;
+      workout.accDecMin = parseFloat((document.getElementById('wAccDecMin')||{}).value) || null;
     }else if(category==='Atletico'){
       const params = ATHLETIC_PARAMS[type] || {fields: []};
       if(params.fields.includes('exercise')) workout.exercise = document.getElementById('wExercise').value;
@@ -8597,6 +8936,8 @@ function renderAllenamenti(el){
       if(params.fields.includes('ripetute')) workout.ripetute = parseInt((document.getElementById('wRipetute')||{}).value, 10) || null;
       if(params.fields.includes('kg')) workout.kg = parseFloat((document.getElementById('wKg')||{}).value) || null;
       if(params.fields.includes('intensita')) workout.intensita = parseInt((document.getElementById('wIntensita')||{}).value, 10) || null;
+      if(params.fields.includes('navettaM')) workout.navettaM = parseInt((document.getElementById('wNavettaM')||{}).value, 10) || null;
+      workout.riferimento = (document.getElementById('wRiferimento')||{}).value || null;
       if(params.fields.includes('lavoroSec')) workout.lavoroSec = parseInt((document.getElementById('wLavoroSec')||{}).value, 10) || null;
       if(params.fields.includes('recuperoSec')) workout.recuperoSec = parseInt((document.getElementById('wRecuperoSec')||{}).value, 10) || null;
       if(params.fields.includes('recovery')) workout.recovery = parseInt(document.getElementById('wRecovery').value)||0;
@@ -8670,7 +9011,9 @@ function renderEditWorkoutModal(workout){
       
       ${(()=>{
         const params = ATHLETIC_PARAMS[workout.type];
-        const campi = (workout.category === 'Atletico' && params) ? (params.fields || []) : ['series','minutesPerSeries','recovery'];
+        const campi = (workout.category === 'Atletico' && params)
+          ? (params.fields || [])
+          : ['series','minutesPerSeries','recovery','mMin','mMinHI','accDecMin'];
         const modificabili = campi.filter(f => CAMPI_ESERCITAZIONE[f]);
         if(!modificabili.length) return '';
         return `<div style="margin-bottom:16px;">
