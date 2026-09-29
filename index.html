@@ -481,7 +481,7 @@ async function scriviChiaveSquadra(teamId, key, value){
 
 /* Versione del file. Da incrementare ad ogni consegna cosi' si vede nella schermata
    di login se il sito ha caricato la versione giusta. */
-const APP_VERSION = '3.7';
+const APP_VERSION = '3.9';
 
 // Inizializza Firebase quando gli SDK sono pronti
 function initFirebase(){
@@ -2936,7 +2936,7 @@ function showAcwrDetail(){
     rows: conDati.filter(x=> zone.indexOf(x.a.zone) !== -1).map(x=>({
       playerId: x.p.id,
       name: x.p.name,
-      sub: 'carico settimana ' + x.a.acute + ' UA · media 4 settimane ' + x.a.chronicWeekly + ' UA',
+      sub: 'carico acuto ' + x.a.acute + ' UA · media 4 settimane ' + x.a.chronicWeekly + ' UA',
       value: x.a.ratio,
       color: x.a.color,
       valueSub: x.a.label
@@ -2959,7 +2959,7 @@ function showAcwrDetail(){
       gruppo('Scarico o fermi', ['low','none'], 'var(--amber-dark)'),
       {title:'Portieri (a parte, non nella media)', color:'var(--pitch)', rows: portieriDati.map(x=>({
         playerId: x.p.id, name: x.p.name,
-        sub: 'carico settimana ' + x.a.acute + ' UA · media 4 settimane ' + x.a.chronicWeekly + ' UA',
+        sub: 'carico acuto ' + x.a.acute + ' UA · media 4 settimane ' + x.a.chronicWeekly + ' UA',
         value: x.a.ratio, color: x.a.color, valueSub: x.a.label
       }))},
       {title:'Dati insufficienti', color:'var(--ink-soft)', rows: pochiDati.map(x=>({
@@ -3530,7 +3530,7 @@ function renderDashboardProgrammazione(el){
     </div>
 
     <div class="card">
-      <h3>Prossime sedute</h3>
+      <h3>Sedute programmate</h3>
       ${settimana.length === 0 ? '<div class="empty">Nessuna seduta nei prossimi 7 giorni.</div>' :
         settimana.map(e => `
           <div class="prog-sessione" data-event-id="${esc(e.id)}" style="display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:9px 10px;background:var(--surface-2);border-radius:6px;margin-bottom:6px;cursor:pointer;">
@@ -3558,6 +3558,197 @@ function renderDashboardProgrammazione(el){
     const ev = STATE.events.find(e => String(e.id) === String(r.dataset.eventId));
     if(ev) renderAllenamentoDetails(ev);
   }));
+}
+
+/* ============================================================
+   MONITORAGGIO INDIVIDUALE
+   Una riga per atleta, non una per segnale: chi ha dolore, wellness sotto la
+   propria media e ACWR alto e' una sola persona da valutare, non tre avvisi.
+   Le soglie del wellness sono relative alla baseline personale (mediana delle
+   ultime quattro settimane): un punteggio alto per chi sta sempre alto non e'
+   un'informazione, uno scostamento lo e'.
+   ============================================================ */
+const MONIT_FINESTRA_BASELINE = 28;    /* giorni per la baseline personale */
+const MONIT_FINESTRA_RICORRENZA = 14;  /* giorni su cui conto le ricorrenze */
+const MONIT_SOGLIA = 15;               /* sotto questo punteggio non lo mostro */
+
+function _mediana(valori){
+  if(!valori.length) return null;
+  const v = valori.slice().sort((a,b)=>a-b);
+  const m = Math.floor(v.length/2);
+  return v.length % 2 ? v[m] : (v[m-1]+v[m])/2;
+}
+
+/* Baseline personale del wellness: mediana dei punteggi Hooper recenti, esclusa
+   la rilevazione di oggi. Sotto le 6 rilevazioni non e' affidabile e lo dico. */
+function baselineWellness(playerId){
+  const oggi = todayStr();
+  const punti = getHooperEntries(playerId)
+    .filter(h => h.date !== oggi && daysSince(h.date) <= MONIT_FINESTRA_BASELINE)
+    .map(h => hooperScore(h));
+  return {valore: _mediana(punti), n: punti.length, affidabile: punti.length >= 6};
+}
+
+/* Valutazione di un singolo atleta: punteggio di priorita' e segnali per dominio */
+function valutazioneAtleta(playerId){
+  const p = STATE.players.find(x => String(x.id) === String(playerId));
+  if(!p) return null;
+  const segnali = [];
+  let punti = 0;
+
+  /* --- Sintomatologia --- */
+  (getOpenPainIssues(playerId) || []).forEach(issue => {
+    const inten = Number(issue.lastIntensity) || 0;
+    const giorni = issue.days;
+    const peso = 40 + inten * 4 + (issue.direction > 0 ? 10 : 0);
+    punti += peso;
+    segnali.push({
+      dominio: 'Sintomatologia', gravita: inten >= 6 ? 'alta' : inten >= 4 ? 'media' : 'bassa',
+      testo: esc(issue.zone) + ' ' + inten + '/10' + (issue.direction > 0 ? ', in aumento' : issue.direction < 0 ? ', in calo' : ''),
+      quando: giorni === 0 ? 'oggi' : 'da ' + giorni + (giorni === 1 ? ' giorno' : ' giorni')
+    });
+  });
+
+  /* --- Wellness: scostamento dalla baseline personale --- */
+  const ultimo = getLatestHooperIndex(playerId);
+  if(ultimo){
+    const base = baselineWellness(playerId);
+    const gg = daysSince(ultimo.date);
+    if(base.valore !== null && base.affidabile){
+      const delta = ultimo.score - base.valore;           /* punteggio piu' alto = peggio */
+      if(delta >= 4){
+        const peso = delta >= 8 ? 35 : delta >= 6 ? 24 : 14;
+        punti += peso;
+        segnali.push({
+          dominio: 'Wellness', gravita: delta >= 8 ? 'alta' : delta >= 6 ? 'media' : 'bassa',
+          testo: 'Hooper ' + ultimo.score + '/28 contro una media personale di ' + Math.round(base.valore) + ' (' + hooperPercent(ultimo.score) + '% di freschezza)',
+          quando: gg === 0 ? 'oggi' : gg === 1 ? 'ieri' : 'da ' + gg + ' giorni'
+        });
+      }
+    } else if(ultimo.score >= 21){
+      /* Senza storico sufficiente ricado sulla soglia assoluta, e lo dichiaro */
+      punti += 18;
+      segnali.push({
+        dominio: 'Wellness', gravita: ultimo.score >= 23 ? 'alta' : 'media',
+        testo: 'Hooper ' + ultimo.score + '/28 (soglia assoluta: baseline personale non ancora disponibile, ' + base.n + ' rilevazioni)',
+        quando: gg === 0 ? 'oggi' : 'da ' + gg + ' giorni'
+      });
+    }
+  }
+
+  /* --- Carico interno --- */
+  const acwr = getACWR(playerId);
+  if(acwr && !acwr.insufficient){
+    if(acwr.zone === 'high' || acwr.zone === 'warn'){
+      punti += acwr.zone === 'high' ? 25 : 12;
+      segnali.push({
+        dominio: 'Carico interno', gravita: acwr.zone === 'high' ? 'alta' : 'media',
+        testo: 'ACWR ' + acwr.ratio + ' (' + acwr.label + '), acuto ' + acwr.acute + ' UA contro cronico ' + acwr.chronicWeekly + ' UA',
+        quando: 'ultimi 7 giorni'
+      });
+    }
+  }
+
+  /* --- Disponibilita' --- */
+  if(p.status === 'RTP' || p.status === 'In rientro' || p.status === 'In valutazione'){
+    punti += 18;
+    segnali.push({
+      dominio: 'Disponibilita', gravita: 'media',
+      testo: statusMeta(p.status).label + (p.returnDate ? ', rientro previsto ' + fmtDate(p.returnDate) : ''),
+      quando: 'in corso'
+    });
+  }
+  if(p.returnDate && daysSince(p.returnDate) > 0 && p.status !== 'Disponibile'){
+    punti += 20;
+    segnali.push({
+      dominio: 'Disponibilita', gravita: 'alta',
+      testo: 'Data di rientro superata di ' + daysSince(p.returnDate) + (daysSince(p.returnDate) === 1 ? ' giorno' : ' giorni'),
+      quando: 'scaduta'
+    });
+  }
+
+  /* --- Ricorrenza: quante giornate distinte con un segnale nelle ultime due settimane --- */
+  const base = baselineWellness(playerId);
+  const giorniSegnalati = {};
+  (STATE.painLog || []).forEach(x => {
+    if(String(x.playerId) === String(playerId) && daysSince(x.date) <= MONIT_FINESTRA_RICORRENZA) giorniSegnalati[x.date] = true;
+  });
+  if(base.valore !== null){
+    getHooperEntries(playerId).forEach(h => {
+      if(daysSince(h.date) <= MONIT_FINESTRA_RICORRENZA && hooperScore(h) - base.valore >= 4) giorniSegnalati[h.date] = true;
+    });
+  }
+  const ricorrenza = Object.keys(giorniSegnalati).length;
+  if(ricorrenza > 1) punti += Math.min(15, (ricorrenza - 1) * 5);
+
+  return {player: p, punti: Math.round(punti), segnali, ricorrenza};
+}
+
+/* Chi non compila: non e' una criticita' clinica, e' un buco nei dati.
+   Sta in un blocco separato per non seppellire le criticita' vere. */
+function atletiSenzaDati(){
+  const oggi = todayStr();
+  return STATE.players.filter(p => {
+    if(p.status === 'Infortunato') return false;
+    const ultimo = getHooperEntries(p.id)[0];
+    if(!ultimo) return true;
+    return daysSince(ultimo.date) >= 4;
+  }).map(p => {
+    const ultimo = getHooperEntries(p.id)[0];
+    return {player: p, giorni: ultimo ? daysSince(ultimo.date) : null};
+  });
+}
+
+function monitoraggioIndividuale(limite){
+  const valutazioni = STATE.players
+    .map(p => valutazioneAtleta(p.id))
+    .filter(v => v && v.punti >= MONIT_SOGLIA && v.segnali.length)
+    .sort((a,b) => b.punti - a.punti);
+  return valutazioni.slice(0, limite || 6);
+}
+
+function renderMonitoraggioHTML(limite){
+  const lista = monitoraggioIndividuale(limite);
+  const senzaDati = atletiSenzaDati();
+  const coloreGravita = g => g === 'alta' ? 'var(--clay)' : g === 'media' ? 'var(--amber-dark)' : 'var(--ink-soft)';
+
+  const schede = lista.map(v => {
+    const perDominio = {};
+    v.segnali.forEach(s => { (perDominio[s.dominio] = perDominio[s.dominio] || []).push(s); });
+    const gravitaMax = v.segnali.some(s => s.gravita === 'alta') ? 'alta'
+                     : v.segnali.some(s => s.gravita === 'media') ? 'media' : 'bassa';
+    return `
+      <div class="monit-card" data-player-id="${v.player.id}" style="border:1px solid var(--line);border-left:4px solid ${coloreGravita(gravitaMax)};border-radius:8px;padding:12px;margin-bottom:10px;cursor:pointer;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px;">
+          <div style="font-size:14px;font-weight:700;color:var(--heading);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(v.player.name)}
+            <span style="font-size:11px;font-weight:400;color:var(--ink-soft);">${esc(v.player.role || '')}</span></div>
+          <div style="text-align:right;white-space:nowrap;">
+            <span style="font-size:11px;color:var(--ink-soft);">indice ${v.punti}</span>
+            ${v.ricorrenza > 1 ? `<div style="font-size:10.5px;color:var(--amber-dark);">${v.ricorrenza} giornate segnalate su ${MONIT_FINESTRA_RICORRENZA}</div>` : ''}
+          </div>
+        </div>
+        ${Object.keys(perDominio).map(dom => `
+          <div style="display:grid;grid-template-columns:104px 1fr;gap:8px;padding:4px 0;border-top:1px solid var(--line);">
+            <div style="font-size:10.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;padding-top:2px;">${esc(dom)}</div>
+            <div>${perDominio[dom].map(s => `<div style="font-size:12.5px;color:${coloreGravita(s.gravita)};">${s.testo}
+              <span style="color:var(--ink-soft);font-size:11px;">· ${esc(s.quando)}</span></div>`).join('')}</div>
+          </div>`).join('')}
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h3 style="margin:0;">Monitoraggio individuale</h3>
+        <span style="font-size:11px;color:var(--ink-soft);">${lista.length ? lista.length + ' atleti in valutazione' : 'nessuna segnalazione'}</span>
+      </div>
+      ${lista.length ? schede : '<div style="font-size:12.5px;color:var(--ink-soft);">Nessun atleta supera la soglia di segnalazione.</div>'}
+      ${senzaDati.length ? `
+        <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px;">
+          <div style="font-size:10.5px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;">Dati non disponibili</div>
+          <div style="font-size:11.5px;color:var(--ink-soft);">${senzaDati.map(x => esc(x.player.name) + (x.giorni === null ? ' (nessuna rilevazione)' : ' (' + x.giorni + 'gg)')).join(' · ')}</div>
+        </div>` : ''}
+    </div>`;
 }
 
 function renderDashboardCompleta(el){
@@ -3662,24 +3853,7 @@ function renderDashboardCompleta(el){
       </div>
     ` : ''}
 
-    ${alerts.length > 0 ? `
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-          <h3 style="margin:0;">Da controllare</h3>
-          <span style="font-size:11px;color:${urgenti ? 'var(--clay)' : 'var(--ink-soft)'};font-weight:600;">${urgenti ? urgenti + ' urgent' + (urgenti===1?'e':'i') + ' su ' : ''}${alerts.length}</span>
-        </div>
-        <div class="alerts">
-          ${alerts.slice(0,6).map(a=>`
-            <div class="alert" data-player-id="${a.playerId}" style="border-left-color:${a.color};">
-              <div style="flex:1;min-width:0;">
-                <div class="alert-t">${esc(a.text)}</div>
-                <div class="alert-s">${esc(a.sub)}</div>
-              </div>
-            </div>`).join('')}
-        </div>
-        ${alerts.length > 6 ? `<div style="font-size:11px;color:var(--ink-soft);margin-top:10px;">Altri ${alerts.length-6} avvisi nella Rosa.</div>` : ''}
-      </div>
-    ` : ''}
+    ${renderMonitoraggioHTML(6)}
 
     <div class="grid2">
       <div class="card">
@@ -3841,20 +4015,10 @@ function renderDashboardMister(el){
         value: urgenti.length,
         color: 'var(--clay)',
         note: 'da controllare oggi'
-      }) : tileHTML({label:'Tutto ok', accent:'var(--ok)', value:'—', note:'nessuna urgenza'})}
+      }) : tileHTML({label:'Nessuna segnalazione', accent:'var(--ok)', value:'—', note:'nessun atleta oltre soglia'})}
     </div>
 
-    ${urgenti.length > 0 ? `
-      <div class="card" style="border-left:3px solid var(--clay);">
-        <h3 style="color:var(--clay);">Da controllare oggi</h3>
-        ${urgenti.map(a=>`
-          <div class="alert-row" ${a.playerId?`data-player-id="${a.playerId}" style="cursor:pointer;"`:''}>
-            <div style="font-weight:600;font-size:13px;">${esc(a.text)}</div>
-            ${a.sub ? `<div style="font-size:11px;color:var(--ink-soft);">${esc(a.sub)}</div>` : ''}
-          </div>
-        `).join('')}
-      </div>
-    ` : ''}
+    ${renderMonitoraggioHTML(4)}
 
     ${lastMatch ? `
       <div class="card">
@@ -3899,6 +4063,9 @@ function renderDashboardMister(el){
   el.querySelectorAll('[data-player-id]').forEach(row=>{
     row.addEventListener('click', ()=> showPlayerReport(row.dataset.playerId));
   });
+  el.querySelectorAll('.monit-card').forEach(card=>{
+    card.addEventListener('click', ()=> showPlayerReport(card.dataset.playerId));
+  });
 }
 
 /* ---------- DASHBOARD PREPARATORE ATLETICO ----------
@@ -3931,42 +4098,32 @@ function renderDashboardPreparatore(el){
         color: acwrMedio !== null ? (acwrMedio > 1.3 ? 'var(--clay)' : acwrMedio < 0.8 ? 'var(--amber-dark)' : 'var(--ok)') : 'var(--ink-soft)',
         note: acwrRischio.length ? acwrRischio.length + ' in rischio o salita' : 'nessun rischio', id:'tileAcwr'
       })}
-      ${tileHTML({label:'Wellness oggi', accent:'var(--pitch)',
+      ${tileHTML({label:'Wellness rilevato oggi', accent:'var(--pitch)',
         value: w.avgOggi !== null ? Math.round((100-((w.avgOggi-4)/24)*100)) + '<span style="font-size:14px;">%</span>' : '—',
         color: w.bandOggi ? w.bandOggi.color : 'var(--ink-soft)',
         note: w.compilatiOggi + '/' + w.attesiOggi + ' compilati', id:'tileWellness'
       })}
-      ${tileHTML({label:'Non compila da >3gg', accent:'var(--clay)',
+      ${tileHTML({label:'Rilevazioni mancanti', accent:'var(--clay)',
         value: w.nonCompilanti.length,
         color: w.nonCompilanti.length ? 'var(--clay)' : 'var(--ok)',
-        note: w.nonCompilanti.length ? 'da sollecitare' : 'tutti in regola'
+        note: w.nonCompilanti.length ? 'nessuna rilevazione recente' : 'rilevazioni complete'
       })}
-      ${tileHTML({label:'Prossima sessione', accent:'var(--amber-dark)',
+      ${tileHTML({label:'Prossima seduta', accent:'var(--amber-dark)',
         value: prossimeSessions[0] ? `<span style="font-size:20px;">${fmtDate(prossimeSessions[0].date)}</span>` : '<span style="font-size:14px;color:var(--ink-soft);">—</span>',
         note: prossimeSessions[0] ? (prossimeSessions[0].md ? 'MD-' + prossimeSessions[0].md : (prossimeSessions[0].workoutIds || []).length + ' esercitazioni') : 'nessuna in calendario'
       })}
     </div>
 
-    ${urgenti.length > 0 ? `
-      <div class="card" style="border-left:3px solid var(--clay);">
-        <h3 style="color:var(--clay);">Da controllare oggi</h3>
-        ${urgenti.map(a=>`
-          <div class="alert-row" ${a.playerId?`data-player-id="${a.playerId}" style="cursor:pointer;"`:''}>
-            <div style="font-weight:600;font-size:13px;">${esc(a.text)}</div>
-            ${a.sub ? `<div style="font-size:11px;color:var(--ink-soft);">${esc(a.sub)}</div>` : ''}
-          </div>
-        `).join('')}
-      </div>
-    ` : ''}
+    ${renderMonitoraggioHTML(4)}
 
     ${acwrRischio.length > 0 ? `
       <div class="card">
-        <h3>Carico — chi rischia</h3>
+        <h3>Carico interno — atleti fuori zona</h3>
         ${acwrRischio.map(x=>`
           <div class="alert-row" data-player-id="${x.player.id}" style="cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;">
             <div>
               <div style="font-weight:600;font-size:13px;">${esc(x.player.name)}</div>
-              <div style="font-size:11px;color:var(--ink-soft);">carico settimana ${x.acwr.acute} UA · media 4 sett. ${x.acwr.chronicWeekly} UA</div>
+              <div style="font-size:11px;color:var(--ink-soft);">carico acuto ${x.acwr.acute} UA · carico cronico ${x.acwr.chronicWeekly} UA</div>
             </div>
             <div style="text-align:right;">
               <div style="font-size:16px;font-weight:700;color:${x.acwr.color};">${x.acwr.ratio}</div>
@@ -3979,7 +4136,7 @@ function renderDashboardPreparatore(el){
 
     ${w.peggiori.length > 0 ? `
       <div class="card">
-        <h3>Wellness — piu affaticati</h3>
+        <h3>Affaticamento percepito</h3>
         ${w.peggiori.map(x=>{
           const b = hooperBand(Math.round(x.avg));
           return `<div class="alert-row" data-player-id="${x.player.id}" style="cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;">
@@ -4016,6 +4173,9 @@ function renderDashboardPreparatore(el){
   if(acwrTile) acwrTile.addEventListener('click', showAcwrDetail);
   el.querySelectorAll('[data-player-id]').forEach(row=>{
     row.addEventListener('click', ()=> showPlayerReport(row.dataset.playerId));
+  });
+  el.querySelectorAll('.monit-card').forEach(card=>{
+    card.addEventListener('click', ()=> showPlayerReport(card.dataset.playerId));
   });
 }
 
@@ -4140,6 +4300,9 @@ function renderDashboardFisio(el){
   bindDashboardFullBtn(el);
   el.querySelectorAll('[data-player-id]').forEach(row=>{
     row.addEventListener('click', ()=> showPlayerReport(row.dataset.playerId));
+  });
+  el.querySelectorAll('.monit-card').forEach(card=>{
+    card.addEventListener('click', ()=> showPlayerReport(card.dataset.playerId));
   });
 }
 
@@ -6905,7 +7068,7 @@ function renderGrafSquadra(el, days){
 
     <div class="card">
       <h3>ACWR di squadra</h3>
-      <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Rapporto carico settimana / media 4 settimane. Zone: verde ottimale (0.8-1.3), ambra in salita (1.3-1.5), rosso rischio (&gt;1.5).</div>
+      <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Rapporto carico acuto / media 4 settimane. Zone: verde ottimale (0.8-1.3), ambra in salita (1.3-1.5), rosso rischio (&gt;1.5).</div>
       ${lineChartSVG({
         series:[{name:'Media squadra', color:'#16352A', data:acwrData}],
         yLabel:'ACWR',
@@ -7298,7 +7461,7 @@ function renderPerfCarico(el){
         <h3 style="color:${colore};">${titolo} (${righe.length})</h3>
         ${righe.map(x=>`
           <div class="perf-row mini-row" data-player-id="${x.p.id}" style="cursor:pointer;border-bottom:1px solid var(--line);padding:8px 0;">
-            <span>${esc(x.p.name)}<br><span style="font-size:10.5px;color:var(--ink-soft);">settimana ${x.a.acute} UA · media 4 sett. ${x.a.chronicWeekly} UA</span></span>
+            <span>${esc(x.p.name)}<br><span style="font-size:10.5px;color:var(--ink-soft);">settimana ${x.a.acute} UA · carico cronico ${x.a.chronicWeekly} UA</span></span>
             <strong style="color:${x.a.color};">${x.a.ratio}</strong>
           </div>`).join('')}
       </div>`;
@@ -11922,10 +12085,10 @@ function renderOggiGiocatore(el){
     const sotto = esc(c.allenamento.title || 'Allenamento') + (c.allenamento.time ? ' · ore ' + esc(c.allenamento.time) : '');
     if(c.puoPresenza && !c.presente){
       pendenti.push(scheda('fare', 'Allenamento di oggi', sotto,
-        `<button class="btn" id="oggiPresenteBtn" style="width:100%;padding:14px;font-size:15px;">Sono presente</button>`));
+        `<button class="btn" id="oggiPresenteBtn" style="width:100%;padding:14px;font-size:15px;">Registra presenza</button>`));
     } else if(c.presente){
       fatte.push(scheda('fatto', 'Allenamento di oggi', sotto + ' · sei segnato presente',
-        `<button type="button" id="oggiAssenteBtn" style="background:none;border:none;color:var(--ink-soft);font-size:12px;text-decoration:underline;cursor:pointer;padding:0;">Non ci sono piu', togli la presenza</button>`));
+        `<button type="button" id="oggiAssenteBtn" style="background:none;border:none;color:var(--ink-soft);font-size:12px;text-decoration:underline;cursor:pointer;padding:0;">Annulla la presenza registrata</button>`));
     } else {
       info.push(scheda(null, 'Allenamento di oggi', sotto,
         `<div style="font-size:12.5px;color:var(--ink-soft);">Con stato "${esc(statusMeta(c.player.status).label)}" la presenza la registra lo staff.</div>`));
@@ -11937,7 +12100,7 @@ function renderOggiGiocatore(el){
     const sc = hooperScore(c.wellness), b = hooperBand(sc);
     fatte.push(scheda('fatto', 'Wellness di oggi', `Freschezza <strong style="color:${b.color};">${hooperPercent(sc)}%</strong> · ${esc(b.label)}`, ''));
   } else {
-    pendenti.push(scheda('fare', 'Wellness di oggi', 'Quattro domande: tocca un numero da 1 a 7',
+    pendenti.push(scheda('fare', 'Wellness di oggi', 'Quattro voci, scala da 1 a 7',
       HOOPER_ITEMS.map(it => `
         <div style="margin-bottom:14px;">
           <div style="font-size:13.5px;font-weight:600;">${esc(it.label)}</div>
@@ -11960,16 +12123,16 @@ function renderOggiGiocatore(el){
     </div>`;
   const altriHtml = c.rpe.altri.length ? `
     <details style="margin-top:8px;">
-      <summary style="font-size:12px;color:var(--ink-soft);cursor:pointer;">Hai fatto un altro allenamento? (${c.rpe.altri.length})</summary>
+      <summary style="font-size:12px;color:var(--ink-soft);cursor:pointer;">Altre sedute compilabili (${c.rpe.altri.length})</summary>
       <div style="margin-top:8px;">${c.rpe.altri.map(rigaRpe).join('')}
-        <div style="font-size:11px;color:var(--ink-soft);">Inserendo l'RPE vieni segnato presente.</div>
+        <div style="font-size:11px;color:var(--ink-soft);">L'inserimento dell'RPE registra anche la presenza.</div>
       </div>
     </details>` : '';
   if(c.rpe.daFare.length){
     pendenti.push(scheda('fare', c.rpe.daFare.length === 1 ? 'RPE da inserire' : c.rpe.daFare.length + ' RPE da inserire',
       'Quanto e\' stata faticosa la sessione, da 1 a 10', c.rpe.daFare.map(rigaRpe).join('') + altriHtml));
   } else {
-    fatte.push(scheda('fatto', 'RPE', 'Nessun RPE in sospeso', altriHtml));
+    fatte.push(scheda('fatto', 'RPE', 'Nessun RPE da inserire', altriHtml));
   }
 
   /* --- Prossima partita: stato della convocazione --- */
@@ -11994,17 +12157,17 @@ function renderOggiGiocatore(el){
 
   /* --- Dolori: sempre a portata, non e' una cosa da fare --- */
   const aperti = getOpenPainIssues(pid);
-  const cardDolori = scheda(null, 'Dolori o fastidi',
-    aperti.length ? 'Segnalazioni aperte: ' + aperti.length : 'Se senti un dolore, segnalalo subito',
+  const cardDolori = scheda(null, 'Sintomatologia',
+    aperti.length ? 'Segnalazioni aperte: ' + aperti.length : 'Segnalazione di dolori e fastidi',
     (aperti.length ? aperti.slice(0, 4).map(d => `<div style="font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line);">${esc(d.zone)}${d.lastIntensity ? ' · ' + d.lastIntensity + '/10' : ''}<span style="color:var(--ink-soft);"> · ${esc(d.label)}</span></div>`).join('') : '') +
-    `<button class="btn secondary" id="oggiDoloreBtn" style="width:100%;padding:12px;font-size:14px;margin-top:${aperti.length ? '10px' : '0'};">Segnala un dolore</button>`);
+    `<button class="btn secondary" id="oggiDoloreBtn" style="width:100%;padding:12px;font-size:14px;margin-top:${aperti.length ? '10px' : '0'};">Segnala un dolore o un fastidio</button>`);
 
   const n = c.daFare;
   el.innerHTML = `
     <div class="page-head"><h1>Oggi</h1><p>${giorniNomi[oggiD.getDay()]} ${fmtDate(todayStr())} · ${esc(c.player.name)}</p></div>
     <div style="padding:16px;border-radius:10px;margin-bottom:16px;background:${n ? 'var(--warn-bg)' : 'var(--ok-bg)'};border:1px solid ${n ? 'var(--amber)' : 'var(--ok)'};">
-      <div style="font-family:Oswald,sans-serif;font-size:22px;font-weight:600;color:${n ? 'var(--amber-dark)' : 'var(--ok)'};">${n ? (n === 1 ? 'Hai 1 cosa da fare' : 'Hai ' + n + ' cose da fare') : 'Tutto fatto per oggi'}</div>
-      <div style="font-size:12.5px;color:var(--ink-soft);margin-top:2px;">${n ? 'Ci vuole meno di un minuto.' : 'Grazie. Se senti un dolore o un fastidio, segnalalo qui sotto.'}</div>
+      <div style="font-family:Oswald,sans-serif;font-size:22px;font-weight:600;color:${n ? 'var(--amber-dark)' : 'var(--ok)'};">${n ? 'Attivita da completare: ' + n : 'Nessuna attivita in sospeso'}</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);margin-top:2px;">${n ? 'Compila le voci in sospeso.' : 'Segnala eventuali dolori o fastidi nella sezione dedicata.'}</div>
     </div>
     ${pendenti.join('')}
     ${cardConv}
